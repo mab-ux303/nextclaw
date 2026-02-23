@@ -224,7 +224,7 @@ export function SessionsConfig() {
 
       <div className="flex items-center justify-between mb-6 shrink-0">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{t('sessionsPageTitle')}</h2>
+          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">{t('sessionsPageTitle')}</h2>
           <p className="text-sm text-gray-500 mt-1">{t('sessionsPageDescription')}</p>
         </div>
       </div>

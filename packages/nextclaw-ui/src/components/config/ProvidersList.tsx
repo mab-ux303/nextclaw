@@ -1,5 +1,5 @@
 import { useConfig, useConfigMeta, useConfigSchema } from '@/hooks/useConfig';
-import { KeyRound, Check, Settings, ArrowRight } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { useState } from 'react';
 import { ProviderForm } from './ProviderForm';
 import { useUiStore } from '@/stores/ui.store';
@@ -8,6 +8,9 @@ import { Tabs } from '@/components/ui/tabs-custom';
 import { LogoBadge } from '@/components/common/LogoBadge';
 import { getProviderLogo } from '@/lib/logos';
 import { hintForPath } from '@/lib/config-hints';
+import { ConfigCard, ConfigCardHeader, ConfigCardBody, ConfigCardFooter } from '@/components/ui/config-card';
+import { StatusDot } from '@/components/ui/status-dot';
+import { ActionLink } from '@/components/ui/action-link';
 
 export function ProvidersList() {
   const { data: config } = useConfig();
@@ -32,8 +35,8 @@ export function ProvidersList() {
 
   return (
     <div className="animate-fade-in pb-20">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">AI Providers</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-gray-900">AI Providers</h2>
       </div>
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
@@ -47,71 +50,42 @@ export function ProvidersList() {
           const description = providerHint?.help || 'Configure AI services for your agents';
 
           return (
-            <div
-              key={provider.name}
-              className={cn(
-                'group relative flex-col p-5 rounded-2xl border transition-all duration-base cursor-pointer',
-                'hover:shadow-card-hover hover:-translate-y-0.5',
-                hasConfig
-                  ? 'bg-white border-gray-200 shadow-sm'
-                  : 'bg-white border-transparent shadow-sm hover:border-gray-200'
-              )}
-              onClick={() => openProviderModal(provider.name)}
-            >
-              {/* Header with Logo and Status */}
-              <div className="flex items-start justify-between mb-4">
+            <ConfigCard key={provider.name} onClick={() => openProviderModal(provider.name)}>
+              <ConfigCardHeader>
                 <LogoBadge
                   name={provider.name}
                   src={getProviderLogo(provider.name)}
                   className={cn(
-                    'h-12 w-12 rounded-xl border transition-all',
+                    'h-11 w-11 rounded-xl border transition-all',
                     hasConfig
-                      ? 'bg-white border-primary'
-                      : 'bg-white border-gray-200 group-hover:border-gray-300'
+                      ? 'bg-white border-primary/30'
+                      : 'bg-white border-gray-200/60 group-hover:border-gray-300'
                   )}
-                  imgClassName="h-7 w-7"
+                  imgClassName="h-6 w-6"
                   fallback={(
                     <span className={cn(
-                      'text-lg font-bold uppercase',
-                      hasConfig ? 'text-gray-900' : 'text-gray-500'
+                      'text-base font-semibold uppercase',
+                      hasConfig ? 'text-gray-800' : 'text-gray-400'
                     )}>
                       {provider.name[0]}
                     </span>
                   )}
                 />
+                <StatusDot
+                  status={hasConfig ? 'ready' : 'setup'}
+                  label={hasConfig ? 'Ready' : 'Setup'}
+                />
+              </ConfigCardHeader>
 
-                {/* Status Badge */}
-                {hasConfig ? (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600">
-                    <Check className="h-3.5 w-3.5" />
-                    <span className="text-[11px] font-bold">Ready</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
-                    <Settings className="h-3.5 w-3.5" />
-                    <span className="text-[11px] font-bold">Setup</span>
-                  </div>
-                )}
-              </div>
+              <ConfigCardBody
+                title={provider.displayName || provider.name}
+                description={description}
+              />
 
-              {/* Provider Info */}
-              <div className="flex-1">
-                <h3 className="text-[15px] font-bold text-gray-900 mb-1">
-                  {provider.displayName || provider.name}
-                </h3>
-                <p className="text-[12px] text-gray-500 leading-relaxed line-clamp-2">
-                  {description}
-                </p>
-              </div>
-
-              {/* Footer with Action */}
-              <div className="mt-4 pt-3">
-                <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-gray-600 group-hover:text-primary transition-colors cursor-pointer">
-                  {hasConfig ? 'Configure' : 'Add Provider'}
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </div>
-            </div>
+              <ConfigCardFooter>
+                <ActionLink label={hasConfig ? 'Configure' : 'Add Provider'} />
+              </ConfigCardFooter>
+            </ConfigCard>
           );
         })}
       </div>
@@ -119,14 +93,14 @@ export function ProvidersList() {
       {/* Empty State */}
       {filteredProviders.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="h-16 w-16 flex items-center justify-center rounded-2xl bg-gray-100 mb-4">
-            <KeyRound className="h-8 w-8 text-gray-400" />
+          <div className="h-14 w-14 flex items-center justify-center rounded-xl bg-gray-100/80 mb-4">
+            <KeyRound className="h-6 w-6 text-gray-300" />
           </div>
-          <h3 className="text-[15px] font-bold text-gray-900 mb-2">
+          <h3 className="text-[14px] font-semibold text-gray-900 mb-1.5">
             No providers configured
           </h3>
-          <p className="text-[13px] text-gray-500 max-w-sm">
-            Add an AI provider to start using the platform. Click on any provider to configure it.
+          <p className="text-[13px] text-gray-400 max-w-sm">
+            Add an AI provider to start using the platform.
           </p>
         </div>
       )}

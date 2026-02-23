@@ -10,11 +10,11 @@ function AppLayoutInner({ children }: AppLayoutProps) {
   useDocLinkInterceptor();
 
   return (
-    <div className="h-screen flex bg-white font-sans text-foreground">
+    <div className="h-screen flex bg-background font-sans text-foreground">
       <Sidebar />
       <div className="flex-1 flex min-w-0 overflow-hidden relative">
-        <div className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden">
-          <main className="flex-1 overflow-auto custom-scrollbar p-10">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <main className="flex-1 overflow-auto custom-scrollbar p-8">
             <div className="max-w-6xl mx-auto animate-fade-in h-full">
               {children}
             </div>

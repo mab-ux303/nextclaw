@@ -19,43 +19,31 @@
     --popover: 0 0% 100%;
     --popover-foreground: 221 39% 11%;
 
-    /* Primary: Brand Blue */
+    /* Primary: Blue */
     --primary: 217 80% 55%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Light Gray */
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 215 28% 17%;
+    /* Secondary */
+    --secondary: 214 18% 96%;
+    --secondary-foreground: 219 18% 18%;
 
     /* Muted */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 214 18% 96%;
+    --muted-foreground: 216 6% 46%;
 
     /* Accent */
     --accent: 217 100% 97%;
-    --accent-foreground: 217 70% 40%;
+    --accent-foreground: 217 60% 35%;
 
     /* Destructive */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
     /* UI Elements */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    --border: 213 14% 90%;
+    --input: 213 14% 90%;
     --ring: 217 80% 55%;
     --radius: 0.75rem;
-
-    /* Legacy compatibility */
-    --milk-50: 210 20% 98%;
-    --milk-100: 220 14% 96%;
-    --milk-200: 220 13% 91%;
-    --milk-300: 216 12% 84%;
-    --milk-400: 218 11% 65%;
-    --milk-500: 220 9% 46%;
-    --milk-600: 215 14% 34%;
-    --milk-700: 217 19% 27%;
-    --milk-800: 215 28% 17%;
-    --milk-900: 221 39% 11%;
   }
 }
 
@@ -89,8 +77,8 @@
      SCROLLBAR
      ======================================== */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
@@ -110,14 +98,14 @@
      GLASSMORPHISM
      ======================================== */
   .glass {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
 
   .glass-dark {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.06);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -127,19 +115,19 @@
      SHADOWS
      ======================================== */
   .shadow-card {
-    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 1px 3px -1px rgba(30, 20, 10, 0.03), 0 1px 2px -1px rgba(30, 20, 10, 0.02);
   }
 
   .shadow-card-hover {
-    box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.06), 0 4px 8px -4px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 8px 20px -4px rgba(30, 20, 10, 0.06), 0 4px 8px -4px rgba(30, 20, 10, 0.03);
   }
 
   .shadow-premium {
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08), 0 4px 10px -4px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 8px 24px -8px rgba(30, 20, 10, 0.06), 0 4px 10px -4px rgba(30, 20, 10, 0.03);
   }
 
   .shadow-premium-hover {
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 8px 15px -6px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 16px 32px -12px rgba(30, 20, 10, 0.1), 0 6px 12px -4px rgba(30, 20, 10, 0.04);
   }
 
   /* ========================================
@@ -169,7 +157,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
 
   to {
@@ -181,7 +169,7 @@
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateX(-12px);
+    transform: translateX(-8px);
   }
 
   to {
@@ -193,7 +181,7 @@
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: scale(0.97);
+    transform: scale(0.98);
   }
 
   to {
@@ -210,20 +198,20 @@
   }
 
   50% {
-    opacity: 0.8;
+    opacity: 0.85;
   }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-slide-in {
-  animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-scale-in {
-  animation: scaleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-pulse-soft {

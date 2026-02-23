@@ -1,37 +1,37 @@
 /**
  * NextClaw Design System
- * Inspired by modern SaaS landing pages (e.g., 推理时代)
- * Clean, professional, with blue accent
+ * Warm minimalist palette inspired by YouWare + YouMind
+ * Warm amber brand, warm neutral grays, refined details
  */
 
 @layer base {
    :root {
       /* ========================================
-       BRAND COLORS
+       BRAND COLORS (Blue)
        ======================================== */
       --brand-50: 217 100% 97%;
-      --brand-100: 217 100% 94%;
-      --brand-200: 217 95% 87%;
-      --brand-300: 217 90% 77%;
-      --brand-400: 217 85% 65%;
+      --brand-100: 217 95% 92%;
+      --brand-200: 217 90% 82%;
+      --brand-300: 217 80% 68%;
+      --brand-400: 217 72% 56%;
       --brand-500: 217 80% 55%;
-      --brand-600: 217 75% 48%;
-      --brand-700: 217 70% 40%;
-      --brand-800: 217 65% 33%;
+      --brand-600: 217 70% 45%;
+      --brand-700: 217 60% 35%;
+      --brand-800: 217 55% 28%;
       --brand-900: 217 60% 25%;
 
       /* ========================================
        NEUTRAL COLORS (Gray Scale)
        ======================================== */
       --gray-50: 210 20% 98%;
-      --gray-100: 220 14% 96%;
-      --gray-200: 220 13% 91%;
-      --gray-300: 216 12% 84%;
-      --gray-400: 218 11% 65%;
-      --gray-500: 220 9% 46%;
-      --gray-600: 215 14% 34%;
-      --gray-700: 217 19% 27%;
-      --gray-800: 215 28% 17%;
+      --gray-100: 214 18% 96%;
+      --gray-200: 213 14% 90%;
+      --gray-300: 212 10% 83%;
+      --gray-400: 215 8% 64%;
+      --gray-500: 216 6% 46%;
+      --gray-600: 215 10% 34%;
+      --gray-700: 217 14% 26%;
+      --gray-800: 219 18% 18%;
       --gray-900: 221 39% 11%;
 
       /* ========================================
@@ -39,33 +39,33 @@
        ======================================== */
       /* Background */
       --background: 210 20% 98%;
-      --background-secondary: 220 14% 96%;
-      --background-tertiary: 220 13% 91%;
+      --background-secondary: 214 18% 96%;
+      --background-tertiary: 213 14% 90%;
 
       /* Foreground (Text) */
       --foreground: 221 39% 11%;
-      --foreground-secondary: 215 28% 17%;
-      --foreground-tertiary: 220 9% 46%;
-      --foreground-muted: 218 11% 65%;
+      --foreground-secondary: 219 18% 18%;
+      --foreground-tertiary: 216 6% 46%;
+      --foreground-muted: 215 8% 64%;
 
-      /* Primary (Brand Blue) */
+      /* Primary (Brand) */
       --primary: 217 80% 55%;
-      --primary-hover: 217 75% 48%;
-      --primary-active: 217 70% 40%;
+      --primary-hover: 217 70% 45%;
+      --primary-active: 217 60% 35%;
       --primary-foreground: 0 0% 100%;
 
       /* Secondary */
-      --secondary: 220 14% 96%;
-      --secondary-hover: 220 13% 91%;
-      --secondary-foreground: 215 28% 17%;
+      --secondary: 214 18% 96%;
+      --secondary-hover: 213 14% 90%;
+      --secondary-foreground: 219 18% 18%;
 
       /* Accent */
       --accent: 217 100% 97%;
-      --accent-foreground: 217 70% 40%;
+      --accent-foreground: 217 60% 35%;
 
       /* Muted */
-      --muted: 220 14% 96%;
-      --muted-foreground: 220 9% 46%;
+      --muted: 214 18% 96%;
+      --muted-foreground: 216 6% 46%;
 
       /* Destructive */
       --destructive: 0 84% 60%;
@@ -85,20 +85,20 @@
       /* Card */
       --card: 0 0% 100%;
       --card-foreground: 221 39% 11%;
-      --card-border: 220 13% 91%;
+      --card-border: 213 14% 90%;
 
       /* Popover */
       --popover: 0 0% 100%;
       --popover-foreground: 221 39% 11%;
 
       /* Border */
-      --border: 220 13% 91%;
-      --border-hover: 216 12% 84%;
+      --border: 213 14% 90%;
+      --border-hover: 212 10% 83%;
       --border-active: 217 80% 55%;
 
       /* Input */
       --input: 0 0% 100%;
-      --input-border: 220 13% 91%;
+      --input-border: 213 14% 90%;
       --input-focus: 217 80% 55%;
 
       /* Ring (Focus) */
@@ -123,7 +123,7 @@
       --space-24: 96px;
 
       /* ========================================
-       BORDER RADIUS
+       BORDER RADIUS (YouMind-style generous rounding)
        ======================================== */
       --radius-sm: 6px;
       --radius-md: 8px;
@@ -134,23 +134,23 @@
       --radius-full: 9999px;
 
       /* ========================================
-       SHADOWS
+       SHADOWS (Warmer tint)
        ======================================== */
-      --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-      --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-      --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+      --shadow-xs: 0 1px 2px 0 rgb(30 20 10 / 0.04);
+      --shadow-sm: 0 1px 3px 0 rgb(30 20 10 / 0.06), 0 1px 2px -1px rgb(30 20 10 / 0.04);
+      --shadow-md: 0 4px 6px -1px rgb(30 20 10 / 0.06), 0 2px 4px -2px rgb(30 20 10 / 0.04);
+      --shadow-lg: 0 10px 15px -3px rgb(30 20 10 / 0.06), 0 4px 6px -4px rgb(30 20 10 / 0.04);
+      --shadow-xl: 0 20px 25px -5px rgb(30 20 10 / 0.08), 0 8px 10px -6px rgb(30 20 10 / 0.04);
+      --shadow-2xl: 0 25px 50px -12px rgb(30 20 10 / 0.15);
 
-      /* Card Shadow - Softer, more diffuse for premium feel */
-      --shadow-card: 0 2px 8px -2px rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
-      --shadow-card-hover: 0 12px 24px -4px rgba(0, 0, 0, 0.06), 0 4px 8px -4px rgba(0, 0, 0, 0.03);
+      /* Card Shadow */
+      --shadow-card: 0 1px 3px -1px rgba(30, 20, 10, 0.03), 0 1px 2px -1px rgba(30, 20, 10, 0.02);
+      --shadow-card-hover: 0 8px 20px -4px rgba(30, 20, 10, 0.06), 0 4px 8px -4px rgba(30, 20, 10, 0.03);
 
       /* ========================================
        TYPOGRAPHY
        ======================================== */
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
       /* Font Sizes */
@@ -231,6 +231,10 @@
       color: hsl(var(--brand-600));
    }
 
+   .text-brand-700 {
+      color: hsl(var(--brand-700));
+   }
+
    .border-brand-500 {
       border-color: hsl(var(--brand-500));
    }
@@ -276,7 +280,7 @@
 
    /* Glass Effect */
    .glass {
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.85);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
    }

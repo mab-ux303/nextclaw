@@ -144,7 +144,7 @@ export function CronConfig() {
     <div className="h-[calc(100vh-80px)] w-full max-w-[1200px] mx-auto animate-fade-in flex flex-col pt-6 pb-2">
       <div className="flex items-center justify-between mb-6 shrink-0">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{t('cronPageTitle')}</h2>
+          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">{t('cronPageTitle')}</h2>
           <p className="text-sm text-gray-500 mt-1">{t('cronPageDescription')}</p>
         </div>
         <Button
@@ -157,36 +157,34 @@ export function CronConfig() {
         </Button>
       </div>
 
-      <Card hover={false} className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[240px]">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('cronSearchPlaceholder')}
-                className="pl-9"
-              />
-              <AlarmClock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            </div>
-            <div className="min-w-[180px]">
-              <Select value={status} onValueChange={(value) => setStatus(value as StatusFilter)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={t('cronStatusLabel')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('cronStatusAll')}</SelectItem>
-                  <SelectItem value="enabled">{t('cronStatusEnabled')}</SelectItem>
-                  <SelectItem value="disabled">{t('cronStatusDisabled')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="text-xs text-gray-500 ml-auto">
-              {t('cronTotalLabel')}: {cronQuery.data?.total ?? 0} / {jobs.length}
-            </div>
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[240px]">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('cronSearchPlaceholder')}
+              className="pl-9"
+            />
+            <AlarmClock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="min-w-[180px]">
+            <Select value={status} onValueChange={(value) => setStatus(value as StatusFilter)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('cronStatusLabel')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('cronStatusAll')}</SelectItem>
+                <SelectItem value="enabled">{t('cronStatusEnabled')}</SelectItem>
+                <SelectItem value="disabled">{t('cronStatusDisabled')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-xs text-gray-500 ml-auto">
+            {t('cronTotalLabel')}: {cronQuery.data?.total ?? 0} / {jobs.length}
+          </div>
+        </div>
+      </div>
 
       <div className="flex-1 overflow-auto custom-scrollbar">
         {cronQuery.isLoading ? (

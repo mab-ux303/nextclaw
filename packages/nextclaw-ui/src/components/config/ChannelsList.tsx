@@ -1,13 +1,16 @@
 import { useConfig, useConfigMeta, useConfigSchema } from '@/hooks/useConfig';
-import { MessageCircle, Mail, MessageSquare, Slack, ExternalLink, Bell, Zap, Radio, ArrowRight } from 'lucide-react';
+import { MessageCircle, Mail, MessageSquare, Slack, ExternalLink, Bell, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { ChannelForm } from './ChannelForm';
 import { useUiStore } from '@/stores/ui.store';
-import { cn } from '@/lib/utils';
 import { Tabs } from '@/components/ui/tabs-custom';
 import { LogoBadge } from '@/components/common/LogoBadge';
 import { getChannelLogo } from '@/lib/logos';
 import { hintForPath } from '@/lib/config-hints';
+import { ConfigCard, ConfigCardHeader, ConfigCardBody, ConfigCardFooter } from '@/components/ui/config-card';
+import { StatusDot } from '@/components/ui/status-dot';
+import { ActionLink } from '@/components/ui/action-link';
+import { cn } from '@/lib/utils';
 
 const channelIcons: Record<string, typeof MessageCircle> = {
   telegram: MessageCircle,
@@ -50,8 +53,8 @@ export function ChannelsList() {
 
   return (
     <div className="animate-fade-in pb-20">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Message Channels</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-gray-900">Message Channels</h2>
       </div>
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
@@ -69,76 +72,47 @@ export function ChannelsList() {
             'Configure this communication channel';
 
           return (
-            <div
-              key={channel.name}
-              className={cn(
-                'group relative flex flex-col p-5 rounded-2xl border transition-all duration-base cursor-pointer',
-                'hover:shadow-card-hover hover:-translate-y-0.5',
-                enabled
-                  ? 'bg-white border-gray-200 shadow-sm'
-                  : 'bg-white border-transparent shadow-sm hover:border-gray-200'
-              )}
-              onClick={() => openChannelModal(channel.name)}
-            >
-              {/* Header with Icon and Status */}
-              <div className="flex items-start justify-between mb-4">
+            <ConfigCard key={channel.name} onClick={() => openChannelModal(channel.name)}>
+              <ConfigCardHeader>
                 <LogoBadge
                   name={channel.name}
                   src={getChannelLogo(channel.name)}
                   className={cn(
-                    'h-12 w-12 rounded-xl border transition-all',
+                    'h-11 w-11 rounded-xl border transition-all',
                     enabled
-                      ? 'bg-white border-primary'
-                      : 'bg-white border-gray-200 group-hover:border-gray-300'
+                      ? 'bg-white border-primary/30'
+                      : 'bg-white border-gray-200/60 group-hover:border-gray-300'
                   )}
-                  imgClassName="h-6 w-6"
-                  fallback={<Icon className="h-6 w-6" />}
+                  imgClassName="h-5 w-5"
+                  fallback={<Icon className="h-5 w-5" />}
                 />
+                <StatusDot
+                  status={enabled ? 'active' : 'inactive'}
+                  label={enabled ? 'Active' : 'Inactive'}
+                />
+              </ConfigCardHeader>
 
-                {/* Status Badge */}
-                {enabled ? (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600">
-                    <Zap className="h-3.5 w-3.5" />
-                    <span className="text-[11px] font-bold">Active</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
-                    <Radio className="h-3.5 w-3.5" />
-                    <span className="text-[11px] font-bold">Inactive</span>
-                  </div>
-                )}
-              </div>
+              <ConfigCardBody
+                title={channel.displayName || channel.name}
+                description={description}
+              />
 
-              {/* Channel Info */}
-              <div className="flex-1">
-                <h3 className="text-[15px] font-bold text-gray-900 mb-1">
-                  {channel.displayName || channel.name}
-                </h3>
-                <p className="text-[12px] text-gray-500 leading-relaxed line-clamp-2">
-                  {description}
-                </p>
-              </div>
-
-              {/* Footer with Actions */}
-              <div className="mt-4 pt-3 flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-gray-600 group-hover:text-primary transition-colors cursor-pointer">
-                  {enabled ? 'Configure' : 'Enable'}
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                </span>
+              <ConfigCardFooter>
+                <ActionLink label={enabled ? 'Configure' : 'Enable'} />
                 {channel.tutorialUrl && (
                   <a
                     href={channel.tutorialUrl}
                     target="_blank"
                     rel="noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="flex items-center justify-center h-7 w-7 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                    className="flex items-center justify-center h-6 w-6 rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100/60 transition-colors"
                     title="View Guide"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 )}
-              </div>
-            </div>
+              </ConfigCardFooter>
+            </ConfigCard>
           );
         })}
       </div>
@@ -146,14 +120,14 @@ export function ChannelsList() {
       {/* Empty State */}
       {filteredChannels.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="h-16 w-16 flex items-center justify-center rounded-2xl bg-gray-100 mb-4">
-            <MessageSquare className="h-8 w-8 text-gray-400" />
+          <div className="h-14 w-14 flex items-center justify-center rounded-xl bg-gray-100/80 mb-4">
+            <MessageSquare className="h-6 w-6 text-gray-300" />
           </div>
-          <h3 className="text-[15px] font-bold text-gray-900 mb-2">
+          <h3 className="text-[14px] font-semibold text-gray-900 mb-1.5">
             No channels enabled
           </h3>
-          <p className="text-[13px] text-gray-500 max-w-sm">
-            Enable a messaging channel to start receiving messages. Click on any channel to configure it.
+          <p className="text-[13px] text-gray-400 max-w-sm">
+            Enable a messaging channel to start receiving messages.
           </p>
         </div>
       )}

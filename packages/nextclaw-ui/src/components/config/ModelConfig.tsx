@@ -69,7 +69,7 @@ export function ModelConfig() {
   return (
     <div className="max-w-4xl animate-fade-in pb-20">
       <div className="mb-10">
-        <h2 className="text-2xl font-bold text-gray-900">Model Configuration</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Model Configuration</h2>
         <p className="text-sm text-gray-500 mt-1">Configure default AI model and runtime limits</p>
       </div>
 

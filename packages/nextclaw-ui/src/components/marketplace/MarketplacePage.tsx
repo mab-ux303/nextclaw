@@ -142,8 +142,8 @@ function matchInstalledSearch(
 
 function getAvatarColor(text: string) {
   const colors = [
-    'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500',
-    'bg-rose-500', 'bg-orange-500', 'bg-emerald-500', 'bg-teal-500', 'bg-cyan-500'
+    'bg-amber-600', 'bg-orange-500', 'bg-yellow-600', 'bg-emerald-600',
+    'bg-teal-600', 'bg-cyan-600', 'bg-stone-600', 'bg-rose-500', 'bg-violet-500'
   ];
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
@@ -157,7 +157,7 @@ function ItemIcon({ name, fallback }: { name?: string; fallback: string }) {
   const letters = displayName.substring(0, 2).toUpperCase();
   const colorClass = getAvatarColor(displayName);
   return (
-    <div className={cn("flex items-center justify-center w-11 h-11 rounded-2xl text-white font-bold text-base shrink-0 shadow-sm", colorClass)}>
+    <div className={cn("flex items-center justify-center w-10 h-10 rounded-xl text-white font-semibold text-sm shrink-0", colorClass)}>
       {letters}
     </div>
   );
@@ -173,7 +173,7 @@ function FilterPanel(props: {
   onSortChange: (value: MarketplaceSort) => void;
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+    <div className="mb-4">
       <div className="flex gap-3 items-center">
         <div className="flex-1 min-w-0 relative">
           <PackageSearch className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -181,11 +181,11 @@ function FilterPanel(props: {
             value={props.searchText}
             onChange={(event) => props.onSearchTextChange(event.target.value)}
             placeholder="Search extensions..."
-            className="w-full h-9 border border-gray-200 rounded-lg pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full h-9 border border-gray-200/80 rounded-xl pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary/40"
           />
         </div>
 
-        <div className="inline-flex h-9 rounded-lg bg-gray-100 p-0.5 shrink-0">
+        <div className="inline-flex h-9 rounded-xl bg-gray-100/80 p-1 shrink-0">
           {([
             { value: 'all', label: 'All' },
             { value: 'plugin', label: 'Plugins' },
@@ -196,7 +196,7 @@ function FilterPanel(props: {
               type="button"
               onClick={() => props.onTypeFilterChange(opt.value)}
               className={cn(
-                'px-3 rounded-md text-sm font-medium transition-all whitespace-nowrap',
+                'px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap',
                 props.typeFilter === opt.value
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
@@ -252,7 +252,7 @@ function MarketplaceListCard(props: {
   const displayType = type === 'plugin' ? 'Plugin' : type === 'skill' ? 'Skill' : 'Extension';
 
   return (
-    <article className="group bg-white border border-transparent hover:border-gray-200 rounded-xl px-4 py-3 hover:shadow-sm transition-all flex items-start gap-4 justify-between cursor-default h-[90px]">
+    <article className="group bg-white border border-gray-200/40 hover:border-gray-200/80 rounded-2xl px-5 py-4 hover:shadow-md shadow-sm transition-all flex items-start gap-3.5 justify-between cursor-default">
       <div className="flex gap-3 min-w-0 flex-1 h-full items-start">
         <ItemIcon name={title} fallback={spec || 'Ext'} />
         <div className="min-w-0 flex-1 flex flex-col justify-center h-full">
@@ -302,7 +302,7 @@ function MarketplaceListCard(props: {
           <button
             onClick={() => props.onInstall(props.item as MarketplaceItemSummary)}
             disabled={props.installState.isPending}
-            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-xs font-semibold bg-gray-900 text-white hover:bg-black disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-medium bg-primary text-white hover:bg-primary-600 disabled:opacity-50 transition-colors"
           >
             {isInstalling ? 'Installing...' : 'Install'}
           </button>
@@ -312,7 +312,7 @@ function MarketplaceListCard(props: {
           <button
             disabled={props.manageState.isPending}
             onClick={() => props.onManage(isDisabled ? 'enable' : 'disable', pluginRecord)}
-            className="inline-flex items-center h-8 px-4 rounded-full text-xs font-semibold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center h-8 px-4 rounded-xl text-xs font-medium border border-gray-200/80 text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 transition-colors"
           >
             {busyForRecord && props.manageState.action !== 'uninstall'
               ? (props.manageState.action === 'enable' ? 'Enabling...' : 'Disabling...')
@@ -324,7 +324,7 @@ function MarketplaceListCard(props: {
           <button
             disabled={props.manageState.isPending}
             onClick={() => props.onManage('uninstall', record)}
-            className="inline-flex items-center h-8 px-4 rounded-full text-xs font-semibold border border-rose-100 text-rose-600 bg-white hover:bg-rose-50 hover:border-rose-200 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center h-8 px-4 rounded-xl text-xs font-medium border border-rose-100 text-rose-500 bg-white hover:bg-rose-50 hover:border-rose-200 disabled:opacity-50 transition-colors"
           >
             {busyForRecord && props.manageState.action === 'uninstall' ? 'Removing...' : 'Uninstall'}
           </button>
@@ -344,7 +344,7 @@ function PaginationBar(props: {
   return (
     <div className="mt-4 flex items-center justify-end gap-2">
       <button
-        className="h-8 px-3 rounded-lg border border-gray-200 text-sm text-gray-700 disabled:opacity-40"
+        className="h-8 px-3 rounded-xl border border-gray-200/80 text-sm text-gray-600 disabled:opacity-40"
         onClick={props.onPrev}
         disabled={props.page <= 1 || props.busy}
       >
@@ -354,7 +354,7 @@ function PaginationBar(props: {
         {props.totalPages === 0 ? '0 / 0' : `${props.page} / ${props.totalPages}`}
       </div>
       <button
-        className="h-8 px-3 rounded-lg border border-gray-200 text-sm text-gray-700 disabled:opacity-40"
+        className="h-8 px-3 rounded-xl border border-gray-200/80 text-sm text-gray-600 disabled:opacity-40"
         onClick={props.onNext}
         disabled={props.totalPages === 0 || props.page >= props.totalPages || props.busy}
       >
@@ -513,9 +513,9 @@ export function MarketplacePage() {
 
   return (
     <div className="animate-fade-in pb-20">
-      <div className="mb-5">
-        <h2 className="text-2xl font-bold text-gray-900">Marketplace</h2>
-        <p className="text-[13px] text-gray-500 mt-1">A cleaner extension list focused on install / enable / disable.</p>
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">Marketplace</h2>
+        <p className="text-[12px] text-gray-400 mt-0.5">A cleaner extension list focused on install / enable / disable.</p>
       </div>
 
       <Tabs
@@ -546,7 +546,7 @@ export function MarketplacePage() {
 
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[15px] font-bold text-gray-900">{scope === 'installed' ? 'Installed' : 'Extensions'}</h3>
+          <h3 className="text-[14px] font-semibold text-gray-900">{scope === 'installed' ? 'Installed' : 'Extensions'}</h3>
           <span className="text-[12px] text-gray-500">{listSummary}</span>
         </div>
 
