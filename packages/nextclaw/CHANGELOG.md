@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.8.8
+
+### Patch Changes
+
+- fix: sync marketplace toggle state and refresh list data after manage actions
+
 ## 0.8.7
 
 ### Patch Changes

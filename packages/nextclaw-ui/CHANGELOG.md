@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.5.4
+
+### Patch Changes
+
+- fix: sync marketplace toggle state and refresh list data after manage actions
+
 ## 0.5.3
 
 ### Patch Changes
