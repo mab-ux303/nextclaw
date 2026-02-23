@@ -71,6 +71,10 @@ nextclaw stop   # stop the service
 
 ![Config UI](images/screenshots/nextclaw-ui-screenshot.png)
 
+**AI Providers** — configure OpenRouter, OpenAI, MiniMax, DashScope, and more; view configured vs all providers:
+
+![AI Providers](images/screenshots/nextclaw-providers-page.png)
+
 **Message Channels** — enable and configure Discord, Feishu, QQ, and more:
 
 ![Message Channels](images/screenshots/nextclaw-channels-page.png)
