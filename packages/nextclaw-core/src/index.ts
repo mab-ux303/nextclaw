@@ -1,6 +1,7 @@
 export * from "./agent/loop.js";
 export * from "./agent/route-resolver.js";
-export * from "./agent/skills.js";
+export { SkillsLoader } from "./agent/skills.js";
+export type { SkillInfo } from "./agent/skills.js";
 export * from "./agent/tools/gateway.js";
 export * from "./agent/tools/memory.js";
 export * from "./bus/events.js";

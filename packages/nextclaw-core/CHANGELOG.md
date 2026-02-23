@@ -1,5 +1,14 @@
 # nextclaw-core
 
+## 0.6.28
+
+### Patch Changes
+
+- fix SkillsLoader import crash during update/restart startup.
+  - avoid static named import of `SkillsLoader` in runtime-critical paths
+  - gracefully handle missing runtime export to prevent ESM load-time crash
+  - make core export of `SkillsLoader` explicit for release safety
+
 ## 0.6.27
 
 ### Patch Changes

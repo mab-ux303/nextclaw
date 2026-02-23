@@ -1,25 +1,4 @@
-import {
-  APP_NAME,
-  ChannelManager,
-  CronService,
-  getApiBase,
-  getConfigPath,
-  getDataDir,
-  getProvider,
-  getProviderName,
-  getWorkspacePath,
-  HeartbeatService,
-  LiteLLMProvider,
-  SkillsLoader,
-  type LLMProvider,
-  loadConfig,
-  MessageBus,
-  ProviderManager,
-  saveConfig,
-  SessionManager,
-  parseAgentScopedSessionKey,
-  type Config
-} from "@nextclaw/core";
+import * as NextclawCore from "@nextclaw/core";
 import {
   getPluginChannelBindings,
   resolvePluginChannelMessageToolHints,
@@ -66,6 +45,49 @@ import {
   parseSessionKey
 } from "../restart-sentinel.js";
 import { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
+
+const {
+  APP_NAME,
+  ChannelManager,
+  CronService,
+  getApiBase,
+  getConfigPath,
+  getDataDir,
+  getProvider,
+  getProviderName,
+  getWorkspacePath,
+  HeartbeatService,
+  LiteLLMProvider,
+  loadConfig,
+  MessageBus,
+  ProviderManager,
+  saveConfig,
+  SessionManager,
+  parseAgentScopedSessionKey
+} = NextclawCore;
+
+type Config = NextclawCore.Config;
+type LLMProvider = NextclawCore.LLMProvider;
+type MessageBus = NextclawCore.MessageBus;
+type SessionManager = NextclawCore.SessionManager;
+type LiteLLMProvider = NextclawCore.LiteLLMProvider;
+type SkillInfo = {
+  name: string;
+  path: string;
+  source: "workspace" | "builtin";
+};
+type SkillsLoaderInstance = {
+  listSkills: (filterUnavailable?: boolean) => SkillInfo[];
+};
+type SkillsLoaderConstructor = new (workspace: string, builtinSkillsDir?: string) => SkillsLoaderInstance;
+
+function createSkillsLoader(workspace: string): SkillsLoaderInstance | null {
+  const ctor = (NextclawCore as { SkillsLoader?: SkillsLoaderConstructor }).SkillsLoader;
+  if (!ctor) {
+    return null;
+  }
+  return new ctor(workspace);
+}
 
 export class ServiceCommands {
   constructor(
@@ -876,8 +898,8 @@ export class ServiceCommands {
       };
     }
 
-    const loader = new SkillsLoader(workspace);
-    const builtin = loader.listSkills(false).find((skill) => skill.name === slug && skill.source === "builtin");
+    const loader = createSkillsLoader(workspace);
+    const builtin = (loader?.listSkills(false) ?? []).find((skill) => skill.name === slug && skill.source === "builtin");
 
     if (!builtin) {
       if (existsSync(destinationSkillFile)) {

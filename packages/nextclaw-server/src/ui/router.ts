@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { SkillsLoader, getWorkspacePathFromConfig } from "@nextclaw/core";
+import * as NextclawCore from "@nextclaw/core";
 import { buildPluginStatusReport } from "@nextclaw/openclaw-compat";
 import {
   buildConfigSchemaView,
@@ -40,6 +40,18 @@ type UiRouterOptions = {
   marketplace?: MarketplaceApiConfig;
 };
 
+type SkillInfo = {
+  name: string;
+  path: string;
+  source: "workspace" | "builtin";
+};
+
+type SkillsLoaderInstance = {
+  listSkills: (filterUnavailable?: boolean) => SkillInfo[];
+};
+
+type SkillsLoaderConstructor = new (workspace: string, builtinSkillsDir?: string) => SkillsLoaderInstance;
+
 const DEFAULT_MARKETPLACE_API_BASE = "https://marketplace-api.nextclaw.io";
 
 const NEXTCLAW_PLUGIN_NPM_PREFIX = "@nextclaw/channel-plugin-";
@@ -47,6 +59,15 @@ const CLAWBAY_CHANNEL_PLUGIN_NPM_SPEC = "@clawbay/clawbay-channel";
 const BUILTIN_CHANNEL_PLUGIN_ID_PREFIX = "builtin-channel-";
 const MARKETPLACE_REMOTE_PAGE_SIZE = 100;
 const MARKETPLACE_REMOTE_MAX_PAGES = 20;
+const getWorkspacePathFromConfig = NextclawCore.getWorkspacePathFromConfig;
+
+function createSkillsLoader(workspace: string): SkillsLoaderInstance | null {
+  const ctor = (NextclawCore as { SkillsLoader?: SkillsLoaderConstructor }).SkillsLoader;
+  if (!ctor) {
+    return null;
+  }
+  return new ctor(workspace);
+}
 
 function normalizePluginNpmSpec(rawSpec: string): string {
   const spec = rawSpec.trim();
@@ -405,9 +426,9 @@ function collectMarketplaceInstalledView(options: UiRouterOptions): MarketplaceI
   const pluginSpecSet = new Set(dedupedPluginRecords.map((record) => record.spec));
 
   const workspacePath = getWorkspacePathFromConfig(config);
-  const skillsLoader = new SkillsLoader(workspacePath);
-  const availableSkillSet = new Set(skillsLoader.listSkills(true).map((skill) => skill.name));
-  const listedSkills = skillsLoader.listSkills(false);
+  const skillsLoader = createSkillsLoader(workspacePath);
+  const availableSkillSet = new Set((skillsLoader?.listSkills(true) ?? []).map((skill) => skill.name));
+  const listedSkills = skillsLoader?.listSkills(false) ?? [];
   const skillSpecSet = new Set<string>();
   const skillRecords: MarketplaceInstalledRecord[] = listedSkills.map((skill) => {
     const enabled = availableSkillSet.has(skill.name);
@@ -459,8 +480,8 @@ function toPositiveInt(raw: string | undefined, fallback: number): number {
 
 function collectKnownSkillNames(options: UiRouterOptions): Set<string> {
   const config = loadConfigOrDefault(options.configPath);
-  const loader = new SkillsLoader(getWorkspacePathFromConfig(config));
-  return new Set(loader.listSkills(false).map((skill) => skill.name));
+  const loader = createSkillsLoader(getWorkspacePathFromConfig(config));
+  return new Set((loader?.listSkills(false) ?? []).map((skill) => skill.name));
 }
 
 function isSupportedMarketplaceItem(
