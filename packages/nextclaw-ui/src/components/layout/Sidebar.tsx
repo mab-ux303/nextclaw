@@ -58,7 +58,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-[240px] shrink-0 flex flex-col h-full py-6 px-4 bg-[#e9ecf3]">
+    <aside className="w-[240px] shrink-0 flex flex-col h-full py-6 px-4 bg-secondary">
       {/* Logo Area */}
       <div className="px-2 mb-8">
         <div className="flex items-center gap-2.5 cursor-pointer">
@@ -82,15 +82,15 @@ export function Sidebar() {
                   className={({ isActive }) => cn(
                     'group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-base',
                     isActive
-                      ? 'bg-primary/10 text-primary font-semibold'
-                      : 'text-gray-600 hover:bg-[#e4e7ef] hover:text-gray-800'
+                      ? 'bg-gray-200 text-gray-900 font-semibold shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-200/60 hover:text-gray-900'
                   )}
                 >
                   {({ isActive }) => (
                     <>
                       <Icon className={cn(
                         'h-[17px] w-[17px] transition-colors',
-                        isActive ? 'text-primary' : 'text-gray-400'
+                        isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-800'
                       )} />
                       <span className="flex-1 text-left">{item.label}</span>
                     </>

@@ -171,10 +171,10 @@ const channelIcons: Record<string, typeof MessageCircle> = {
 };
 
 const channelColors: Record<string, string> = {
-  telegram: 'from-sky-400 to-blue-500',
-  slack: 'from-purple-400 to-indigo-500',
-  email: 'from-rose-400 to-pink-500',
-  default: 'from-slate-400 to-gray-500'
+  telegram: 'from-primary-300 to-primary-600',
+  slack: 'from-primary-200 to-primary-500',
+  email: 'from-primary-100 to-primary-400',
+  default: 'from-gray-300 to-gray-500'
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

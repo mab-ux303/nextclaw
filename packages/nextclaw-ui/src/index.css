@@ -7,42 +7,7 @@
 
 @layer base {
   :root {
-    /* ========================================
-       CORE VARIABLES (Mapped to Design System)
-       ======================================== */
-    --background: 223 37% 96%;
-    --foreground: 221 39% 11%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 221 39% 11%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 221 39% 11%;
-
-    /* Primary: Blue */
-    --primary: 217 80% 55%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Secondary */
-    --secondary: 214 18% 96%;
-    --secondary-foreground: 219 18% 18%;
-
-    /* Muted */
-    --muted: 214 18% 96%;
-    --muted-foreground: 216 6% 46%;
-
-    /* Accent */
-    --accent: 217 100% 97%;
-    --accent-foreground: 217 60% 35%;
-
-    /* Destructive */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    /* UI Elements */
-    --border: 213 14% 90%;
-    --input: 213 14% 90%;
-    --ring: 217 80% 55%;
+    /* Keep shadcn-compatible radius token while colors come from design-system.css */
     --radius: 0.75rem;
   }
 }

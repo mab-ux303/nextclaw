@@ -7,38 +7,38 @@
 @layer base {
    :root {
       /* ========================================
-       BRAND COLORS (Olive Green - #677656 basis)
+       BRAND COLORS (Olive Green)
        ======================================== */
-      --brand-50: 88 20% 96%;
-      --brand-100: 88 20% 92%;
-      --brand-200: 88 18% 85%;
-      --brand-300: 88 16% 75%;
-      --brand-400: 88 16% 60%;
-      --brand-500: 88 16% 40%;
-      /* Primary Olive Green #677656 */
-      --brand-600: 88 20% 32%;
-      --brand-700: 88 25% 25%;
-      --brand-800: 88 30% 20%;
-      --brand-900: 88 35% 15%;
+      --brand-50: 94 20% 95%;
+      --brand-100: 94 20% 90%;
+      --brand-200: 94 18% 80%;
+      --brand-300: 94 16% 65%;
+      --brand-400: 94 16% 50%;
+      --brand-500: 94 13% 37%;
+      --brand-600: 94 13% 30%;
+      --brand-700: 94 15% 25%;
+      --brand-800: 94 20% 18%;
+      --brand-900: 94 25% 12%;
 
       /* ========================================
        NEUTRAL COLORS (Warm Beige / Espresso scale)
        ======================================== */
-      --gray-50: 45 13% 95%;
-      /* #F4F3F0 Main App Background */
-      --gray-100: 48 11% 91%;
-      /* #EBEAE6 Sidebar Background */
-      --gray-200: 45 10% 86%;
-      /* Borders / Hover states */
-      --gray-300: 45 8% 75%;
-      --gray-400: 40 6% 60%;
-      --gray-500: 35 7% 45%;
-      --gray-600: 30 10% 35%;
-      --gray-700: 30 14% 25%;
-      /* #4A3F35 Secondary Text */
-      --gray-800: 0 0% 17%;
-      /* #2C2C2C Primary Text */
-      --gray-900: 0 0% 10%;
+      --gray-50: 45 25% 97%;
+      /* #F9F8F5 Main App Background */
+      --gray-100: 45 14% 94%;
+      /* #F3F2EE Sidebar Background */
+      --gray-200: 45 14% 88%;
+      /* Active / Hover states */
+      --gray-300: 45 10% 80%;
+      --gray-400: 45 10% 60%;
+      --gray-500: 45 10% 50%;
+      --gray-600: 45 3% 39%;
+      /* #656561 Inactive text/icon */
+      --gray-700: 45 5% 25%;
+      --gray-800: 45 5% 20%;
+      /* Secondary text */
+      --gray-900: 45 5% 12%;
+      /* #1F1F1D Primary text */
 
       /* ========================================
        SEMANTIC COLORS
