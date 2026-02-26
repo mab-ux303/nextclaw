@@ -51,7 +51,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           </div>
           <div id="terminal-content" class="p-6 font-mono text-sm sm:text-base leading-relaxed">
             <div class="flex items-center text-[#d4c8be]">
-              <span class="text-[#e29e57] mr-3 font-bold">$</span>
+              <span class="text-[#8eb079] mr-2">~</span>
+              <span class="text-[#e29e57] mr-2 font-bold">$</span>
               <span id="install-cmd"></span>
             </div>
           </div>
