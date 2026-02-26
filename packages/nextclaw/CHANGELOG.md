@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.8.27
+
+### Patch Changes
+
+- Fix embedded docs browser locale routing so docs open under the current UI language locale.
+
 ## 0.8.26
 
 ### Patch Changes

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { getLanguage, type I18nLanguage } from '@/lib/i18n';
 
 const DOCS_PRIMARY_DOMAIN = 'docs.nextclaw.io';
 const DOCS_PAGES_DEV = 'nextclaw-docs.pages.dev';
@@ -10,12 +11,51 @@ const DOCS_HOSTS = new Set([
 ]);
 
 export const DOCS_DEFAULT_BASE_URL = `https://${DOCS_PRIMARY_DOMAIN}`;
+const DOCS_DEFAULT_GUIDE_PATH = '/guide/getting-started';
 
 export type DocBrowserMode = 'floating' | 'docked';
 
 /** Normalize URL for comparison: strip .html and trailing slash */
 function normalizeDocUrl(u: string): string {
     try { return new URL(u).pathname.replace(/\.html$/, '').replace(/\/$/, ''); } catch { return u; }
+}
+
+function toDocsLocale(language: I18nLanguage): 'en' | 'zh' {
+    return language === 'zh' ? 'zh' : 'en';
+}
+
+function ensureLocalizedDocsPath(pathname: string, locale: 'en' | 'zh'): string {
+    const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
+
+    if (normalized === '/' || normalized === '') {
+        return `/${locale}/`;
+    }
+
+    if (/^\/(en|zh)(\/|$)/.test(normalized)) {
+        return normalized;
+    }
+
+    return `/${locale}${normalized}`;
+}
+
+function resolveLocalizedDocsUrl(url: string): string {
+    const locale = toDocsLocale(getLanguage());
+
+    try {
+        const parsed = new URL(url, DOCS_DEFAULT_BASE_URL);
+        if (!DOCS_HOSTS.has(parsed.hostname)) {
+            return parsed.toString();
+        }
+
+        parsed.pathname = ensureLocalizedDocsPath(parsed.pathname, locale);
+        return parsed.toString();
+    } catch {
+        return new URL(`/${locale}${DOCS_DEFAULT_GUIDE_PATH}`, DOCS_DEFAULT_BASE_URL).toString();
+    }
+}
+
+function getDefaultDocsUrl(): string {
+    return resolveLocalizedDocsUrl(DOCS_DEFAULT_GUIDE_PATH);
 }
 
 interface DocBrowserState {
@@ -67,14 +107,14 @@ export function DocBrowserProvider({ children }: { children: ReactNode }) {
     const [state, setState] = useState<DocBrowserState>({
         isOpen: false,
         mode: 'docked',
-        currentUrl: `${DOCS_DEFAULT_BASE_URL}/guide/getting-started`,
-        history: [`${DOCS_DEFAULT_BASE_URL}/guide/getting-started`],
+        currentUrl: getDefaultDocsUrl(),
+        history: [getDefaultDocsUrl()],
         historyIndex: 0,
         navVersion: 0,
     });
 
     const open = useCallback((url?: string) => {
-        const targetUrl = url || state.currentUrl || `${DOCS_DEFAULT_BASE_URL}/guide/getting-started`;
+        const targetUrl = resolveLocalizedDocsUrl(url || state.currentUrl || getDefaultDocsUrl());
         setState(prev => ({
             ...prev,
             isOpen: true,
@@ -99,12 +139,13 @@ export function DocBrowserProvider({ children }: { children: ReactNode }) {
 
     /** Parent-initiated: push to history AND bump navVersion so iframe reloads */
     const navigate = useCallback((url: string) => {
+        const targetUrl = resolveLocalizedDocsUrl(url);
         setState(prev => {
-            if (normalizeDocUrl(url) === normalizeDocUrl(prev.currentUrl)) return prev;
+            if (normalizeDocUrl(targetUrl) === normalizeDocUrl(prev.currentUrl)) return prev;
             return {
                 ...prev,
-                currentUrl: url,
-                history: [...prev.history.slice(0, prev.historyIndex + 1), url],
+                currentUrl: targetUrl,
+                history: [...prev.history.slice(0, prev.historyIndex + 1), targetUrl],
                 historyIndex: prev.historyIndex + 1,
                 navVersion: prev.navVersion + 1,
             };
