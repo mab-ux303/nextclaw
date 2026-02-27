@@ -622,6 +622,10 @@ function isSupportedMarketplaceItem(
     return item.install.kind === "npm" && isSupportedMarketplacePluginSpec(item.install.spec);
   }
 
+  if (item.install.kind === "git") {
+    return true;
+  }
+
   return item.install.kind === "builtin" && knownSkillNames.has(item.install.spec);
 }
 
@@ -699,6 +703,8 @@ async function installMarketplaceItem(params: {
     result = await installer.installSkill({
       slug: spec,
       kind: params.body.kind,
+      skill: params.body.skill,
+      installPath: params.body.installPath,
       version: params.body.version,
       registry: params.body.registry,
       force: params.body.force

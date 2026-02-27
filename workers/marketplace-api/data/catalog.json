@@ -1,6 +1,6 @@
 {
-  "version": "2026.02.23",
-  "generatedAt": "2026-02-23T22:40:00.000Z",
+  "version": "2026.02.27",
+  "generatedAt": "2026-02-27T23:05:50.000Z",
   "plugins": {
     "items": [
       {
@@ -304,6 +304,102 @@
         },
         "publishedAt": "2025-06-01T10:00:00.000Z",
         "updatedAt": "2026-02-12T11:00:00.000Z"
+      },
+      {
+        "id": "skill-pdf-anthropic",
+        "slug": "pdf",
+        "type": "skill",
+        "name": "PDF Toolkit",
+        "summary": "Anthropic skill for PDF read/merge/split/OCR workflows.",
+        "description": "Use this skill for reading, extracting, combining, splitting, rotating, and OCR processing for PDF files.",
+        "tags": [
+          "skill",
+          "git",
+          "document",
+          "pdf"
+        ],
+        "author": "Anthropic",
+        "sourceRepo": "https://github.com/anthropics/skills",
+        "homepage": "https://github.com/anthropics/skills/tree/main/skills/pdf",
+        "install": {
+          "kind": "git",
+          "spec": "anthropics/skills/skills/pdf",
+          "command": "npx skild install anthropics/skills/skills/pdf --target agents --local --skill pdf"
+        },
+        "publishedAt": "2025-06-01T10:00:00.000Z",
+        "updatedAt": "2026-02-27T23:05:50.000Z"
+      },
+      {
+        "id": "skill-docx-anthropic",
+        "slug": "docx",
+        "type": "skill",
+        "name": "DOCX Toolkit",
+        "summary": "Anthropic skill for creating and editing Word documents.",
+        "description": "Use this skill for creating, reading, editing, and restructuring .docx documents.",
+        "tags": [
+          "skill",
+          "git",
+          "document",
+          "docx"
+        ],
+        "author": "Anthropic",
+        "sourceRepo": "https://github.com/anthropics/skills",
+        "homepage": "https://github.com/anthropics/skills/tree/main/skills/docx",
+        "install": {
+          "kind": "git",
+          "spec": "anthropics/skills/skills/docx",
+          "command": "npx skild install anthropics/skills/skills/docx --target agents --local --skill docx"
+        },
+        "publishedAt": "2025-06-01T10:00:00.000Z",
+        "updatedAt": "2026-02-27T23:05:50.000Z"
+      },
+      {
+        "id": "skill-pptx-anthropic",
+        "slug": "pptx",
+        "type": "skill",
+        "name": "PPTX Toolkit",
+        "summary": "Anthropic skill for presentation deck operations.",
+        "description": "Use this skill for creating, parsing, editing, and reorganizing .pptx presentations.",
+        "tags": [
+          "skill",
+          "git",
+          "document",
+          "pptx"
+        ],
+        "author": "Anthropic",
+        "sourceRepo": "https://github.com/anthropics/skills",
+        "homepage": "https://github.com/anthropics/skills/tree/main/skills/pptx",
+        "install": {
+          "kind": "git",
+          "spec": "anthropics/skills/skills/pptx",
+          "command": "npx skild install anthropics/skills/skills/pptx --target agents --local --skill pptx"
+        },
+        "publishedAt": "2025-06-01T10:00:00.000Z",
+        "updatedAt": "2026-02-27T23:05:50.000Z"
+      },
+      {
+        "id": "skill-xlsx-anthropic",
+        "slug": "xlsx",
+        "type": "skill",
+        "name": "XLSX Toolkit",
+        "summary": "Anthropic skill for spreadsheet-oriented document workflows.",
+        "description": "Use this skill for opening, editing, cleaning, and converting spreadsheet files such as .xlsx and .csv.",
+        "tags": [
+          "skill",
+          "git",
+          "document",
+          "xlsx"
+        ],
+        "author": "Anthropic",
+        "sourceRepo": "https://github.com/anthropics/skills",
+        "homepage": "https://github.com/anthropics/skills/tree/main/skills/xlsx",
+        "install": {
+          "kind": "git",
+          "spec": "anthropics/skills/skills/xlsx",
+          "command": "npx skild install anthropics/skills/skills/xlsx --target agents --local --skill xlsx"
+        },
+        "publishedAt": "2025-06-01T10:00:00.000Z",
+        "updatedAt": "2026-02-27T23:05:50.000Z"
       }
     ],
     "recommendations": [
@@ -325,6 +421,17 @@
           "skill-github",
           "skill-tmux",
           "skill-gog"
+        ]
+      },
+      {
+        "id": "documents",
+        "title": "Document Processing",
+        "description": "Recommended skills for processing PDF, Word, PPT, and spreadsheet files.",
+        "itemIds": [
+          "skill-pdf-anthropic",
+          "skill-docx-anthropic",
+          "skill-pptx-anthropic",
+          "skill-xlsx-anthropic"
         ]
       }
     ]

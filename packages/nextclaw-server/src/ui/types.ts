@@ -358,6 +358,8 @@ export type MarketplaceInstallRequest = {
   type: MarketplaceItemType;
   spec: string;
   kind?: MarketplaceInstallKind;
+  skill?: string;
+  installPath?: string;
   version?: string;
   registry?: string;
   force?: boolean;
@@ -373,6 +375,8 @@ export type MarketplaceInstallResult = {
 export type MarketplaceInstallSkillParams = {
   slug: string;
   kind?: MarketplaceInstallKind;
+  skill?: string;
+  installPath?: string;
   version?: string;
   registry?: string;
   force?: boolean;

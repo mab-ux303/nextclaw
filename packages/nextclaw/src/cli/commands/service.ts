@@ -8,7 +8,7 @@ import {
 } from "@nextclaw/openclaw-compat";
 import { startUiServer } from "@nextclaw/server";
 import { closeSync, cpSync, existsSync, mkdirSync, openSync, rmSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import chokidar from "chokidar";
@@ -833,6 +833,8 @@ export class ServiceCommands {
   private async installMarketplaceSkill(params: {
     slug: string;
     kind?: "npm" | "clawhub" | "git" | "builtin";
+    skill?: string;
+    installPath?: string;
     version?: string;
     registry?: string;
     force?: boolean;
@@ -843,6 +845,10 @@ export class ServiceCommands {
         throw new Error(`Builtin skill not found: ${params.slug}`);
       }
       return result;
+    }
+
+    if (params.kind === "git") {
+      return await this.installGitMarketplaceSkill(params);
     }
 
     const args = ["skills", "install", params.slug];
@@ -867,6 +873,75 @@ export class ServiceCommands {
       }
       return fallback;
     }
+  }
+
+  private async installGitMarketplaceSkill(params: {
+    slug: string;
+    skill?: string;
+    installPath?: string;
+    registry?: string;
+    force?: boolean;
+  }): Promise<{ message: string; output?: string }> {
+    const source = params.slug.trim();
+    if (!source) {
+      throw new Error("Git skill source is required");
+    }
+
+    const workspace = getWorkspacePath(loadConfig().agents.defaults.workspace);
+    const skillName = this.resolveGitSkillName(params.skill, source);
+    const destination = this.resolveSkillInstallPath(workspace, params.installPath, skillName);
+    const destinationSkillFile = join(destination, "SKILL.md");
+
+    if (existsSync(destinationSkillFile) && !params.force) {
+      return {
+        message: `${skillName} is already installed`,
+        output: destination
+      };
+    }
+    if (existsSync(destination) && !params.force) {
+      throw new Error(`Skill install path already exists: ${destination} (use force to overwrite)`);
+    }
+
+    if (existsSync(destination) && params.force) {
+      rmSync(destination, { recursive: true, force: true });
+    }
+
+    const skildArgs = ["--yes", "skild", "install", source, "--target", "agents", "--local", "--json", "--skill", skillName];
+    if (params.registry) {
+      skildArgs.push("--registry", params.registry);
+    }
+    if (params.force) {
+      skildArgs.push("--force");
+    }
+
+    const result = await this.runCommandWithFallback(
+      ["npx", "/opt/homebrew/bin/npx", "/usr/local/bin/npx"],
+      skildArgs,
+      {
+        cwd: workspace,
+        timeoutMs: 180_000
+      }
+    );
+    const payload = this.parseSkildJsonOutput(result.stdout);
+    const installDir = typeof payload.installDir === "string" ? payload.installDir.trim() : "";
+    const installSkillFile = installDir ? join(installDir, "SKILL.md") : "";
+    if (!installDir || !existsSync(installSkillFile)) {
+      throw new Error(`skild install did not produce a valid skill directory for ${skillName}`);
+    }
+
+    mkdirSync(dirname(destination), { recursive: true });
+    if (resolve(installDir) !== resolve(destination)) {
+      cpSync(installDir, destination, { recursive: true, force: true });
+    }
+    return {
+      message: `Installed skill: ${skillName}`,
+      output: [
+        `Source: ${source}`,
+        `Installed via skild: ${installDir}`,
+        `Workspace target: ${destination}`,
+        this.mergeCommandOutput(result.stdout, result.stderr)
+      ].filter(Boolean).join("\n")
+    };
   }
 
   private async enableMarketplacePlugin(id: string): Promise<{ message: string; output?: string }> {
@@ -937,11 +1012,112 @@ export class ServiceCommands {
     };
   }
 
+  private resolveGitSkillName(skill: string | undefined, source: string): string {
+    const fromRequest = typeof skill === "string" ? skill.trim() : "";
+    if (fromRequest) {
+      return this.validateSkillName(fromRequest);
+    }
+
+    const normalizedSource = source.replace(/[?#].*$/, "").replace(/\/+$/, "");
+    const parts = normalizedSource.split("/").filter(Boolean);
+    const inferred = parts.length > 0 ? parts[parts.length - 1] : "";
+    if (!inferred) {
+      throw new Error("Git skill install requires a specific skill name");
+    }
+    return this.validateSkillName(inferred);
+  }
+
+  private validateSkillName(skillName: string): string {
+    if (!/^[A-Za-z0-9._-]+$/.test(skillName)) {
+      throw new Error(`Invalid skill name: ${skillName}`);
+    }
+    return skillName;
+  }
+
+  private resolveSkillInstallPath(workspace: string, installPath: string | undefined, skillName: string): string {
+    const requested = typeof installPath === "string" && installPath.trim().length > 0
+      ? installPath.trim()
+      : join("skills", skillName);
+    if (isAbsolute(requested)) {
+      throw new Error("installPath must be relative to workspace");
+    }
+
+    const destination = resolve(workspace, requested);
+    const rel = relative(workspace, destination);
+    if (rel.startsWith("..") || isAbsolute(rel)) {
+      throw new Error("installPath escapes workspace");
+    }
+    return destination;
+  }
+
+  private parseSkildJsonOutput(stdout: string): Record<string, unknown> {
+    const trimmed = stdout.trim();
+    if (!trimmed) {
+      throw new Error("skild returned empty output");
+    }
+
+    const maybeJson = (() => {
+      const start = trimmed.indexOf("{");
+      const end = trimmed.lastIndexOf("}");
+      if (start >= 0 && end > start) {
+        return trimmed.slice(start, end + 1);
+      }
+      return trimmed;
+    })();
+
+    try {
+      const parsed = JSON.parse(maybeJson);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("skild json output is not an object");
+      }
+      return parsed as Record<string, unknown>;
+    } catch (error) {
+      throw new Error(`failed to parse skild --json output: ${String(error)}`);
+    }
+  }
+
+  private mergeCommandOutput(stdout: string, stderr: string): string {
+    return `${stdout}\n${stderr}`.trim();
+  }
+
   private runCliSubcommand(args: string[], timeoutMs = 180_000): Promise<string> {
     const cliEntry = fileURLToPath(new URL("../index.js", import.meta.url));
+    return this.runCommand(process.execPath, [...process.execArgv, cliEntry, ...args], {
+      cwd: process.cwd(),
+      timeoutMs
+    }).then((result) => this.mergeCommandOutput(result.stdout, result.stderr));
+  }
+
+  private async runCommandWithFallback(
+    commandCandidates: string[],
+    args: string[],
+    options: { cwd?: string; timeoutMs?: number } = {}
+  ): Promise<{ stdout: string; stderr: string }> {
+    let lastError: Error | null = null;
+    for (const command of commandCandidates) {
+      try {
+        return await this.runCommand(command, args, options);
+      } catch (error) {
+        const message = String(error);
+        lastError = error instanceof Error ? error : new Error(message);
+        if (message.startsWith("failed to start command:")) {
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw lastError ?? new Error("failed to start command");
+  }
+
+  private runCommand(
+    command: string,
+    args: string[],
+    options: { cwd?: string; timeoutMs?: number } = {}
+  ): Promise<{ stdout: string; stderr: string }> {
+    const timeoutMs = options.timeoutMs ?? 180_000;
     return new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(process.execPath, [...process.execArgv, cliEntry, ...args], {
-        cwd: process.cwd(),
+      const child = spawn(command, args, {
+        cwd: options.cwd ?? process.cwd(),
         env: process.env,
         stdio: ["ignore", "pipe", "pipe"]
       });
@@ -959,22 +1135,22 @@ export class ServiceCommands {
 
       const timer = setTimeout(() => {
         child.kill("SIGTERM");
-        rejectPromise(new Error(`CLI command timed out after ${timeoutMs}ms`));
+        rejectPromise(new Error(`command timed out after ${timeoutMs}ms`));
       }, timeoutMs);
 
       child.on("error", (error) => {
         clearTimeout(timer);
-        rejectPromise(new Error(`failed to start CLI command: ${String(error)}`));
+        rejectPromise(new Error(`failed to start command: ${String(error)}`));
       });
 
       child.on("close", (code) => {
         clearTimeout(timer);
-        const output = `${stdout}\n${stderr}`.trim();
+        const output = this.mergeCommandOutput(stdout, stderr);
         if (code === 0) {
-          resolvePromise(output);
+          resolvePromise({ stdout, stderr });
           return;
         }
-        rejectPromise(new Error(output || `CLI command failed with code ${code ?? 1}`));
+        rejectPromise(new Error(output || `command failed with code ${code ?? 1}`));
       });
     });
   }

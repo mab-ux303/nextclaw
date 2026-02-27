@@ -366,6 +366,8 @@ export type MarketplaceInstallRequest = {
   type: MarketplaceItemType;
   spec: string;
   kind?: MarketplaceInstallKind;
+  skill?: string;
+  installPath?: string;
   version?: string;
   registry?: string;
   force?: boolean;

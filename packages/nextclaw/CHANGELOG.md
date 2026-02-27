@@ -1,5 +1,17 @@
 # nextclaw
 
+## 0.8.28
+
+### Patch Changes
+
+- feat(marketplace): support git skill install via skild with explicit skill/path parameters
+  - route marketplace git skills through `npx skild install`
+  - pass `skill` and `installPath` from UI -> server -> installer
+  - allow git-type skills in marketplace skills list
+
+- Updated dependencies
+  - @nextclaw/server@0.5.13
+
 ## 0.8.27
 
 ### Patch Changes

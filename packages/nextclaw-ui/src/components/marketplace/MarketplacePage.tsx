@@ -515,7 +515,17 @@ export function MarketplacePage() {
     if (installMutation.isPending) {
       return;
     }
-    installMutation.mutate({ type: item.type, spec: item.install.spec, kind: item.install.kind });
+    installMutation.mutate({
+      type: item.type,
+      spec: item.install.spec,
+      kind: item.install.kind,
+      ...(item.type === 'skill'
+        ? {
+            skill: item.slug,
+            installPath: `skills/${item.slug}`
+          }
+        : {})
+    });
   };
 
   const handleManage = async (action: MarketplaceManageAction, record: MarketplaceInstalledRecord) => {
