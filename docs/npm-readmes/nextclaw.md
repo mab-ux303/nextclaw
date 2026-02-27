@@ -1,6 +1,6 @@
 # nextclaw
 
-Feature-rich, OpenClaw-compatible personal AI assistant with CLI + built-in Web UI.
+Your omnipotent personal assistant, OpenClaw-compatible and local-first, with CLI + built-in Web UI.
 
 ## Install
 
@@ -31,4 +31,3 @@ nextclaw update
 - Repository: https://github.com/Peiiii/nextclaw
 - Changelog: https://github.com/Peiiii/nextclaw/blob/master/packages/nextclaw/CHANGELOG.md
 - Iteration logs: https://github.com/Peiiii/nextclaw/tree/master/docs/logs
-

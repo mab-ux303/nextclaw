@@ -1,8 +1,8 @@
 # NextClaw 介绍
 
-**功能完整、兼容 OpenClaw、以 UI 为先的轻量个人 AI 助理。**
+**你的专属神级管家，兼容 OpenClaw，且以 UI 为先。**
 
-NextClaw 是你在本机运行的个人 AI 网关。通过 CLI 或即时通讯渠道（Telegram、Discord、WhatsApp、飞书等）与它对话。Web UI 仅用于配置：设置默认模型、AI 提供商（API Key、端点）和消息渠道。一条命令启动，其余在浏览器里完成。
+NextClaw 是运行在你本机的专属神级管家。你可以通过 CLI 或即时通讯渠道（Telegram、Discord、WhatsApp、飞书等）与它对话，同时在你的控制下调度互联网资源与海量算力。Web UI 仅用于配置：设置默认模型、AI 提供商（API Key、端点）和消息渠道。一条命令启动，其余在浏览器里完成。
 
 ---
 

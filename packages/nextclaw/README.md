@@ -1,6 +1,6 @@
 # nextclaw
 
-Feature-rich, OpenClaw-compatible personal AI assistant with CLI + built-in Web UI.
+Your omnipotent personal assistant, OpenClaw-compatible and local-first, with CLI + built-in Web UI.
 
 ## Install
 

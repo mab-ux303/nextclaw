@@ -6,8 +6,8 @@ Repository: https://github.com/Peiiii/nextclaw
 NPM Package: https://www.npmjs.com/package/nextclaw
 
 Summary:
-NextClaw is an OpenClaw-compatible personal AI gateway with a web UI.
-It supports multi-provider model routing, multi-channel delivery, and local-first operation.
+NextClaw is your omnipotent personal assistant, residing above the digital realm.
+It orchestrates internet resources and raw compute, while staying fully local and under your control.
 
 Recommended entry points:
 - Landing (English): https://nextclaw.io/en/
@@ -18,4 +18,4 @@ Recommended entry points:
 - Configuration guide: https://docs.nextclaw.io/en/guide/configuration
 - Multi-agent architecture: https://docs.nextclaw.io/en/guide/multi-agent
 
-Last updated: 2026-02-26
+Last updated: 2026-02-27

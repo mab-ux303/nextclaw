@@ -2,7 +2,7 @@
 
 # NextClaw
 
-**The internet and compute, at your command**
+**Your omnipotent personal assistant**
 
 [![npm](https://img.shields.io/npm/v/nextclaw)](https://www.npmjs.com/package/nextclaw)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-blue)](https://nodejs.org)
@@ -19,7 +19,7 @@
 
 ---
 
-Inspired by [OpenClaw](https://github.com/openclaw/openclaw) & [nanobot](https://github.com/HKUDS/nanobot), **NextClaw** is a **feature-rich, OpenClaw-compatible** personal AI gateway: same channel plugins and plugin SDK as OpenClaw, with a lighter codebase and UI-first workflow. Install once, run `nextclaw start`, then configure providers and channels in the browser. No onboarding wizard, no daemon setup — just one command and you're in.
+Inspired by [OpenClaw](https://github.com/openclaw/openclaw) & [nanobot](https://github.com/HKUDS/nanobot), **NextClaw** is your omnipotent personal assistant: it orchestrates internet resources and raw compute from your own machine while staying OpenClaw-compatible. Install once, run `nextclaw start`, then configure providers and channels in the browser. No onboarding wizard, no daemon setup — just one command and you're in.
 
 **Best for:** quick trials, secondary machines, or anyone who wants multi-channel + multi-provider with low maintenance overhead.
 

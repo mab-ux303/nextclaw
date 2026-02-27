@@ -4,7 +4,7 @@ layout: home
 hero:
   name: NextClaw
   text: Personal AI Assistant
-  tagline: Effortlessly simple. Connect your AI to Discord, Telegram, Slack, and more.
+  tagline: Your omnipotent personal assistant. Orchestrate internet and compute from your own machine.
   actions:
     - theme: brand
       text: Get Started

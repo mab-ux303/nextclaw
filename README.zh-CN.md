@@ -2,7 +2,7 @@
 
 # NextClaw
 
-**互联网与算力，听你调遣**
+**你的专属神级管家**
 
 [![npm](https://img.shields.io/npm/v/nextclaw)](https://www.npmjs.com/package/nextclaw)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-blue)](https://nodejs.org)
@@ -19,7 +19,7 @@
 
 ---
 
-受 [OpenClaw](https://github.com/openclaw/openclaw) 与 [nanobot](https://github.com/HKUDS/nanobot) 启发，**NextClaw** 是一款**功能丰富、兼容 OpenClaw** 的个人 AI 网关：相同的渠道插件与插件 SDK，更轻的代码库与以 UI 为先的流程。安装后执行 `nextclaw start`，即可在浏览器中配置 Provider 与渠道，无需向导或守护进程，一条命令即可使用。
+受 [OpenClaw](https://github.com/openclaw/openclaw) 与 [nanobot](https://github.com/HKUDS/nanobot) 启发，**NextClaw** 是你的专属神级管家：在你自己的机器上调度互联网资源与海量算力，同时保持 OpenClaw 兼容。安装后执行 `nextclaw start`，即可在浏览器中配置 Provider 与渠道，无需向导或守护进程，一条命令即可使用。
 
 **适合：** 快速试用、备用机，或希望多渠道 + 多 Provider 且维护成本低的用户。
 

@@ -1,8 +1,8 @@
 # Introduction to NextClaw
 
-**Feature-rich, OpenClaw-compatible · UI-first, lightweight personal AI assistant.**
+**Your omnipotent personal assistant, OpenClaw-compatible and UI-first.**
 
-NextClaw is a personal AI gateway you run locally. You talk to it via the CLI or through messaging channels (Telegram, Discord, WhatsApp, Feishu, and more). The web UI is for configuration only: set your default model, AI providers (API keys, base URLs), and message channels. One command, then configure everything in the browser.
+NextClaw is your omnipotent personal assistant running locally. You talk to it via the CLI or through messaging channels (Telegram, Discord, WhatsApp, Feishu, and more), while it orchestrates internet resources and raw compute under your control. The web UI is for configuration only: set your default model, AI providers (API keys, base URLs), and message channels. One command, then configure everything in the browser.
 
 ---
 
