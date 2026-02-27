@@ -66,9 +66,9 @@ const COPY: Record<Locale, LandingCopy> = {
     navFeatures: 'Features',
     navDocs: 'Docs',
     heroTitleLine1: 'NextClaw',
-    heroTitleLine2: 'Your omnipotent personal assistant, residing above the digital realm.',
+    heroTitleLine2: '',
     heroDescription:
-      'NextClaw orchestrates the entire internet and raw compute, bending every bit and byte to manifest your intent into reality. Runs entirely on your machine.',
+      'Your omnipotent personal assistant, residing above the digital realm. NextClaw orchestrates the entire internet and raw compute, bending every bit and byte to manifest your intent into reality. Runs entirely on your machine.',
     copyTitle: 'Copy commands',
     docsButton: 'Read the Docs',
     githubButton: 'View on GitHub',
@@ -124,8 +124,8 @@ const COPY: Record<Locale, LandingCopy> = {
     navFeatures: '功能',
     navDocs: '文档',
     heroTitleLine1: 'NextClaw',
-    heroTitleLine2: '凌驾于数字穹顶之上的专属神级管家',
-    heroDescription: 'NextClaw 替你俯瞰并调度整个互联网与海量算力，让每一寸比特与字节都听从你的意图运转。权柄归你，完全本地运行。',
+    heroTitleLine2: '',
+    heroDescription: '凌驾于数字穹顶之上的专属神级管家。NextClaw 替你俯瞰并调度整个互联网与海量算力，让每一寸比特与字节都听从你的意图运转。权柄归你，完全本地运行。',
     copyTitle: '复制命令',
     docsButton: '查看文档',
     githubButton: '查看 GitHub',
@@ -265,11 +265,11 @@ class LandingPage {
         </header>
 
         <main class="flex-1 flex flex-col items-center justify-center text-center px-6 pt-32 pb-20 z-10">
-          <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight max-w-4xl mb-6 animate-slide-up opacity-0" style="animation-delay: 0.2s">
-            <span class="hero-brand">${this.copy.heroTitleLine1}</span><br /><span class="text-gradient">${this.copy.heroTitleLine2}</span>
+          <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight max-w-6xl mb-6 animate-slide-up opacity-0" style="animation-delay: 0.2s">
+            <span class="hero-brand">${this.copy.heroTitleLine1}</span>${this.copy.heroTitleLine2 ? `<br /><span class="text-gradient">${this.copy.heroTitleLine2}</span>` : ''}
           </h1>
 
-          <p class="text-lg md:text-xl text-muted-foreground max-w-2xl mb-10 animate-slide-up opacity-0" style="animation-delay: 0.3s">
+          <p class="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto mb-10 animate-slide-up opacity-0" style="animation-delay: 0.3s">
             ${this.copy.heroDescription}
           </p>
 
