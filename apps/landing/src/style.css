@@ -64,6 +64,14 @@
     background-clip: text;
   }
 
+  .hero-brand {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, #4a5d3d 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 0.02em;
+  }
+
   .bg-gradient-radial {
     background: radial-gradient(circle at top right, hsla(var(--primary), 0.15) 0%, transparent 40%),
       radial-gradient(circle at bottom left, hsla(var(--primary), 0.08) 0%, transparent 40%);

@@ -2,7 +2,7 @@
 
 # NextClaw
 
-**Feature-rich, OpenClaw-compatible · UI-first, lightweight personal AI assistant.**
+**The internet and compute, at your command**
 
 [![npm](https://img.shields.io/npm/v/nextclaw)](https://www.npmjs.com/package/nextclaw)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-blue)](https://nodejs.org)

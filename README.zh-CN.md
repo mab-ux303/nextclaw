@@ -2,7 +2,7 @@
 
 # NextClaw
 
-**功能丰富、兼容 OpenClaw · 以 UI 为先的轻量化个人 AI 助手。**
+**互联网与算力，听你调遣**
 
 [![npm](https://img.shields.io/npm/v/nextclaw)](https://www.npmjs.com/package/nextclaw)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-blue)](https://nodejs.org)

@@ -65,10 +65,10 @@ const COPY: Record<Locale, LandingCopy> = {
   en: {
     navFeatures: 'Features',
     navDocs: 'Docs',
-    heroTitleLine1: 'The effortlessly simple',
-    heroTitleLine2: 'Personal AI Assistant',
+    heroTitleLine1: 'NextClaw',
+    heroTitleLine2: 'Your omnipotent personal assistant, residing above the digital realm.',
     heroDescription:
-      'Feature-rich, OpenClaw-compatible gateway. Multi-provider, multi-channel capabilities with an elegant zero-config interface.',
+      'NextClaw orchestrates the entire internet and raw compute, bending every bit and byte to manifest your intent into reality. Runs entirely on your machine.',
     copyTitle: 'Copy commands',
     docsButton: 'Read the Docs',
     githubButton: 'View on GitHub',
@@ -123,9 +123,9 @@ const COPY: Record<Locale, LandingCopy> = {
   zh: {
     navFeatures: '功能',
     navDocs: '文档',
-    heroTitleLine1: '轻量易用的',
-    heroTitleLine2: '个人 AI 助手',
-    heroDescription: '功能完整、兼容 OpenClaw 的 AI 网关。多 Provider、多渠道，一套界面完成配置。',
+    heroTitleLine1: 'NextClaw',
+    heroTitleLine2: '凌驾于数字穹顶之上的专属神级管家',
+    heroDescription: 'NextClaw 替你俯瞰并调度整个互联网与海量算力，让每一寸比特与字节都听从你的意图运转。权柄归你，完全本地运行。',
     copyTitle: '复制命令',
     docsButton: '查看文档',
     githubButton: '查看 GitHub',
@@ -265,8 +265,8 @@ class LandingPage {
         </header>
 
         <main class="flex-1 flex flex-col items-center justify-center text-center px-6 pt-32 pb-20 z-10">
-          <h1 class="text-5xl md:text-7xl font-bold tracking-tight text-gradient max-w-4xl mb-6 animate-slide-up opacity-0" style="animation-delay: 0.2s">
-            ${this.copy.heroTitleLine1}<br />${this.copy.heroTitleLine2}
+          <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight max-w-4xl mb-6 animate-slide-up opacity-0" style="animation-delay: 0.2s">
+            <span class="hero-brand">${this.copy.heroTitleLine1}</span><br /><span class="text-gradient">${this.copy.heroTitleLine2}</span>
           </h1>
 
           <p class="text-lg md:text-xl text-muted-foreground max-w-2xl mb-10 animate-slide-up opacity-0" style="animation-delay: 0.3s">
@@ -329,8 +329,8 @@ class LandingPage {
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             ${this.copy.features
-              .map(
-                (feature, index) => `
+        .map(
+          (feature, index) => `
               <div class="glass-card p-8 rounded-2xl hover:-translate-y-1 transition-transform duration-300 animate-slide-up opacity-0" style="animation-delay: ${0.2 + index * 0.1}s">
                 <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-6 text-primary">
                   <i data-lucide="${feature.icon}" class="w-6 h-6"></i>
@@ -338,8 +338,8 @@ class LandingPage {
                 <h3 class="text-xl font-semibold mb-2">${feature.title}</h3>
                 <p class="text-muted-foreground leading-relaxed">${feature.description}</p>
               </div>`
-              )
-              .join('')}
+        )
+        .join('')}
           </div>
         </section>
 
