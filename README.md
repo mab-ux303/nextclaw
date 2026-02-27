@@ -84,6 +84,14 @@ nextclaw stop   # stop the service
 
 <img src="images/screenshots/nextclaw-cron-job-page.png" width="960" alt="Cron Jobs" />
 
+**Plugins** — install and manage channel and provider plugins from the catalog:
+
+![Plugins](images/screenshots/nextclaw-plugins-page.png)
+
+**Skills** — enable and configure skills (web search, exec, memory, subagents, etc.):
+
+![Skills](images/screenshots/nextclaw-skills-page.png)
+
 ---
 
 ## 🔌 Provider examples

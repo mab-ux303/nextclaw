@@ -354,24 +354,6 @@ export type MarketplaceInstalledView = {
   records: MarketplaceInstalledRecord[];
 };
 
-export type MarketplaceInstallRequest = {
-  type: MarketplaceItemType;
-  spec: string;
-  kind?: MarketplaceInstallKind;
-  skill?: string;
-  installPath?: string;
-  version?: string;
-  registry?: string;
-  force?: boolean;
-};
-
-export type MarketplaceInstallResult = {
-  type: MarketplaceItemType;
-  spec: string;
-  message: string;
-  output?: string;
-};
-
 export type MarketplaceInstallSkillParams = {
   slug: string;
   kind?: MarketplaceInstallKind;
@@ -382,18 +364,64 @@ export type MarketplaceInstallSkillParams = {
   force?: boolean;
 };
 
-export type MarketplaceManageAction = "enable" | "disable" | "uninstall";
+export type MarketplacePluginInstallRequest = {
+  type?: "plugin";
+  spec: string;
+};
 
-export type MarketplaceManageRequest = {
-  type: MarketplaceItemType;
-  action: MarketplaceManageAction;
+export type MarketplaceSkillInstallRequest = {
+  type?: "skill";
+  spec: string;
+  kind?: MarketplaceInstallKind;
+  skill?: string;
+  installPath?: string;
+  version?: string;
+  registry?: string;
+  force?: boolean;
+};
+
+export type MarketplacePluginInstallResult = {
+  type: "plugin";
+  spec: string;
+  message: string;
+  output?: string;
+};
+
+export type MarketplaceSkillInstallResult = {
+  type: "skill";
+  spec: string;
+  message: string;
+  output?: string;
+};
+
+export type MarketplacePluginManageAction = "enable" | "disable" | "uninstall";
+export type MarketplaceSkillManageAction = "uninstall";
+
+export type MarketplacePluginManageRequest = {
+  type?: "plugin";
+  action: MarketplacePluginManageAction;
   id?: string;
   spec?: string;
 };
 
-export type MarketplaceManageResult = {
-  type: MarketplaceItemType;
-  action: MarketplaceManageAction;
+export type MarketplaceSkillManageRequest = {
+  type?: "skill";
+  action: MarketplaceSkillManageAction;
+  id?: string;
+  spec?: string;
+};
+
+export type MarketplacePluginManageResult = {
+  type: "plugin";
+  action: MarketplacePluginManageAction;
+  id: string;
+  message: string;
+  output?: string;
+};
+
+export type MarketplaceSkillManageResult = {
+  type: "skill";
+  action: MarketplaceSkillManageAction;
   id: string;
   message: string;
   output?: string;

@@ -84,6 +84,14 @@ nextclaw stop   # 停止服务
 
 <img src="images/screenshots/nextclaw-cron-job-page.png" width="960" alt="Cron Jobs" />
 
+**插件** — 从目录安装与管理渠道、Provider 等插件：
+
+![Plugins](images/screenshots/nextclaw-plugins-page.png)
+
+**技能** — 启用与配置技能（网页搜索、exec、记忆、子 Agent 等）：
+
+![Skills](images/screenshots/nextclaw-skills-page.png)
+
 ---
 
 ## 🔌 Provider 示例
