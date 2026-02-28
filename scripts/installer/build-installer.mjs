@@ -129,19 +129,54 @@ class InstallerBuilder {
   }
 
   tryParseVersionFromPackageSpec(packageSpec) {
+    return this.parsePackageSpec(packageSpec)?.version ?? "";
+  }
+
+  parsePackageSpec(packageSpec) {
     const trimmed = packageSpec.trim();
     const versionSeparatorIndex = trimmed.lastIndexOf("@");
     if (versionSeparatorIndex <= 0 || versionSeparatorIndex === trimmed.length - 1) {
-      return "";
+      return null;
     }
+    const name = trimmed.slice(0, versionSeparatorIndex).trim();
     const maybeVersion = trimmed.slice(versionSeparatorIndex + 1).trim();
-    if (/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(maybeVersion)) {
-      return maybeVersion;
+    if (!name || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(maybeVersion)) {
+      return null;
     }
-    return "";
+    return { name, version: maybeVersion };
+  }
+
+  tryResolveNpmRegistryTarball(packageSpec) {
+    const parsed = this.parsePackageSpec(packageSpec);
+    if (!parsed) {
+      return null;
+    }
+    const encodedName = encodeURIComponent(parsed.name);
+    const tarballBase = parsed.name.startsWith("@")
+      ? parsed.name.slice(1).replace("/", "-")
+      : parsed.name;
+    return {
+      filename: `${tarballBase}-${parsed.version}.tgz`,
+      url: `https://registry.npmjs.org/${encodedName}/-/${tarballBase}-${parsed.version}.tgz`
+    };
   }
 
   packNextclaw() {
+    if (this.packageSpec) {
+      const npmTarball = this.tryResolveNpmRegistryTarball(this.packageSpec);
+      if (npmTarball) {
+        const packedTargetPath = resolve(this.downloadDir, npmTarball.filename);
+        this.runner.run("curl", ["-fL", npmTarball.url, "-o", packedTargetPath]);
+        this.packedTgzPath = packedTargetPath;
+        this.manifest.packageTarball = {
+          path: this.packedTgzPath,
+          sourceUrl: npmTarball.url,
+          sizeBytes: statSync(this.packedTgzPath).size
+        };
+        return;
+      }
+    }
+
     const packArgs = this.packageSpec
       ? ["pack", this.packageSpec, "--silent"]
       : ["pack", "--silent"];

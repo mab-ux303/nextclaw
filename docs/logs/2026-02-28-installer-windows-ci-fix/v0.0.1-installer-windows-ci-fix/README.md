@@ -6,7 +6,7 @@
   - `scripts/installer/build-installer.mjs` 新增 `makensis` 定位兜底逻辑，按顺序尝试 `PATH`、`C:\\Program Files (x86)\\NSIS\\makensis.exe`、`C:\\Program Files\\NSIS\\makensis.exe` 以及 Chocolatey 常见目录。
   - 找不到 `makensis` 时抛出明确错误并打印当前 `PATH`，避免“静默失败”。
   - NSIS 参数 `APP_NAME` 改为无空格值（`NextClaw-Beta`），避免 Windows 下参数分词差异导致编译失败。
-  - 对 `--package-spec=nextclaw@x.y.z` 的版本读取改为优先本地解析，避免 Windows runner 上 `npm view` 非确定性失败导致构建中断。
+  - 对 `--package-spec=nextclaw@x.y.z` 的版本读取改为优先本地解析，并优先从 npm registry tarball URL 直接下载包，绕开 Windows runner 上 `npm view / npm pack` 的非确定性失败。
 - 改造 CI 工作流 `.github/workflows/installer-build.yml`：
   - Windows 安装 NSIS 后记录 `makensis` 路径状态（PATH 命中或绝对路径候选），不再因 PATH 未刷新而提前失败。
   - Windows 构建步骤改为 `continue-on-error: true` + 日志落盘（`build-installer-windows.log`），失败时也会上传日志 artifact。
