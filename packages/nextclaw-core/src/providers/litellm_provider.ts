@@ -1,4 +1,4 @@
-import { LLMProvider, type LLMResponse } from "./base.js";
+import { LLMProvider, type LLMResponse, type LLMStreamEvent } from "./base.js";
 import { OpenAICompatibleProvider } from "./openai_provider.js";
 import { findGateway, findProviderByModel, findProviderByName, type ProviderSpec } from "./registry.js";
 
@@ -59,6 +59,28 @@ export class LiteLLMProvider extends LLMProvider {
       model: apiModel,
       maxTokens: overrides.maxTokens
     });
+  }
+
+  async *chatStream(params: {
+    messages: Array<Record<string, unknown>>;
+    tools?: Array<Record<string, unknown>>;
+    model?: string | null;
+    maxTokens?: number;
+  }): AsyncGenerator<LLMStreamEvent> {
+    const requestedModel = params.model ?? this.defaultModel;
+    const resolvedModel = this.resolveModel(requestedModel);
+    const apiModel = this.stripRoutingPrefix(resolvedModel);
+    const maxTokens = params.maxTokens ?? 4096;
+    const overrides = this.applyModelOverrides(apiModel, { maxTokens });
+
+    for await (const event of this.client.chatStream({
+      messages: params.messages,
+      tools: params.tools,
+      model: apiModel,
+      maxTokens: overrides.maxTokens
+    })) {
+      yield event;
+    }
   }
 
   private resolveModel(model: string): string {

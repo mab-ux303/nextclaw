@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionEntryView, SessionMessageView } from '@/api/types';
-import { useConfig, useDeleteSession, useSendChatTurn, useSessionHistory, useSessions } from '@/hooks/useConfig';
+import { sendChatTurnStream } from '@/api/config';
+import { useConfig, useDeleteSession, useSessionHistory, useSessions } from '@/hooks/useConfig';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,21 +13,6 @@ import { formatDateTime, t } from '@/lib/i18n';
 import { MessageSquareText, Plus, RefreshCw, Search, Send, Trash2 } from 'lucide-react';
 
 const CHAT_SESSION_STORAGE_KEY = 'nextclaw.ui.chat.activeSession';
-const STREAM_FRAME_MS = 18;
-
-function streamChunkSize(remaining: number): number {
-  if (remaining > 2400) return 120;
-  if (remaining > 1200) return 72;
-  if (remaining > 600) return 40;
-  if (remaining > 220) return 20;
-  return 8;
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
 
 function readStoredSessionKey(): string | null {
   if (typeof window === 'undefined') {
@@ -84,6 +70,7 @@ export function ChatPage() {
   const [selectedAgentId, setSelectedAgentId] = useState('main');
   const [optimisticUserMessage, setOptimisticUserMessage] = useState<SessionMessageView | null>(null);
   const [streamingAssistantMessage, setStreamingAssistantMessage] = useState<SessionMessageView | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const { confirm, ConfirmDialog } = useConfirmDialog();
   const threadRef = useRef<HTMLDivElement | null>(null);
@@ -93,7 +80,6 @@ export function ChatPage() {
   const sessionsQuery = useSessions({ q: query.trim() || undefined, limit: 120, activeMinutes: 0 });
   const historyQuery = useSessionHistory(selectedSessionKey, 300);
   const deleteSession = useDeleteSession();
-  const sendChatTurn = useSendChatTurn();
 
   const agentOptions = useMemo(() => {
     const list = configQuery.data?.agents.list ?? [];
@@ -113,7 +99,7 @@ export function ChatPage() {
   );
 
   const historyMessages = useMemo(() => historyQuery.data?.messages ?? [], [historyQuery.data?.messages]);
-  const isGenerating = sendChatTurn.isPending || Boolean(streamingAssistantMessage);
+  const isGenerating = isSending;
   const mergedMessages = useMemo(() => {
     if (!optimisticUserMessage && !streamingAssistantMessage) {
       return historyMessages;
@@ -154,7 +140,7 @@ export function ChatPage() {
       return;
     }
     element.scrollTop = element.scrollHeight;
-  }, [mergedMessages, sendChatTurn.isPending, selectedSessionKey]);
+  }, [mergedMessages, isSending, selectedSessionKey]);
 
   useEffect(() => {
     return () => {
@@ -164,6 +150,7 @@ export function ChatPage() {
 
   const createNewSession = () => {
     streamRunIdRef.current += 1;
+    setIsSending(false);
     setStreamingAssistantMessage(null);
     const next = buildNewSessionKey(selectedAgentId);
     setSelectedSessionKey(next);
@@ -187,6 +174,7 @@ export function ChatPage() {
       {
         onSuccess: async () => {
           streamRunIdRef.current += 1;
+          setIsSending(false);
           setStreamingAssistantMessage(null);
           setSelectedSessionKey(null);
           setOptimisticUserMessage(null);
@@ -215,46 +203,56 @@ export function ChatPage() {
       content: message,
       timestamp: new Date().toISOString()
     });
+    setIsSending(true);
 
     try {
-      const result = await sendChatTurn.mutateAsync({
-        data: {
-          message,
-          sessionKey,
-          agentId: selectedAgentId,
-          channel: 'ui',
-          chatId: 'web-ui'
+      const runId = streamRunIdRef.current;
+      let streamText = '';
+      const streamTimestamp = new Date().toISOString();
+
+      const result = await sendChatTurnStream({
+        message,
+        sessionKey,
+        agentId: selectedAgentId,
+        channel: 'ui',
+        chatId: 'web-ui'
+      }, {
+        onReady: (event) => {
+          if (runId !== streamRunIdRef.current) {
+            return;
+          }
+          if (event.sessionKey && event.sessionKey !== selectedSessionKey) {
+            setSelectedSessionKey(event.sessionKey);
+          }
+        },
+        onDelta: (event) => {
+          if (runId !== streamRunIdRef.current) {
+            return;
+          }
+          streamText += event.delta;
+          setStreamingAssistantMessage({
+            role: 'assistant',
+            content: streamText,
+            timestamp: streamTimestamp
+          });
         }
       });
+      if (runId !== streamRunIdRef.current) {
+        return;
+      }
       setOptimisticUserMessage(null);
       if (result.sessionKey !== sessionKey) {
         setSelectedSessionKey(result.sessionKey);
-      }
-      const replyText = typeof result.reply === 'string' ? result.reply : '';
-      let previewRunId: number | null = null;
-      if (replyText.trim()) {
-        previewRunId = ++streamRunIdRef.current;
-        const timestamp = new Date().toISOString();
-        let cursor = 0;
-        while (cursor < replyText.length && previewRunId === streamRunIdRef.current) {
-          cursor = Math.min(replyText.length, cursor + streamChunkSize(replyText.length - cursor));
-          setStreamingAssistantMessage({
-            role: 'assistant',
-            content: replyText.slice(0, cursor),
-            timestamp
-          });
-          await delay(STREAM_FRAME_MS);
-        }
       }
       await sessionsQuery.refetch();
       if (hadActiveSession) {
         await historyQuery.refetch();
       }
-      if (previewRunId && previewRunId === streamRunIdRef.current) {
-        setStreamingAssistantMessage(null);
-      }
+      setStreamingAssistantMessage(null);
+      setIsSending(false);
     } catch {
       streamRunIdRef.current += 1;
+      setIsSending(false);
       setStreamingAssistantMessage(null);
       setOptimisticUserMessage(null);
       setDraft(message);
@@ -393,7 +391,7 @@ export function ChatPage() {
                 {mergedMessages.length === 0 ? (
                   <div className="text-sm text-gray-500">{t('chatNoMessages')}</div>
                 ) : (
-                  <ChatThread messages={mergedMessages} isSending={sendChatTurn.isPending && !streamingAssistantMessage} />
+                  <ChatThread messages={mergedMessages} isSending={isSending && !streamingAssistantMessage} />
                 )}
               </>
             )}

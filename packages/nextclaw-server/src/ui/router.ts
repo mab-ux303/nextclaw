@@ -43,6 +43,7 @@ import type {
   SecretsConfigUpdate,
   RuntimeConfigUpdate,
   SessionPatchUpdate,
+  ChatTurnStreamEvent,
   UiChatRuntime,
   UiServerEvent
 } from "./types.js";
@@ -318,6 +319,39 @@ function resolveAgentIdFromSessionKey(sessionKey?: string): string | undefined {
   const parsed = NextclawCore.parseAgentScopedSessionKey(sessionKey);
   const agentId = readNonEmptyString(parsed?.agentId);
   return agentId;
+}
+
+function buildChatTurnView(params: {
+  result: {
+    reply: string;
+    sessionKey: string;
+    agentId?: string;
+    model?: string;
+  };
+  fallbackSessionKey: string;
+  requestedAgentId?: string;
+  requestedModel?: string;
+  requestedAt: Date;
+  startedAtMs: number;
+}): ChatTurnView {
+  const completedAt = new Date();
+  return {
+    reply: String(params.result.reply ?? ""),
+    sessionKey: readNonEmptyString(params.result.sessionKey) ?? params.fallbackSessionKey,
+    ...(readNonEmptyString(params.result.agentId) || params.requestedAgentId
+      ? { agentId: readNonEmptyString(params.result.agentId) ?? params.requestedAgentId }
+      : {}),
+    ...(readNonEmptyString(params.result.model) || params.requestedModel
+      ? { model: readNonEmptyString(params.result.model) ?? params.requestedModel }
+      : {}),
+    requestedAt: params.requestedAt.toISOString(),
+    completedAt: completedAt.toISOString(),
+    durationMs: Math.max(0, completedAt.getTime() - params.startedAtMs)
+  };
+}
+
+function toSseFrame(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
 function normalizeMarketplaceBaseUrl(options: UiRouterOptions): string {
@@ -1302,25 +1336,146 @@ export function createUiRouter(options: UiRouterOptions): Hono {
 
     try {
       const result = await options.chatRuntime.processTurn(request);
-      const completedAt = new Date();
-      const response: ChatTurnView = {
-        reply: String(result.reply ?? ""),
-        sessionKey: readNonEmptyString(result.sessionKey) ?? sessionKey,
-        ...(readNonEmptyString(result.agentId) || requestedAgentId
-          ? { agentId: readNonEmptyString(result.agentId) ?? requestedAgentId }
-          : {}),
-        ...(readNonEmptyString(result.model) || requestedModel
-          ? { model: readNonEmptyString(result.model) ?? requestedModel }
-          : {}),
-        requestedAt: requestedAt.toISOString(),
-        completedAt: completedAt.toISOString(),
-        durationMs: Math.max(0, completedAt.getTime() - startedAtMs)
-      };
+      const response = buildChatTurnView({
+        result,
+        fallbackSessionKey: sessionKey,
+        requestedAgentId,
+        requestedModel,
+        requestedAt,
+        startedAtMs
+      });
       options.publish({ type: "config.updated", payload: { path: "session" } });
       return c.json(ok(response));
     } catch (error) {
       return c.json(err("CHAT_TURN_FAILED", String(error)), 500);
     }
+  });
+
+  app.post("/api/chat/turn/stream", async (c) => {
+    const chatRuntime = options.chatRuntime;
+    if (!chatRuntime) {
+      return c.json(err("NOT_AVAILABLE", "chat runtime unavailable"), 503);
+    }
+
+    const body = await readJson<Record<string, unknown>>(c.req.raw);
+    if (!body.ok) {
+      return c.json(err("INVALID_BODY", "invalid json body"), 400);
+    }
+
+    const message = readNonEmptyString(body.data.message);
+    if (!message) {
+      return c.json(err("INVALID_BODY", "message is required"), 400);
+    }
+
+    const sessionKey =
+      readNonEmptyString(body.data.sessionKey) ??
+      `ui:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
+    const requestedAt = new Date();
+    const startedAtMs = requestedAt.getTime();
+    const metadata = isRecord(body.data.metadata) ? body.data.metadata : undefined;
+    const requestedAgentId = readNonEmptyString(body.data.agentId) ?? resolveAgentIdFromSessionKey(sessionKey);
+    const requestedModel = readNonEmptyString(body.data.model);
+    const request: ChatTurnRequest = {
+      message,
+      sessionKey,
+      channel: readNonEmptyString(body.data.channel) ?? "ui",
+      chatId: readNonEmptyString(body.data.chatId) ?? "web-ui",
+      ...(requestedAgentId ? { agentId: requestedAgentId } : {}),
+      ...(requestedModel ? { model: requestedModel } : {}),
+      ...(metadata ? { metadata } : {})
+    };
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start: async (controller) => {
+        const push = (event: string, data: unknown) => {
+          controller.enqueue(encoder.encode(toSseFrame(event, data)));
+        };
+
+        try {
+          push("ready", {
+            sessionKey,
+            requestedAt: requestedAt.toISOString()
+          });
+
+          const streamTurn = chatRuntime.processTurnStream;
+          if (!streamTurn) {
+            const result = await chatRuntime.processTurn(request);
+            const response = buildChatTurnView({
+              result,
+              fallbackSessionKey: sessionKey,
+              requestedAgentId,
+              requestedModel,
+              requestedAt,
+              startedAtMs
+            });
+            push("final", response);
+            options.publish({ type: "config.updated", payload: { path: "session" } });
+            push("done", { ok: true });
+            return;
+          }
+
+          let hasFinal = false;
+          for await (const event of streamTurn(request)) {
+            const typed = event as ChatTurnStreamEvent;
+            if (typed.type === "delta") {
+              if (typed.delta) {
+                push("delta", { delta: typed.delta });
+              }
+              continue;
+            }
+            if (typed.type === "final") {
+              const response = buildChatTurnView({
+                result: typed.result,
+                fallbackSessionKey: sessionKey,
+                requestedAgentId,
+                requestedModel,
+                requestedAt,
+                startedAtMs
+              });
+              hasFinal = true;
+              push("final", response);
+              options.publish({ type: "config.updated", payload: { path: "session" } });
+              continue;
+            }
+            if (typed.type === "error") {
+              push("error", {
+                code: "CHAT_TURN_FAILED",
+                message: typed.error
+              });
+              return;
+            }
+          }
+
+          if (!hasFinal) {
+            push("error", {
+              code: "CHAT_TURN_FAILED",
+              message: "stream ended without a final result"
+            });
+            return;
+          }
+
+          push("done", { ok: true });
+        } catch (error) {
+          push("error", {
+            code: "CHAT_TURN_FAILED",
+            message: String(error)
+          });
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+      }
+    });
   });
 
   app.get("/api/sessions", (c) => {

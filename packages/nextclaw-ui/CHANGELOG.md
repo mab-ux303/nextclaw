@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.5.24
+
+### Patch Changes
+
+- Add real chat streaming pipeline from provider to UI via SSE and remove simulated frontend streaming.
+
 ## 0.5.23
 
 ### Patch Changes

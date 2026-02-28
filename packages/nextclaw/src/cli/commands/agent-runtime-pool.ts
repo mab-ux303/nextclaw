@@ -137,6 +137,7 @@ export class GatewayAgentRuntimePool {
     chatId?: string;
     metadata?: Record<string, unknown>;
     agentId?: string;
+    onAssistantDelta?: (delta: string) => void;
   }): Promise<string> {
     const message: InboundMessage = {
       channel: params.channel ?? "cli",
@@ -160,7 +161,8 @@ export class GatewayAgentRuntimePool {
       sessionKey: route.sessionKey,
       channel: message.channel,
       chatId: message.chatId,
-      metadata: message.metadata
+      metadata: message.metadata,
+      onAssistantDelta: params.onAssistantDelta
     });
   }
 

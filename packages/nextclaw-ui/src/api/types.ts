@@ -114,6 +114,22 @@ export type ChatTurnView = {
   durationMs: number;
 };
 
+export type ChatTurnStreamReadyEvent = {
+  event: "ready";
+  sessionKey: string;
+  requestedAt: string;
+};
+
+export type ChatTurnStreamDeltaEvent = {
+  event: "delta";
+  delta: string;
+};
+
+export type ChatTurnStreamFinalEvent = {
+  event: "final";
+  data: ChatTurnView;
+};
+
 export type CronScheduleView =
   | { kind: "at"; atMs?: number | null }
   | { kind: "every"; everyMs?: number | null }

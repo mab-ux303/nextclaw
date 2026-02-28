@@ -1,6 +1,6 @@
 import type { Config, ProviderConfig } from "../config/schema.js";
 import { getApiBase, getProvider, getProviderName } from "../config/schema.js";
-import type { LLMProvider, LLMResponse } from "./base.js";
+import type { LLMProvider, LLMResponse, LLMStreamEvent } from "./base.js";
 import { LiteLLMProvider } from "./litellm_provider.js";
 
 type ProviderManagerOptions = {
@@ -72,6 +72,13 @@ export class ProviderManager {
   async chat(params: ProviderChatParams): Promise<LLMResponse> {
     const provider = this.get(params.model ?? null);
     return provider.chat(params);
+  }
+
+  async *chatStream(params: ProviderChatParams): AsyncGenerator<LLMStreamEvent> {
+    const provider = this.get(params.model ?? null);
+    for await (const event of provider.chatStream(params)) {
+      yield event;
+    }
   }
 
   private resolveRoute(model?: string | null): ProviderRoute | null {

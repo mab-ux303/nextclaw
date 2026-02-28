@@ -225,6 +225,20 @@ export type ChatTurnResult = {
   metadata?: Record<string, unknown>;
 };
 
+export type ChatTurnStreamEvent =
+  | {
+      type: "delta";
+      delta: string;
+    }
+  | {
+      type: "final";
+      result: ChatTurnResult;
+    }
+  | {
+      type: "error";
+      error: string;
+    };
+
 export type ChatTurnView = {
   reply: string;
   sessionKey: string;
@@ -237,6 +251,7 @@ export type ChatTurnView = {
 
 export type UiChatRuntime = {
   processTurn: (params: ChatTurnRequest) => Promise<ChatTurnResult>;
+  processTurnStream?: (params: ChatTurnRequest) => AsyncGenerator<ChatTurnStreamEvent>;
 };
 
 export type ConfigView = {

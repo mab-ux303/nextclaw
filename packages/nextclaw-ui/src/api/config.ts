@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, API_BASE } from './client';
 import type {
   ConfigView,
   ConfigMetaView,
@@ -19,7 +19,9 @@ import type {
   CronListView,
   CronEnableRequest,
   CronRunRequest,
-  CronActionResult
+  CronActionResult,
+  ChatTurnStreamReadyEvent,
+  ChatTurnStreamDeltaEvent
 } from './types';
 
 // GET /api/config
@@ -192,6 +194,161 @@ export async function sendChatTurn(data: ChatTurnRequest): Promise<ChatTurnView>
     throw new Error(response.error.message);
   }
   return response.data;
+}
+
+type ChatTurnStreamOptions = {
+  signal?: AbortSignal;
+  onReady?: (event: ChatTurnStreamReadyEvent) => void;
+  onDelta?: (event: ChatTurnStreamDeltaEvent) => void;
+};
+
+type SseParsedEvent = {
+  event: string;
+  data: string;
+};
+
+function parseSseFrame(frame: string): SseParsedEvent | null {
+  const lines = frame.split(/\r?\n/);
+  let event = 'message';
+  const dataLines: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith('event:')) {
+      event = line.slice('event:'.length).trim() || 'message';
+      continue;
+    }
+    if (line.startsWith('data:')) {
+      dataLines.push(line.slice('data:'.length).trimStart());
+    }
+  }
+  if (dataLines.length === 0) {
+    return null;
+  }
+  return {
+    event,
+    data: dataLines.join('\n')
+  };
+}
+
+export async function sendChatTurnStream(
+  data: ChatTurnRequest,
+  options: ChatTurnStreamOptions = {}
+): Promise<ChatTurnView> {
+  const response = await fetch(`${API_BASE}/api/chat/turn/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream'
+    },
+    body: JSON.stringify(data),
+    signal: options.signal
+  });
+
+  if (!response.ok) {
+    let message = `chat stream failed (${response.status} ${response.statusText})`;
+    try {
+      const payload = await response.json() as { ok?: boolean; error?: { message?: string } };
+      if (payload?.error?.message) {
+        message = payload.error.message;
+      }
+    } catch {
+      const text = await response.text().catch(() => '');
+      if (text.trim()) {
+        message = text.trim();
+      }
+    }
+    throw new Error(message);
+  }
+
+  if (!response.body) {
+    throw new Error('chat stream is not readable');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalView: ChatTurnView | null = null;
+
+  const handleFrame = (frame: string) => {
+    const parsed = parseSseFrame(frame);
+    if (!parsed) {
+      return;
+    }
+    if (parsed.event === 'ready') {
+      try {
+        const readyPayload = JSON.parse(parsed.data) as {
+          sessionKey?: string;
+          requestedAt?: string;
+        };
+        options.onReady?.({
+          event: 'ready',
+          sessionKey: String(readyPayload.sessionKey ?? ''),
+          requestedAt: String(readyPayload.requestedAt ?? '')
+        });
+      } catch {
+        // ignore malformed ready event payload
+      }
+      return;
+    }
+    if (parsed.event === 'delta') {
+      try {
+        const deltaPayload = JSON.parse(parsed.data) as { delta?: string };
+        if (typeof deltaPayload.delta === 'string' && deltaPayload.delta.length > 0) {
+          options.onDelta?.({
+            event: 'delta',
+            delta: deltaPayload.delta
+          });
+        }
+      } catch {
+        // ignore malformed delta event payload
+      }
+      return;
+    }
+    if (parsed.event === 'final') {
+      finalView = JSON.parse(parsed.data) as ChatTurnView;
+      return;
+    }
+    if (parsed.event === 'error') {
+      try {
+        const errPayload = JSON.parse(parsed.data) as { message?: string };
+        throw new Error(typeof errPayload.message === 'string' && errPayload.message ? errPayload.message : 'chat stream failed');
+      } catch (error) {
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error('chat stream failed');
+      }
+    }
+  };
+
+  let streamDone = false;
+  while (!streamDone) {
+    const { done, value } = await reader.read();
+    if (done) {
+      streamDone = true;
+      continue;
+    }
+    buffer += decoder.decode(value, { stream: true });
+
+    let boundary = buffer.indexOf('\n\n');
+    while (boundary !== -1) {
+      const frame = buffer.slice(0, boundary).trim();
+      buffer = buffer.slice(boundary + 2);
+      if (frame) {
+        handleFrame(frame);
+      }
+      boundary = buffer.indexOf('\n\n');
+    }
+  }
+
+  const trailing = buffer.trim();
+  if (trailing) {
+    handleFrame(trailing);
+  }
+
+  if (!finalView) {
+    throw new Error('chat stream ended without final result');
+  }
+  return finalView;
 }
 
 // GET /api/cron

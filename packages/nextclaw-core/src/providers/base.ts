@@ -12,6 +12,18 @@ export type LLMResponse = {
   reasoningContent?: string | null;
 };
 
+export type LLMStreamDelta = {
+  type: "delta";
+  delta: string;
+};
+
+export type LLMStreamDone = {
+  type: "done";
+  response: LLMResponse;
+};
+
+export type LLMStreamEvent = LLMStreamDelta | LLMStreamDone;
+
 export abstract class LLMProvider {
   protected apiKey?: string | null;
   protected apiBase?: string | null;
@@ -27,6 +39,16 @@ export abstract class LLMProvider {
     model?: string | null;
     maxTokens?: number;
   }): Promise<LLMResponse>;
+
+  async *chatStream(params: {
+    messages: Array<Record<string, unknown>>;
+    tools?: Array<Record<string, unknown>>;
+    model?: string | null;
+    maxTokens?: number;
+  }): AsyncGenerator<LLMStreamEvent> {
+    const response = await this.chat(params);
+    yield { type: "done", response };
+  }
 
   abstract getDefaultModel(): string;
 }

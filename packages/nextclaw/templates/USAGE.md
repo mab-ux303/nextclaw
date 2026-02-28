@@ -361,6 +361,7 @@ NextClaw UI includes a first-class **Chat** tab so you can talk to your agent di
 - choose target agent before sending message
 - send messages with Enter (Shift+Enter for newline)
 - keep using the same session for multi-turn context
+- stream assistant output in real time via UI SSE API (`POST /api/chat/turn/stream`)
 - render assistant replies as Markdown (tables/code blocks/links)
 - show tool calls/results as structured tool cards
 - merge consecutive same-role messages into grouped chat blocks for better readability

@@ -1,6 +1,11 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
-import { LLMProvider, type LLMResponse, type ToolCallRequest } from "./base.js";
+import {
+  LLMProvider,
+  type LLMResponse,
+  type LLMStreamEvent,
+  type ToolCallRequest
+} from "./base.js";
 
 export type OpenAIProviderOptions = {
   apiKey?: string | null;
@@ -51,6 +56,36 @@ export class OpenAICompatibleProvider extends LLMProvider {
         return await this.chatResponses(params);
       }
       throw error;
+    }
+  }
+
+  async *chatStream(params: {
+    messages: Array<Record<string, unknown>>;
+    tools?: Array<Record<string, unknown>>;
+    model?: string | null;
+    maxTokens?: number;
+  }): AsyncGenerator<LLMStreamEvent> {
+    if (this.wireApi === "chat") {
+      for await (const event of this.chatCompletionsStream(params)) {
+        yield event;
+      }
+      return;
+    }
+    if (this.wireApi === "responses") {
+      const response = await this.chatResponses(params);
+      yield { type: "done", response };
+      return;
+    }
+    try {
+      for await (const event of this.chatCompletionsStream(params)) {
+        yield event;
+      }
+    } catch (error) {
+      if (!this.shouldFallbackToResponses(error)) {
+        throw error;
+      }
+      const response = await this.chatResponses(params);
+      yield { type: "done", response };
     }
   }
 
@@ -116,6 +151,150 @@ export class OpenAICompatibleProvider extends LLMProvider {
         total_tokens: response.usage?.total_tokens ?? 0
       },
       reasoningContent
+    };
+  }
+
+  private async *chatCompletionsStream(params: {
+    messages: Array<Record<string, unknown>>;
+    tools?: Array<Record<string, unknown>>;
+    model?: string | null;
+    maxTokens?: number;
+  }): AsyncGenerator<LLMStreamEvent> {
+    const model = params.model ?? this.defaultModel;
+    const maxTokens = params.maxTokens ?? 4096;
+    const stream = await this.withRetry(async () =>
+      this.client.chat.completions.create({
+        model,
+        messages: params.messages as unknown as ChatCompletionMessageParam[],
+        tools: params.tools as ChatCompletionTool[] | undefined,
+        tool_choice: params.tools?.length ? "auto" : undefined,
+        max_tokens: maxTokens,
+        stream: true,
+        stream_options: {
+          include_usage: true
+        }
+      })
+    );
+
+    type ToolCallBuffer = {
+      id?: string;
+      name?: string;
+      argumentsText: string;
+    };
+
+    const contentParts: string[] = [];
+    const reasoningParts: string[] = [];
+    const toolCallBuffers = new Map<number, ToolCallBuffer>();
+    let finishReason = "stop";
+    let usage: Record<string, number> = {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0
+    };
+
+    for await (const chunk of stream) {
+      if (chunk.usage) {
+        usage = {
+          prompt_tokens: chunk.usage.prompt_tokens ?? usage.prompt_tokens ?? 0,
+          completion_tokens: chunk.usage.completion_tokens ?? usage.completion_tokens ?? 0,
+          total_tokens: chunk.usage.total_tokens ?? usage.total_tokens ?? 0
+        };
+      }
+
+      const choice = chunk.choices?.[0];
+      if (!choice) {
+        continue;
+      }
+
+      if (typeof choice.finish_reason === "string" && choice.finish_reason.trim().length > 0) {
+        finishReason = choice.finish_reason;
+      }
+
+      const delta = choice.delta;
+      if (!delta) {
+        continue;
+      }
+
+      if (typeof delta.content === "string" && delta.content.length > 0) {
+        contentParts.push(delta.content);
+        yield {
+          type: "delta",
+          delta: delta.content
+        };
+      }
+
+      const reasoningDelta =
+        (delta as { reasoning_content?: string } | undefined)?.reasoning_content ??
+        (delta as { reasoning?: string } | undefined)?.reasoning;
+      if (typeof reasoningDelta === "string" && reasoningDelta) {
+        reasoningParts.push(reasoningDelta);
+      }
+
+      const toolDeltas = (delta as { tool_calls?: Array<Record<string, unknown>> }).tool_calls;
+      if (Array.isArray(toolDeltas)) {
+        for (const toolDelta of toolDeltas) {
+          const index =
+            typeof toolDelta.index === "number" && Number.isFinite(toolDelta.index)
+              ? toolDelta.index
+              : toolCallBuffers.size;
+          const current = toolCallBuffers.get(index) ?? { argumentsText: "" };
+          if (typeof toolDelta.id === "string" && toolDelta.id.trim()) {
+            current.id = toolDelta.id;
+          }
+          const fn = toolDelta.function;
+          if (fn && typeof fn === "object" && !Array.isArray(fn)) {
+            const maybeName = (fn as { name?: unknown }).name;
+            const maybeArgs = (fn as { arguments?: unknown }).arguments;
+            if (typeof maybeName === "string" && maybeName.trim()) {
+              current.name = maybeName;
+            }
+            if (typeof maybeArgs === "string" && maybeArgs.length > 0) {
+              current.argumentsText += maybeArgs;
+            }
+          }
+          toolCallBuffers.set(index, current);
+        }
+      }
+
+      const legacyFunctionCall = (delta as { function_call?: { name?: string; arguments?: string } } | undefined)
+        ?.function_call;
+      if (legacyFunctionCall) {
+        const legacy = toolCallBuffers.get(0) ?? { argumentsText: "" };
+        if (typeof legacyFunctionCall.name === "string" && legacyFunctionCall.name.trim()) {
+          legacy.name = legacyFunctionCall.name;
+        }
+        if (typeof legacyFunctionCall.arguments === "string" && legacyFunctionCall.arguments.length > 0) {
+          legacy.argumentsText += legacyFunctionCall.arguments;
+        }
+        if (!legacy.id) {
+          legacy.id = "legacy-fn-0";
+        }
+        toolCallBuffers.set(0, legacy);
+      }
+    }
+
+    const toolCalls: ToolCallRequest[] = [];
+    const orderedToolCalls = Array.from(toolCallBuffers.entries()).sort(([left], [right]) => left - right);
+    for (const [index, call] of orderedToolCalls) {
+      if (!call.name || !call.name.trim()) {
+        continue;
+      }
+      toolCalls.push({
+        id: call.id ?? `tool-${index}`,
+        name: call.name.trim(),
+        arguments: this.parseToolCallArguments(call.argumentsText)
+      });
+    }
+
+    yield {
+      type: "done",
+      response: {
+        content: contentParts.join("") || null,
+        toolCalls,
+        finishReason,
+        usage,
+        reasoningContent: reasoningParts.join("").trim() || null
+      }
     };
   }
 

@@ -1,5 +1,11 @@
 # nextclaw-core
 
+## 0.6.36
+
+### Patch Changes
+
+- Add real chat streaming pipeline from provider to UI via SSE and remove simulated frontend streaming.
+
 ## 0.6.35
 
 ### Patch Changes

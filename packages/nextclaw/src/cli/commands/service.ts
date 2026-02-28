@@ -799,6 +799,53 @@ export class ServiceCommands {
     if (!uiConfig.enabled) {
       return;
     }
+    const resolveChatTurnParams = (params: {
+      message: string;
+      sessionKey?: string;
+      agentId?: string;
+      channel?: string;
+      chatId?: string;
+      model?: string;
+      metadata?: Record<string, unknown>;
+    }) => {
+      const sessionKey =
+        typeof params.sessionKey === "string" && params.sessionKey.trim().length > 0
+          ? params.sessionKey.trim()
+          : `ui:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
+      const inferredAgentId =
+        typeof params.agentId === "string" && params.agentId.trim().length > 0
+          ? params.agentId.trim()
+          : parseAgentScopedSessionKey(sessionKey)?.agentId;
+      const model = typeof params.model === "string" && params.model.trim().length > 0 ? params.model.trim() : undefined;
+      const metadata =
+        params.metadata && typeof params.metadata === "object" && !Array.isArray(params.metadata)
+          ? { ...params.metadata }
+          : {};
+      if (model) {
+        metadata.model = model;
+      }
+      return {
+        sessionKey,
+        inferredAgentId,
+        model,
+        metadata,
+        channel: typeof params.channel === "string" && params.channel.trim().length > 0 ? params.channel : "ui",
+        chatId: typeof params.chatId === "string" && params.chatId.trim().length > 0 ? params.chatId : "web-ui"
+      };
+    };
+
+    const buildTurnResult = (params: {
+      reply: string;
+      sessionKey: string;
+      inferredAgentId?: string;
+      model?: string;
+    }) => ({
+      reply: params.reply,
+      sessionKey: params.sessionKey,
+      ...(params.inferredAgentId ? { agentId: params.inferredAgentId } : {}),
+      ...(params.model ? { model: params.model } : {})
+    });
+
     const uiServer = startUiServer({
       host: uiConfig.host,
       port: uiConfig.port,
@@ -818,38 +865,88 @@ export class ServiceCommands {
       },
       chatRuntime: {
         processTurn: async (params) => {
-          const sessionKey =
-            typeof params.sessionKey === "string" && params.sessionKey.trim().length > 0
-              ? params.sessionKey.trim()
-              : `ui:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
-          const inferredAgentId =
-            typeof params.agentId === "string" && params.agentId.trim().length > 0
-              ? params.agentId.trim()
-              : parseAgentScopedSessionKey(sessionKey)?.agentId;
-          const model = typeof params.model === "string" && params.model.trim().length > 0 ? params.model.trim() : undefined;
-          const metadata =
-            params.metadata && typeof params.metadata === "object" && !Array.isArray(params.metadata)
-              ? { ...params.metadata }
-              : {};
-          if (model) {
-            metadata.model = model;
-          }
+          const resolved = resolveChatTurnParams(params);
 
           const reply = await runtimePool.processDirect({
             content: params.message,
-            sessionKey,
-            channel: typeof params.channel === "string" && params.channel.trim().length > 0 ? params.channel : "ui",
-            chatId: typeof params.chatId === "string" && params.chatId.trim().length > 0 ? params.chatId : "web-ui",
-            agentId: inferredAgentId,
-            metadata
+            sessionKey: resolved.sessionKey,
+            channel: resolved.channel,
+            chatId: resolved.chatId,
+            agentId: resolved.inferredAgentId,
+            metadata: resolved.metadata
           });
 
-          return {
+          return buildTurnResult({
             reply,
-            sessionKey,
-            ...(inferredAgentId ? { agentId: inferredAgentId } : {}),
-            ...(model ? { model } : {})
+            sessionKey: resolved.sessionKey,
+            inferredAgentId: resolved.inferredAgentId,
+            model: resolved.model
+          });
+        },
+        processTurnStream: async function* (params) {
+          const resolved = resolveChatTurnParams(params);
+          type StreamEvent =
+            | { type: "delta"; delta: string }
+            | { type: "final"; result: ReturnType<typeof buildTurnResult> }
+            | { type: "error"; error: string };
+          const queue: StreamEvent[] = [];
+          let waiter: (() => void) | null = null;
+          const push = (event: StreamEvent) => {
+            queue.push(event);
+            const currentWaiter = waiter;
+            waiter = null;
+            currentWaiter?.();
           };
+
+          const run = runtimePool
+            .processDirect({
+              content: params.message,
+              sessionKey: resolved.sessionKey,
+              channel: resolved.channel,
+              chatId: resolved.chatId,
+              agentId: resolved.inferredAgentId,
+              metadata: resolved.metadata,
+              onAssistantDelta: (delta) => {
+                if (typeof delta !== "string" || delta.length === 0) {
+                  return;
+                }
+                push({ type: "delta", delta });
+              }
+            })
+            .then((reply) => {
+              push({
+                type: "final",
+                result: buildTurnResult({
+                  reply,
+                  sessionKey: resolved.sessionKey,
+                  inferredAgentId: resolved.inferredAgentId,
+                  model: resolved.model
+                })
+              });
+            })
+            .catch((error) => {
+              push({ type: "error", error: String(error) });
+            });
+
+          while (true) {
+            if (queue.length === 0) {
+              await new Promise<void>((resolve) => {
+                waiter = resolve;
+              });
+            }
+
+            while (queue.length > 0) {
+              const event = queue.shift();
+              if (!event) {
+                continue;
+              }
+              yield event;
+              if (event.type !== "delta") {
+                await run;
+                return;
+              }
+            }
+          }
         }
       }
     });

@@ -1,6 +1,7 @@
 import type { InboundMessage, OutboundMessage } from "../bus/events.js";
 import type { MessageBus } from "../bus/queue.js";
 import type { ProviderManager } from "../providers/provider_manager.js";
+import type { LLMResponse } from "../providers/base.js";
 import { ContextBuilder } from "./context.js";
 import { ToolRegistry } from "./tools/registry.js";
 import { ReadFileTool, WriteFileTool, EditFileTool, ListDirTool } from "./tools/filesystem.js";
@@ -30,6 +31,8 @@ type MessageToolHintsResolver = (params: {
   chatId: string;
   accountId?: string | null;
 }) => string[];
+
+type AssistantDeltaHandler = (delta: string) => void;
 
 export class AgentLoop {
   private context: ContextBuilder;
@@ -264,6 +267,7 @@ export class AgentLoop {
     channel?: string;
     chatId?: string;
     metadata?: Record<string, unknown>;
+    onAssistantDelta?: AssistantDeltaHandler;
   }): Promise<string> {
     const msg: InboundMessage = {
       channel: params.channel ?? "cli",
@@ -274,7 +278,9 @@ export class AgentLoop {
       attachments: [],
       metadata: params.metadata ?? {}
     };
-    const response = await this.processMessage(msg, params.sessionKey);
+    const response = await this.processMessage(msg, params.sessionKey, {
+      onAssistantDelta: params.onAssistantDelta
+    });
     return response?.content ?? "";
   }
 
@@ -416,9 +422,13 @@ export class AgentLoop {
     messages.splice(0, messages.length, ...result.messages);
   }
 
-  private async processMessage(msg: InboundMessage, sessionKeyOverride?: string): Promise<OutboundMessage | null> {
+  private async processMessage(
+    msg: InboundMessage,
+    sessionKeyOverride?: string,
+    options?: { onAssistantDelta?: AssistantDeltaHandler }
+  ): Promise<OutboundMessage | null> {
     if (msg.channel === "system") {
-      return this.processSystemMessage(msg, sessionKeyOverride);
+      return this.processSystemMessage(msg, sessionKeyOverride, options);
     }
 
     const sessionKey = sessionKeyOverride ?? `${msg.channel}:${msg.chatId}`;
@@ -511,12 +521,12 @@ export class AgentLoop {
     while (iteration < maxIterations) {
       iteration += 1;
       this.pruneMessagesForInputBudget(messages);
-      const response = await this.options.providerManager.chat({
+      const response = await this.chatWithOptionalStreaming({
         messages,
         tools: this.tools.getDefinitions(),
         model: runtimeModel,
         maxTokens: this.options.maxTokens
-      });
+      }, options?.onAssistantDelta);
 
       if (containsSilentReplyMarker(response.content)) {
         this.sessions.addMessage(session, "assistant", response.content ?? "");
@@ -589,7 +599,8 @@ export class AgentLoop {
 
   private async processSystemMessage(
     msg: InboundMessage,
-    sessionKeyOverride?: string
+    sessionKeyOverride?: string,
+    options?: { onAssistantDelta?: AssistantDeltaHandler }
   ): Promise<OutboundMessage | null> {
     const separator = msg.chatId.indexOf(":");
     const originChannel = separator > 0 ? msg.chatId.slice(0, separator) : "cli";
@@ -661,12 +672,12 @@ export class AgentLoop {
     while (iteration < maxIterations) {
       iteration += 1;
       this.pruneMessagesForInputBudget(messages);
-      const response = await this.options.providerManager.chat({
+      const response = await this.chatWithOptionalStreaming({
         messages,
         tools: this.tools.getDefinitions(),
         model: runtimeModel,
         maxTokens: this.options.maxTokens
-      });
+      }, options?.onAssistantDelta);
 
       if (containsSilentReplyMarker(response.content)) {
         this.sessions.addMessage(session, "assistant", response.content ?? "");
@@ -734,6 +745,35 @@ export class AgentLoop {
       media: [],
       metadata: msg.metadata ?? {}
     };
+  }
+
+  private async chatWithOptionalStreaming(
+    params: {
+      messages: Array<Record<string, unknown>>;
+      tools?: Array<Record<string, unknown>>;
+      model?: string | null;
+      maxTokens?: number;
+    },
+    onAssistantDelta?: AssistantDeltaHandler
+  ): Promise<LLMResponse> {
+    if (!onAssistantDelta) {
+      return await this.options.providerManager.chat(params);
+    }
+
+    let finalResponse: LLMResponse | null = null;
+    for await (const event of this.options.providerManager.chatStream(params)) {
+      if (event.type === "delta") {
+        onAssistantDelta(event.delta);
+        continue;
+      }
+      finalResponse = event.response;
+    }
+
+    if (!finalResponse) {
+      throw new Error("provider stream ended without a final response");
+    }
+
+    return finalResponse;
   }
 }
 
