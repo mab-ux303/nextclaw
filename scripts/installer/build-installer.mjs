@@ -373,7 +373,7 @@ class InstallerBuilder {
     const makensis = this.resolveMakensisBinary();
     console.log(`[installer] using makensis: ${makensis}`);
     this.runner.run(makensis, [
-      "/DAPP_NAME=NextClaw Beta",
+      "/DAPP_NAME=NextClaw-Beta",
       `/DAPP_VERSION=${this.version}`,
       `/DAPP_ARCH=${this.arch}`,
       `/DAPP_SOURCE_DIR=${this.toWindowsPath(sourceDir)}`,
