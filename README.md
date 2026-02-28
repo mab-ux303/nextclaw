@@ -84,7 +84,7 @@ Config lives in `~/.nextclaw/config.json`; gateway and server both use it (with 
 
 - **QQ Group** (群号 1084340143) — Scan QR to join:
 
-  ![QQ Group QR](images/contact/nextclaw-contact-qq-group.jpg)
+  <img src="images/contact/nextclaw-contact-qq-group.jpg" width="200" alt="QQ Group QR" />
 
 - **Discord**: [NextClaw/OpenClaw](https://discord.gg/j4Skbgye)
 
