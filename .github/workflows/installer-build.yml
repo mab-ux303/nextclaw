@@ -54,12 +54,23 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           choco install nsis -y
-          where.exe makensis
           $nsis = Get-Command makensis -ErrorAction SilentlyContinue
           if ($null -eq $nsis) {
-            throw "makensis not found in PATH after NSIS install"
+            Write-Host "makensis is not on PATH after install, will fallback to absolute paths in build script."
+          } else {
+            Write-Host "makensis command path: $($nsis.Source)"
           }
-          Write-Host "makensis command path: $($nsis.Source)"
+          $candidates = @(
+            "C:\\Program Files (x86)\\NSIS\\makensis.exe",
+            "C:\\Program Files\\NSIS\\makensis.exe",
+            "$env:ChocolateyInstall\\bin\\makensis.exe",
+            "$env:ProgramData\\chocolatey\\bin\\makensis.exe"
+          )
+          foreach ($candidate in $candidates) {
+            if (Test-Path $candidate) {
+              Write-Host "makensis candidate found: $candidate"
+            }
+          }
 
       - name: Build installer
         if: runner.os != 'Windows'

@@ -6,7 +6,7 @@
   - `scripts/installer/build-installer.mjs` 新增 `makensis` 定位兜底逻辑，按顺序尝试 `PATH`、`C:\\Program Files (x86)\\NSIS\\makensis.exe`、`C:\\Program Files\\NSIS\\makensis.exe` 以及 Chocolatey 常见目录。
   - 找不到 `makensis` 时抛出明确错误并打印当前 `PATH`，避免“静默失败”。
 - 改造 CI 工作流 `.github/workflows/installer-build.yml`：
-  - Windows 安装 NSIS 后立即校验 `makensis` 是否可用并打印路径。
+  - Windows 安装 NSIS 后记录 `makensis` 路径状态（PATH 命中或绝对路径候选），不再因 PATH 未刷新而提前失败。
   - Windows 构建步骤改为 `continue-on-error: true` + 日志落盘（`build-installer-windows.log`），失败时也会上传日志 artifact。
   - Windows 产物上传仅在构建成功时执行，避免因产物缺失导致二次报错。
   - 增加失败收敛步骤：Windows 构建失败时显式 fail job，并提示查看上传日志。
