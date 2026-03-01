@@ -13,7 +13,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-[为什么选择 NextClaw？](#为什么选择-nextclaw) · [快速开始](#-快速开始) · [功能](#-功能) · [架构](#-架构) · [截图](#-截图) · [命令](#-命令) · [渠道](#-渠道) · [社群](#-社群) · [文档](https://docs.nextclaw.io/zh/)
+[为什么选择 NextClaw？](#为什么选择-nextclaw) · [快速开始](#-快速开始) · [桌面安装包（实验性 Beta）](https://docs.nextclaw.io/zh/guide/desktop-installer-beta) · [功能](#-功能) · [架构](#-架构) · [截图](#-截图) · [命令](#-命令) · [渠道](#-渠道) · [社群](#-社群) · [文档](https://docs.nextclaw.io/zh/)
 
 ### 12+ AI 提供商
 <p>
@@ -143,6 +143,14 @@ nextclaw start
 ```bash
 nextclaw stop   # 停止服务
 ```
+
+---
+
+## 桌面安装包（实验性 Beta）
+
+如果你更希望用“小白可用”的安装器流程，请查看安装器文档：
+
+- [桌面安装包（实验性 Beta）](https://docs.nextclaw.io/zh/guide/desktop-installer-beta)
 
 ---
 

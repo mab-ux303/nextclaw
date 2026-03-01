@@ -13,7 +13,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-[Why NextClaw?](#why-nextclaw) · [Quick Start](#-quick-start) · [Features](#-features) · [Architecture](#-architecture) · [Screenshots](#-screenshots) · [Commands](#-commands) · [Channels](#-channels) · [Community](#-community) · [Docs](https://docs.nextclaw.io/en/)
+[Why NextClaw?](#why-nextclaw) · [Quick Start](#-quick-start) · [Desktop Installer (Beta)](https://docs.nextclaw.io/en/guide/desktop-installer-beta) · [Features](#-features) · [Architecture](#-architecture) · [Screenshots](#-screenshots) · [Commands](#-commands) · [Channels](#-channels) · [Community](#-community) · [Docs](https://docs.nextclaw.io/en/)
 
 ### 12+ AI Providers
 <p>
@@ -143,6 +143,14 @@ NextClaw now binds UI on `0.0.0.0` by default for `start/restart/serve/ui/gatewa
 ```bash
 nextclaw stop   # stop the service
 ```
+
+---
+
+## Desktop Installer (Experimental Beta)
+
+If you prefer a beginner-friendly installer flow, see the installer guide:
+
+- [Desktop Installer (Experimental Beta)](https://docs.nextclaw.io/en/guide/desktop-installer-beta)
 
 ---
 

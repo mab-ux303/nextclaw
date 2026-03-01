@@ -84,6 +84,7 @@ const enSidebar = [
     items: [
       { text: 'Introduction', link: '/en/guide/introduction' },
       { text: 'Quick Start', link: '/en/guide/getting-started' },
+      { text: 'Desktop Installer (Beta)', link: '/en/guide/desktop-installer-beta' },
       { text: 'Configuration', link: '/en/guide/configuration' },
       { text: 'Model Selection', link: '/en/guide/model-selection' }
     ]
@@ -125,6 +126,7 @@ const zhSidebar = [
     items: [
       { text: '介绍', link: '/zh/guide/introduction' },
       { text: '上手', link: '/zh/guide/getting-started' },
+      { text: '桌面安装包（Beta）', link: '/zh/guide/desktop-installer-beta' },
       { text: '配置', link: '/zh/guide/configuration' },
       { text: '模型选型', link: '/zh/guide/model-selection' }
     ]
@@ -189,6 +191,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: 'Getting Started', link: '/en/guide/getting-started' },
+          { text: 'Desktop Installer (Beta)', link: '/en/guide/desktop-installer-beta' },
           { text: 'Configuration', link: '/en/guide/configuration' },
           { text: 'Secrets', link: '/en/guide/secrets' },
           { text: 'Channels', link: '/en/guide/channels' },
@@ -215,6 +218,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '快速开始', link: '/zh/guide/getting-started' },
+          { text: '桌面安装包（Beta）', link: '/zh/guide/desktop-installer-beta' },
           { text: '配置', link: '/zh/guide/configuration' },
           { text: '密钥管理', link: '/zh/guide/secrets' },
           { text: '渠道', link: '/zh/guide/channels' },
