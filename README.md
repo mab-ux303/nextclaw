@@ -67,7 +67,7 @@ nextclaw stop    # stop the service
 
 ![Message Channels](images/screenshots/nextclaw-channels-page-en.png)
 
-**Micro Browser** — built-in browser for web interaction:
+**Micro Browser** — lightweight web panel for previewing and interacting with web content:
 
 ![Micro Browser](images/screenshots/nextclaw-micro-browser-dock-en.png)
 
@@ -76,8 +76,10 @@ nextclaw stop    # stop the service
 Visit **[docs.nextclaw.io](https://docs.nextclaw.io/en/)** for the full documentation, including:
 
 - [Configuration & Providers](https://docs.nextclaw.io/en/guide/configuration)
-- [Multi-Agent Architecture](https://docs.nextclaw.io/en/guide/multi-agent)
-- [Roadmap](https://docs.nextclaw.io/en/guide/roadmap)
+- [Model Selection](https://docs.nextclaw.io/en/guide/model-selection)
+- [Commands](https://docs.nextclaw.io/en/guide/commands)
+- [Vision & Roadmap](https://docs.nextclaw.io/en/guide/vision)
+- [Feishu Setup Tutorial](https://docs.nextclaw.io/en/guide/tutorials/feishu)
 
 ## Community
 
@@ -89,6 +91,13 @@ Visit **[docs.nextclaw.io](https://docs.nextclaw.io/en/)** for the full document
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
+
+## Acknowledgements
+
+NextClaw is inspired by and built upon the shoulders of these great projects:
+
+- [OpenClaw](https://github.com/openclaw/openclaw) — The full-stack AI assistant platform that inspired NextClaw's architecture and plugin ecosystem.
+- [NanoBot](https://github.com/nicepkg/gpt-runner) — A lightweight Python agent framework that demonstrated how simplicity and power can coexist.
 
 ## License
 

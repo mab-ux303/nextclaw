@@ -67,7 +67,7 @@ nextclaw stop    # 停止服务
 
 ![消息渠道](images/screenshots/nextclaw-channels-page-cn.png)
 
-**微浏览器** — 内置浏览器，支持网页交互：
+**Micro Browser** — 轻量 Web 面板，用于预览和交互网页内容：
 
 ![微浏览器](images/screenshots/nextclaw-micro-browser-dock-cn.jpg)
 
@@ -76,8 +76,10 @@ nextclaw stop    # 停止服务
 访问 **[docs.nextclaw.io](https://docs.nextclaw.io/zh/)** 查看完整文档，包括：
 
 - [配置与 Provider](https://docs.nextclaw.io/zh/guide/configuration)
-- [多 Agent 架构](https://docs.nextclaw.io/zh/guide/multi-agent)
-- [路线图](https://docs.nextclaw.io/zh/guide/roadmap)
+- [模型选择](https://docs.nextclaw.io/zh/guide/model-selection)
+- [命令参考](https://docs.nextclaw.io/zh/guide/commands)
+- [愿景与路线图](https://docs.nextclaw.io/zh/guide/vision)
+- [飞书接入教程](https://docs.nextclaw.io/zh/guide/tutorials/feishu)
 
 ## 社群
 
@@ -90,6 +92,13 @@ nextclaw stop    # 停止服务
 ## 参与贡献
 
 欢迎贡献！请提交 Issue 或 Pull Request。
+
+## 致谢
+
+NextClaw 的诞生离不开以下优秀项目的启发：
+
+- [OpenClaw](https://github.com/openclaw/openclaw) — 全栈 AI 助手平台，NextClaw 的架构与插件生态深受其影响。
+- [NanoBot](https://github.com/nicepkg/gpt-runner) — 轻量 Python Agent 框架，展示了简洁与强大可以兼得。
 
 ## 许可证
 
