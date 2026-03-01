@@ -35,39 +35,27 @@ When NextClaw AI needs to operate the product itself (status/doctor/channels/con
 
 ## Quick Start
 
-1. Install (desktop installer beta, no Node needed):
-
-   - Download from <https://github.com/Peiiii/nextclaw/releases/latest>
-   - macOS:
-     - `NextClaw-<version>-beta-macos-arm64-installer.pkg` (Apple Silicon)
-     - `NextClaw-<version>-beta-macos-x64-installer.pkg` (Intel)
-   - Windows:
-     - `NextClaw-<version>-beta-windows-x64-installer.exe`
-     - `NextClaw-<version>-beta-windows-arm64-installer.exe`
-   - Open **Start NextClaw** from Desktop/Start Menu.
-   - Beta notice: desktop installers are still beta and may have issues.
-
-2. Or install with npm:
+1. Install with npm:
 
    ```bash
    npm i -g nextclaw
    ```
 
-3. Start the service (gateway + config UI in the background):
+2. Start the service (gateway + config UI in the background):
 
    ```bash
    nextclaw start
    ```
 
-4. Open **http://127.0.0.1:18791** in your browser. Set a provider (e.g. OpenRouter) and model in the UI.
+3. Open **http://127.0.0.1:18791** in your browser. Set a provider (e.g. OpenRouter) and model in the UI.
 
-5. Optionally run `nextclaw init` to create a workspace with agent templates, or chat from the CLI:
+4. Optionally run `nextclaw init` to create a workspace with agent templates, or chat from the CLI:
 
    ```bash
    nextclaw agent -m "Hello!"
    ```
 
-6. Stop the service when done:
+5. Stop the service when done:
 
    ```bash
    nextclaw stop
