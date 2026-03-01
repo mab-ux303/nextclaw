@@ -647,25 +647,6 @@ class LandingPage {
           </div>
         </section>
 
-        <section id="faq" class="py-20 px-6 z-10 w-full max-w-4xl mx-auto">
-          <div class="text-center mb-12">
-            <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">${this.copy.faqTitle}</h2>
-            <p class="text-muted-foreground text-lg max-w-2xl mx-auto">${this.copy.faqSubtitle}</p>
-          </div>
-          <div class="space-y-4">
-            ${this.copy.faq.map((item) => `
-              <details class="glass-card rounded-2xl border border-border/50 group">
-                <summary class="px-6 py-5 cursor-pointer flex items-center justify-between text-left font-medium hover:text-primary transition-colors list-none">
-                  <span>${item.question}</span>
-                  <i data-lucide="chevron-down" class="w-5 h-5 text-muted-foreground group-open:rotate-180 transition-transform shrink-0 ml-4"></i>
-                </summary>
-                <div class="px-6 pb-5 text-muted-foreground leading-relaxed">
-                  ${item.answer}
-                </div>
-              </details>`).join('')}
-          </div>
-        </section>
-
         <section class="py-20 px-6 z-10 w-full max-w-6xl mx-auto">
           <div class="text-center mb-12">
             <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">${this.copy.comparisonTitle}</h2>
@@ -692,6 +673,25 @@ class LandingPage {
                 `).join('')}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section id="faq" class="py-20 px-6 z-10 w-full max-w-4xl mx-auto">
+          <div class="text-center mb-12">
+            <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">${this.copy.faqTitle}</h2>
+            <p class="text-muted-foreground text-lg max-w-2xl mx-auto">${this.copy.faqSubtitle}</p>
+          </div>
+          <div class="space-y-4">
+            ${this.copy.faq.map((item) => `
+              <details class="glass-card rounded-2xl border border-border/50 group">
+                <summary class="px-6 py-5 cursor-pointer flex items-center justify-between text-left font-medium hover:text-primary transition-colors list-none">
+                  <span>${item.question}</span>
+                  <i data-lucide="chevron-down" class="w-5 h-5 text-muted-foreground group-open:rotate-180 transition-transform shrink-0 ml-4"></i>
+                </summary>
+                <div class="px-6 pb-5 text-muted-foreground leading-relaxed">
+                  ${item.answer}
+                </div>
+              </details>`).join('')}
           </div>
         </section>
 
