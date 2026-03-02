@@ -171,6 +171,10 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
     zh: '如果列表里没有目标模型，可直接输入自定义模型 ID。',
     en: 'If the model is not listed, type a custom model ID directly.'
   },
+  modelIdentifierHelp: {
+    zh: 'Agent 默认模型标识，使用带 provider 前缀的格式。例如：openai/gpt-5.1、anthropic/claude-opus-4-1、deepseek/deepseek-chat、minimax/MiniMax-M2.5、openrouter/openai/gpt-5.3-codex。',
+    en: 'Default model identifier used by the agent. Use provider-prefixed format. Examples: openai/gpt-5.1 · anthropic/claude-opus-4-1 · deepseek/deepseek-chat · minimax/MiniMax-M2.5 · openrouter/openai/gpt-5.3-codex.'
+  },
   maxToolIterations: { zh: '最大工具迭代次数', en: 'Max Tool Iterations' },
   saveChanges: { zh: '保存变更', en: 'Save Changes' },
 

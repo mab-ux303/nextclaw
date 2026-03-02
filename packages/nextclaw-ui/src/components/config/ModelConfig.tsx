@@ -160,7 +160,7 @@ export function ModelConfig() {
     return `${selectedProvider.prefix}/${normalizedModelId}`;
   }, [modelId, selectedProvider, selectedProviderAliases]);
 
-  const modelHelpText = modelHint?.help ?? '';
+  const modelHelpText = t('modelIdentifierHelp') || modelHint?.help || '';
 
   const handleProviderChange = (nextProvider: string) => {
     setProviderName(nextProvider);

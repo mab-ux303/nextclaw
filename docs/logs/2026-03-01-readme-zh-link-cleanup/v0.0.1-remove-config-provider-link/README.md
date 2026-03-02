@@ -1,8 +1,8 @@
-# 2026-03-01 Remove Config Provider Link
+# 2026-03-01 Remove Config Provider Links (ZH/EN)
 
 ## 背景 / 问题
 
-- 用户要求移除 README 中文文档列表中的“配置与 Provider”外链。
+- 用户要求移除 README 中中英文文档列表里的配置外链入口。
 
 ## 决策
 
@@ -12,24 +12,28 @@
 
 - 文件：`README.zh-CN.md`
 - 变更：删除 `- [配置与 Provider](https://docs.nextclaw.io/zh/guide/configuration)`。
+- 文件：`README.md`
+- 变更：删除 `- [Configuration & Providers](https://docs.nextclaw.io/en/guide/configuration)`。
 
 ## 测试 / 验证 / 验收方式
 
 ```bash
 sed -n '68,88p' README.zh-CN.md
+sed -n '72,92p' README.md
 rg -n "\[配置与 Provider\]\(https://docs.nextclaw.io/zh/guide/configuration\)" README.zh-CN.md
+rg -n "\[Configuration & Providers\]\(https://docs.nextclaw.io/en/guide/configuration\)" README.md
 ```
 
 验收点：
 
-- 文档列表中不再出现该链接。
+- 中英文文档列表中均不再出现对应配置链接。
 - 其余链接保持原样。
 
 ## 用户 / 产品视角验收步骤
 
-1. 打开 `README.zh-CN.md` 的“文档”章节。
-2. 确认“配置与 Provider”链接已不存在。
-3. 确认“模型选择 / 命令参考 / 愿景与路线图 / 飞书接入教程”仍可见。
+1. 打开 `README.zh-CN.md` 与 `README.md` 的“文档”章节。
+2. 确认“配置与 Provider / Configuration & Providers”链接都已不存在。
+3. 确认其它文档入口仍可见。
 
 ## 发布 / 部署方式
 
