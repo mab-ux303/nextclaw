@@ -44,6 +44,21 @@ NextClaw orchestrates the entire internet and raw compute from your machine — 
 
 ## Quick Start
 
+### 0. Prerequisites
+
+- Install Node.js (LTS recommended): [nodejs.org](https://nodejs.org/)
+- Open a terminal:
+  - Windows: `Win + R`, type `cmd` (or open PowerShell)
+  - macOS: `Command + Space`, search `Terminal`
+  - Linux: `Ctrl + Alt + T` (or Terminal from app menu)
+
+Verify your environment first:
+
+```bash
+node -v
+npm -v
+```
+
 ```bash
 npm i -g nextclaw
 nextclaw start
@@ -55,7 +70,11 @@ Open **http://127.0.0.1:18791** → set your provider and model → start chatti
 nextclaw stop    # stop the service
 ```
 
+If `npm` is not found, install/reinstall Node.js and reopen your terminal.
+
 > Full configuration guide: [docs.nextclaw.io](https://docs.nextclaw.io/en/guide/configuration)
+>
+> Beginner step-by-step guide (with troubleshooting): [Getting Started](https://docs.nextclaw.io/en/guide/getting-started)
 
 ## Screenshots
 

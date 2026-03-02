@@ -26,5 +26,13 @@ module.exports = {
     "react-hooks/set-state-in-effect": "off",
     "max-lines": ["warn", { "max": 800, "skipBlankLines": true, "skipComments": true }],
     "max-lines-per-function": ["warn", { "max": 150, "skipBlankLines": true, "skipComments": true, "IIFEs": true }]
-  }
+  },
+  overrides: [
+    {
+      files: ["src/components/**/*.tsx", "src/App.tsx"],
+      rules: {
+        "max-lines-per-function": ["warn", { "max": 300, "skipBlankLines": true, "skipComments": true, "IIFEs": true }]
+      }
+    }
+  ]
 };

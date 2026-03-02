@@ -1,12 +1,34 @@
 # Quick Start
 
-## Installation
+## 0. Prerequisites (Read First)
+
+NextClaw requires Node.js and npm.
+
+1. Install Node.js (LTS recommended): [nodejs.org](https://nodejs.org/)
+2. After installation, open a terminal and run:
+
+```bash
+node -v
+npm -v
+```
+
+If you see versions (for example `v20.x` and `10.x`), your environment is ready.
+
+## 1. Open a Terminal
+
+- Windows:
+  - Press `Win + R`, type `cmd`, then press Enter;
+  - or open `PowerShell` from search.
+- macOS: Press `Command + Space`, type `Terminal`, then press Enter.
+- Linux: Usually `Ctrl + Alt + T`, or open `Terminal` from the app menu.
+
+## 2. Install NextClaw
 
 ```bash
 npm i -g nextclaw
 ```
 
-## Start the Service
+## 3. Start the Service
 
 Start the gateway + config UI in the background:
 
@@ -14,22 +36,46 @@ Start the gateway + config UI in the background:
 nextclaw start
 ```
 
-## Open the UI
+## 4. Open the UI and Complete First-Time Setup
 
-Open **http://127.0.0.1:18791** in your browser. Set a provider (e.g. OpenRouter) and model in the UI.
+Open **http://127.0.0.1:18791** in your browser, then:
 
-## Initialize Workspace
+1. Add a provider (such as OpenRouter / OpenAI)
+2. Select a default model
+3. Save and send your first message
 
-Optionally run `nextclaw init` to create a workspace with agent templates, or chat from the CLI:
+## 5. Useful Verification and Stop Commands
 
 ```bash
-nextclaw agent -m "Hello!"
+nextclaw --version
+nextclaw status
+nextclaw stop
 ```
 
-## Stop the Service
+## 6. Common Issues
+
+### `npm` / `node` command not found
+
+Node.js is not installed correctly, or the terminal session was not restarted. Reinstall Node.js and reopen the terminal.
+
+### `EACCES` on macOS/Linux (global npm install permission)
+
+Try reinstalling Node.js using the official installer first. If it persists, follow npm official docs to configure a user-level global directory.
+
+### `http://127.0.0.1:18791` cannot be opened
+
+1. Run `nextclaw status` to confirm the service is running.
+2. If it is not running, start it:
+
+```bash
+nextclaw start
+```
+
+3. If it still does not open, restart:
 
 ```bash
 nextclaw stop
+nextclaw start
 ```
 
 ## What's Next?

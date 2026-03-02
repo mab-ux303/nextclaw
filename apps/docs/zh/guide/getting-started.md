@@ -1,12 +1,34 @@
 # 快速开始
 
-## 安装
+## 0. 前置准备（新手必读）
+
+NextClaw 依赖 Node.js 与 npm。
+
+1. 安装 Node.js（推荐 LTS 版本）：[nodejs.org](https://nodejs.org/)
+2. 安装完成后，打开终端执行：
+
+```bash
+node -v
+npm -v
+```
+
+看到版本号即表示环境正常（例如 `v20.x`、`10.x`）。
+
+## 1. 打开终端
+
+- Windows：
+  - 按 `Win + R`，输入 `cmd` 后回车；
+  - 或搜索并打开 `PowerShell`。
+- macOS：按 `Command + 空格`，输入 `Terminal`（终端）并回车。
+- Linux：通常使用 `Ctrl + Alt + T`，或在应用菜单中打开 `Terminal`。
+
+## 2. 安装 NextClaw
 
 ```bash
 npm i -g nextclaw
 ```
 
-## 启动服务
+## 3. 启动服务
 
 后台启动网关 + 配置 UI：
 
@@ -14,22 +36,46 @@ npm i -g nextclaw
 nextclaw start
 ```
 
-## 打开 UI
+## 4. 打开 UI 并完成首次配置
 
-浏览器访问 **http://127.0.0.1:18791**，在 UI 中配置 Provider（如 OpenRouter）与默认模型。
+浏览器访问 **http://127.0.0.1:18791**，按以下顺序完成初始化：
 
-## 初始化工作区（可选）
+1. 添加 Provider（如 OpenRouter / OpenAI）
+2. 选择默认模型
+3. 保存配置并发起第一条消息
 
-可执行 `nextclaw init` 生成模板，或直接使用 CLI 对话：
+## 5. 常用验证与停止命令
 
 ```bash
-nextclaw agent -m "你好"
+nextclaw --version
+nextclaw status
+nextclaw stop
 ```
 
-## 停止服务
+## 6. 常见问题
+
+### `npm` / `node` 命令不存在
+
+说明 Node.js 未安装成功，或终端未重启。请重新安装 Node.js 并重开终端。
+
+### `EACCES`（macOS/Linux 全局安装权限问题）
+
+可先尝试使用官方安装包重装 Node.js；若仍报错，再参考 npm 官方文档配置全局目录权限。
+
+### `http://127.0.0.1:18791` 打不开
+
+1. 先运行 `nextclaw status` 确认服务是否已启动。
+2. 若未启动，执行：
+
+```bash
+nextclaw start
+```
+
+3. 若仍无法访问，执行：
 
 ```bash
 nextclaw stop
+nextclaw start
 ```
 
 ## 下一步
