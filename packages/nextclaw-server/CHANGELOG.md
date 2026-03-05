@@ -1,5 +1,17 @@
 # nextclaw-server
 
+## 0.6.2
+
+### Patch Changes
+
+- Retry publish with fresh patch versions after reserved-version conflict on npm.
+
+## 0.6.1
+
+### Patch Changes
+
+- Introduce backend-managed chat run source of truth with reconnectable run streams, and restore in-progress run state when reopening chat sessions.
+
 ## 0.6.0
 
 ### Minor Changes

@@ -187,6 +187,29 @@ export type ChatTurnStopResult = {
   reason?: string;
 };
 
+export type ChatRunState = 'queued' | 'running' | 'completed' | 'failed' | 'aborted';
+
+export type ChatRunView = {
+  runId: string;
+  sessionKey: string;
+  agentId?: string;
+  model?: string;
+  state: ChatRunState;
+  requestedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  stopSupported: boolean;
+  stopReason?: string;
+  error?: string;
+  reply?: string;
+  eventCount: number;
+};
+
+export type ChatRunListView = {
+  runs: ChatRunView[];
+  total: number;
+};
+
 export type ChatTurnStreamReadyEvent = {
   event: "ready";
   sessionKey: string;
@@ -469,6 +492,7 @@ export type ConfigActionExecuteResult = {
 // WebSocket events
 export type WsEvent =
   | { type: 'config.updated'; payload: { path: string } }
+  | { type: 'run.updated'; payload: { run: ChatRunView } }
   | { type: 'config.reload.started'; payload?: Record<string, unknown> }
   | { type: 'config.reload.finished'; payload?: Record<string, unknown> }
   | { type: 'error'; payload: { message: string; code?: string } }

@@ -24,6 +24,9 @@ import type {
   ChatCapabilitiesView,
   ChatTurnStopRequest,
   ChatTurnStopResult,
+  ChatRunListView,
+  ChatRunState,
+  ChatRunView,
   CronListView,
   CronEnableRequest,
   CronRunRequest,
@@ -270,6 +273,39 @@ export async function stopChatTurn(data: ChatTurnStopRequest): Promise<ChatTurnS
   return response.data;
 }
 
+// GET /api/chat/runs
+export async function fetchChatRuns(params?: {
+  sessionKey?: string;
+  states?: ChatRunState[];
+  limit?: number;
+}): Promise<ChatRunListView> {
+  const query = new URLSearchParams();
+  if (params?.sessionKey?.trim()) {
+    query.set('sessionKey', params.sessionKey.trim());
+  }
+  if (Array.isArray(params?.states) && params.states.length > 0) {
+    query.set('states', params.states.join(','));
+  }
+  if (typeof params?.limit === 'number' && Number.isFinite(params.limit)) {
+    query.set('limit', String(Math.max(0, Math.trunc(params.limit))));
+  }
+  const suffix = query.toString();
+  const response = await api.get<ChatRunListView>(suffix ? `/api/chat/runs?${suffix}` : '/api/chat/runs');
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+// GET /api/chat/runs/:runId
+export async function fetchChatRun(runId: string): Promise<ChatRunView> {
+  const response = await api.get<ChatRunView>(`/api/chat/runs/${encodeURIComponent(runId)}`);
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
 type ChatTurnStreamOptions = {
   signal?: AbortSignal;
   onReady?: (event: ChatTurnStreamReadyEvent) => void;
@@ -304,20 +340,10 @@ function parseSseFrame(frame: string): SseParsedEvent | null {
   };
 }
 
-export async function sendChatTurnStream(
-  data: ChatTurnRequest,
+async function consumeChatTurnSseStream(
+  response: Response,
   options: ChatTurnStreamOptions = {}
 ): Promise<ChatTurnView> {
-  const response = await fetch(`${API_BASE}/api/chat/turn/stream`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream'
-    },
-    body: JSON.stringify(data),
-    signal: options.signal
-  });
-
   if (!response.ok) {
     let message = `chat stream failed (${response.status} ${response.statusText})`;
     try {
@@ -447,6 +473,45 @@ export async function sendChatTurnStream(
     throw new Error('chat stream ended without final result');
   }
   return finalView;
+}
+
+export async function sendChatTurnStream(
+  data: ChatTurnRequest,
+  options: ChatTurnStreamOptions = {}
+): Promise<ChatTurnView> {
+  const response = await fetch(`${API_BASE}/api/chat/turn/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream'
+    },
+    body: JSON.stringify(data),
+    signal: options.signal
+  });
+  return consumeChatTurnSseStream(response, options);
+}
+
+export async function streamChatRun(
+  params: {
+    runId: string;
+    fromEventIndex?: number;
+  },
+  options: ChatTurnStreamOptions = {}
+): Promise<ChatTurnView> {
+  const query = new URLSearchParams();
+  if (typeof params.fromEventIndex === 'number' && Number.isFinite(params.fromEventIndex)) {
+    query.set('fromEventIndex', String(Math.max(0, Math.trunc(params.fromEventIndex))));
+  }
+  const suffix = query.toString();
+  const url = `${API_BASE}/api/chat/runs/${encodeURIComponent(params.runId)}/stream${suffix ? `?${suffix}` : ''}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Accept: 'text/event-stream'
+    },
+    signal: options.signal
+  });
+  return consumeChatTurnSseStream(response, options);
 }
 
 // GET /api/cron

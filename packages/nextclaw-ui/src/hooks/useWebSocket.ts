@@ -49,6 +49,27 @@ export function useWebSocket(queryClient?: QueryClient) {
       }
     });
 
+    client.on('run.updated', (event) => {
+      if (event.type !== 'run.updated') {
+        return;
+      }
+      if (!queryClient) {
+        return;
+      }
+      const sessionKey = event.payload.run.sessionKey;
+      const runId = event.payload.run.runId;
+      queryClient.invalidateQueries({ queryKey: ['chat-runs'] });
+      if (sessionKey) {
+        queryClient.invalidateQueries({ queryKey: ['sessions'] });
+        queryClient.invalidateQueries({ queryKey: ['session-history', sessionKey] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['session-history'] });
+      }
+      if (runId) {
+        queryClient.invalidateQueries({ queryKey: ['chat-run', runId] });
+      }
+    });
+
     client.on('error', (event) => {
       if (event.type === 'error') {
         console.error('WebSocket error:', event.payload.message);

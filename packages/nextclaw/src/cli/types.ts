@@ -14,6 +14,7 @@ export type UiCommandOptions = {
 export type StartCommandOptions = {
   uiPort?: string | number;
   open?: boolean;
+  startTimeout?: string | number;
 };
 
 export type AgentCommandOptions = {

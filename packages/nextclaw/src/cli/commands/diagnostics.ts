@@ -298,6 +298,12 @@ export class DiagnosticsCommands {
       recommendations.push(`Check logs at ${serviceState?.logPath ?? resolveServiceLogPath()}.`);
     }
 
+    if (running && serviceState?.startupState === "degraded" && managedHealth.state !== "ok") {
+      const startupHint = serviceState.startupLastProbeError ? ` (${serviceState.startupLastProbeError})` : "";
+      issues.push(`Service is in degraded startup state${startupHint}.`);
+      recommendations.push(`Wait and re-check ${APP_NAME} status; if it does not recover, inspect logs and restart.`);
+    }
+
     if (!running) {
       recommendations.push(`Run ${APP_NAME} start to launch the service.`);
     }

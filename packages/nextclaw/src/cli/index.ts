@@ -44,6 +44,7 @@ program
   .command("start")
   .description(`Start the ${APP_NAME} gateway + UI in the background`)
   .option("--ui-port <port>", "UI port")
+  .option("--start-timeout <ms>", "Maximum wait time for startup readiness in milliseconds")
   .option("--open", "Open browser after start", false)
   .action(async (opts) => runtime.start(opts));
 
@@ -51,6 +52,7 @@ program
   .command("restart")
   .description(`Restart the ${APP_NAME} background service`)
   .option("--ui-port <port>", "UI port")
+  .option("--start-timeout <ms>", "Maximum wait time for startup readiness in milliseconds")
   .option("--open", "Open browser after restart", false)
   .action(async (opts) => runtime.restart(opts));
 

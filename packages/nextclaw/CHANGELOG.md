@@ -1,5 +1,21 @@
 # nextclaw
 
+## 0.9.5
+
+### Patch Changes
+
+- Retry publish with fresh patch versions after reserved-version conflict on npm.
+- Updated dependencies
+  - @nextclaw/server@0.6.2
+
+## 0.9.4
+
+### Patch Changes
+
+- Introduce backend-managed chat run source of truth with reconnectable run streams, and restore in-progress run state when reopening chat sessions.
+- Updated dependencies
+  - @nextclaw/server@0.6.1
+
 ## 0.9.3
 
 ### Patch Changes

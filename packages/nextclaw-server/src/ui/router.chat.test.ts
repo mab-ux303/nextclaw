@@ -382,4 +382,127 @@ describe("chat turn route", () => {
       }
     });
   });
+
+  it("lists and queries managed chat runs", async () => {
+    const configPath = createTempConfigPath();
+    saveConfig(ConfigSchema.parse({}), configPath);
+    const run = {
+      runId: "run-managed-1",
+      sessionKey: "agent:engineer:ui:direct:web-123",
+      agentId: "engineer",
+      model: "openai/gpt-5",
+      state: "running" as const,
+      requestedAt: "2026-03-05T00:00:00.000Z",
+      startedAt: "2026-03-05T00:00:01.000Z",
+      stopSupported: true,
+      eventCount: 1
+    };
+    const listRuns = vi.fn(async () => ({
+      runs: [run],
+      total: 1
+    }));
+    const getRun = vi.fn(async ({ runId }: { runId: string }) => (runId === run.runId ? run : null));
+
+    const app = createUiRouter({
+      configPath,
+      publish: () => {},
+      chatRuntime: {
+        processTurn: vi.fn(async () => ({
+          reply: "ok",
+          sessionKey: run.sessionKey
+        })),
+        listRuns,
+        getRun
+      }
+    });
+
+    const listResponse = await app.request(
+      `http://localhost/api/chat/runs?sessionKey=${encodeURIComponent(run.sessionKey)}&states=queued,running`
+    );
+    expect(listResponse.status).toBe(200);
+    const listPayload = await listResponse.json() as {
+      ok: boolean;
+      data: {
+        total: number;
+        runs: Array<{ runId: string; state: string }>;
+      };
+    };
+    expect(listPayload.ok).toBe(true);
+    expect(listPayload.data.total).toBe(1);
+    expect(listPayload.data.runs[0]?.runId).toBe(run.runId);
+    expect(listPayload.data.runs[0]?.state).toBe("running");
+    expect(listRuns).toHaveBeenCalledWith({
+      sessionKey: run.sessionKey,
+      states: ["queued", "running"]
+    });
+
+    const detailResponse = await app.request(`http://localhost/api/chat/runs/${run.runId}`);
+    expect(detailResponse.status).toBe(200);
+    const detailPayload = await detailResponse.json() as {
+      ok: boolean;
+      data: { runId: string; sessionKey: string };
+    };
+    expect(detailPayload.ok).toBe(true);
+    expect(detailPayload.data.runId).toBe(run.runId);
+    expect(detailPayload.data.sessionKey).toBe(run.sessionKey);
+    expect(getRun).toHaveBeenCalledWith({ runId: run.runId });
+  });
+
+  it("streams managed run by runId for reconnect", async () => {
+    const configPath = createTempConfigPath();
+    saveConfig(ConfigSchema.parse({}), configPath);
+    const run = {
+      runId: "run-managed-2",
+      sessionKey: "agent:engineer:ui:direct:web-456",
+      agentId: "engineer",
+      model: "openai/gpt-5",
+      state: "completed" as const,
+      requestedAt: "2026-03-05T01:00:00.000Z",
+      startedAt: "2026-03-05T01:00:01.000Z",
+      completedAt: "2026-03-05T01:00:03.000Z",
+      stopSupported: true,
+      eventCount: 2,
+      reply: "hello"
+    };
+    const getRun = vi.fn(async ({ runId }: { runId: string }) => (runId === run.runId ? run : null));
+    const streamRun = vi.fn(async function* () {
+      yield { type: "delta", delta: "hel" } as const;
+      yield {
+        type: "final",
+        result: {
+          reply: "hello",
+          sessionKey: run.sessionKey,
+          agentId: run.agentId,
+          model: run.model
+        }
+      } as const;
+    });
+
+    const app = createUiRouter({
+      configPath,
+      publish: () => {},
+      chatRuntime: {
+        processTurn: vi.fn(async () => ({
+          reply: "ok",
+          sessionKey: run.sessionKey
+        })),
+        getRun,
+        streamRun
+      }
+    });
+
+    const response = await app.request(
+      `http://localhost/api/chat/runs/${run.runId}/stream?fromEventIndex=0`,
+      { method: "GET" }
+    );
+    expect(response.status).toBe(200);
+    const payload = await response.text();
+    const events = parseSseEvents(payload);
+    const names = events.map((event) => event.event);
+    expect(names).toContain("ready");
+    expect(names).toContain("delta");
+    expect(names).toContain("final");
+    expect(names).toContain("done");
+    expect(streamRun).toHaveBeenCalledWith({ runId: run.runId, fromEventIndex: 0 });
+  });
 });

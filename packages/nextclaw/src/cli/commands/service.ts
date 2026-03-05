@@ -6,8 +6,8 @@ import {
   startPluginChannelGateways,
   stopPluginChannelGateways
 } from "@nextclaw/openclaw-compat";
-import { startUiServer } from "@nextclaw/server";
-import { closeSync, cpSync, existsSync, mkdirSync, openSync, rmSync } from "node:fs";
+import { startUiServer, type UiServerEvent } from "@nextclaw/server";
+import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, openSync, rmSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { request as httpRequest } from "node:http";
@@ -47,6 +47,7 @@ import {
   parseSessionKey
 } from "../restart-sentinel.js";
 import { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
+import { UiChatRunCoordinator } from "./ui-chat-run-coordinator.js";
 
 const {
   APP_NAME,
@@ -90,22 +91,6 @@ function createSkillsLoader(workspace: string): SkillsLoaderInstance | null {
     return null;
   }
   return new ctor(workspace);
-}
-
-function isAbortError(error: unknown): boolean {
-  if (error instanceof DOMException && error.name === "AbortError") {
-    return true;
-  }
-  if (error instanceof Error) {
-    if (error.name === "AbortError") {
-      return true;
-    }
-    const message = error.message.toLowerCase();
-    if (message.includes("aborted") || message.includes("abort")) {
-      return true;
-    }
-  }
-  return false;
 }
 
 export class ServiceCommands {
@@ -344,7 +329,7 @@ export class ServiceCommands {
       console.log("Warning: No channels enabled");
     }
 
-    this.startUiIfEnabled(uiConfig, uiStaticDir, cron, runtimePool);
+    this.startUiIfEnabled(uiConfig, uiStaticDir, cron, runtimePool, sessionManager);
 
     const cronStatus = cron.status();
     if (cronStatus.jobs > 0) {
@@ -562,6 +547,7 @@ export class ServiceCommands {
   async startService(options: {
     uiOverrides: Partial<Config["ui"]>;
     open: boolean;
+    startupTimeoutMs?: number;
   }): Promise<void> {
     const config = loadConfig();
     const uiConfig = resolveUiConfig(config, options.uiOverrides);
@@ -623,53 +609,67 @@ export class ServiceCommands {
     const logDir = resolve(logPath, "..");
     mkdirSync(logDir, { recursive: true });
     const logFd = openSync(logPath, "a");
+    const readinessTimeoutMs = this.resolveStartupTimeoutMs(options.startupTimeoutMs);
+    const quickPhaseTimeoutMs = Math.min(8000, readinessTimeoutMs);
+    const extendedPhaseTimeoutMs = Math.max(0, readinessTimeoutMs - quickPhaseTimeoutMs);
+    this.appendStartupStage(
+      logPath,
+      `start requested: ui=${uiConfig.host}:${uiConfig.port}, readinessTimeoutMs=${readinessTimeoutMs}`
+    );
+    console.log(`Starting ${APP_NAME} background service (readiness timeout ${Math.ceil(readinessTimeoutMs / 1000)}s)...`);
 
     const serveArgs = buildServeArgs({
       uiPort: uiConfig.port
     });
+    this.appendStartupStage(logPath, `spawning background process: ${process.execPath} ${[...process.execArgv, ...serveArgs].join(" ")}`);
     const child = spawn(process.execPath, [...process.execArgv, ...serveArgs], {
       env: process.env,
       stdio: ["ignore", logFd, logFd],
       detached: true
     });
+    this.appendStartupStage(logPath, `spawned background process pid=${child.pid ?? "unknown"}`);
     closeSync(logFd);
     if (!child.pid) {
+      this.appendStartupStage(logPath, "spawn failed: child pid missing");
       console.error("Error: Failed to start background service.");
       return;
     }
 
     const healthUrl = `${apiUrl}/health`;
+    this.appendStartupStage(logPath, `health probe started: ${healthUrl} (phase=quick, timeoutMs=${quickPhaseTimeoutMs})`);
     let readiness = await this.waitForBackgroundServiceReady({
       pid: child.pid,
       healthUrl,
-      timeoutMs: 8000
+      timeoutMs: quickPhaseTimeoutMs
     });
 
-    if (!readiness.ready && isProcessRunning(child.pid)) {
-      const extendedTimeoutMs = process.platform === "win32" ? 20000 : 25000;
+    if (!readiness.ready && isProcessRunning(child.pid) && extendedPhaseTimeoutMs > 0) {
       console.warn(
-        `Warning: Background service is still running but not ready after 8s; waiting up to ${Math.ceil(extendedTimeoutMs / 1000)}s more.`
+        `Warning: Background service is still running but not ready after ${Math.ceil(quickPhaseTimeoutMs / 1000)}s; waiting up to ${Math.ceil(extendedPhaseTimeoutMs / 1000)}s more.`
+      );
+      this.appendStartupStage(
+        logPath,
+        `health probe entering extended phase (timeoutMs=${extendedPhaseTimeoutMs}, lastError=${readiness.lastProbeError ?? "none"})`
       );
       readiness = await this.waitForBackgroundServiceReady({
         pid: child.pid,
         healthUrl,
-        timeoutMs: extendedTimeoutMs
+        timeoutMs: extendedPhaseTimeoutMs
       });
     }
 
     if (!readiness.ready) {
-      if (isProcessRunning(child.pid)) {
-        try {
-          process.kill(child.pid, "SIGTERM");
-          await waitForExit(child.pid, 2000);
-        } catch {
-          // Ignore and continue cleanup; process may have already exited.
-        }
+      if (!isProcessRunning(child.pid)) {
+        clearServiceState();
+        const hint = readiness.lastProbeError ? ` Last probe error: ${readiness.lastProbeError}` : "";
+        this.appendStartupStage(logPath, `startup failed: process exited before ready.${hint}`);
+        console.error(`Error: Failed to start background service. Check logs: ${logPath}.${hint}`);
+        return;
       }
-      clearServiceState();
-      const hint = readiness.lastProbeError ? ` Last probe error: ${readiness.lastProbeError}` : "";
-      console.error(`Error: Failed to start background service. Check logs: ${logPath}.${hint}`);
-      return;
+      this.appendStartupStage(
+        logPath,
+        `startup degraded: process alive but health probe timed out after ${readinessTimeoutMs}ms (lastError=${readiness.lastProbeError ?? "none"})`
+      );
     }
 
     child.unref();
@@ -681,11 +681,23 @@ export class ServiceCommands {
       apiUrl,
       uiHost: uiConfig.host,
       uiPort: uiConfig.port,
-      logPath
+      logPath,
+      startupState: readiness.ready ? "ready" : "degraded",
+      startupLastProbeError: readiness.lastProbeError,
+      startupTimeoutMs: readinessTimeoutMs,
+      startupCheckedAt: new Date().toISOString()
     };
     writeServiceState(state);
 
-    console.log(`✓ ${APP_NAME} started in background (PID ${state.pid})`);
+    if (!readiness.ready) {
+      const hint = readiness.lastProbeError ? ` Last probe error: ${readiness.lastProbeError}` : "";
+      console.warn(
+        `Warning: ${APP_NAME} is running (PID ${state.pid}) but not healthy yet after ${Math.ceil(readinessTimeoutMs / 1000)}s. Marked as degraded.${hint}`
+      );
+      console.warn(`Tip: Run "${APP_NAME} status --json" and check logs: ${logPath}`);
+    } else {
+      console.log(`✓ ${APP_NAME} started in background (PID ${state.pid})`);
+    }
     console.log(`UI: ${uiUrl}`);
     console.log(`API: ${apiUrl}`);
     await this.printPublicUiUrls(uiConfig.host, uiConfig.port);
@@ -756,6 +768,26 @@ export class ServiceCommands {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
     return { ready: false, lastProbeError };
+  }
+
+  private resolveStartupTimeoutMs(overrideTimeoutMs: number | undefined): number {
+    const fallback = process.platform === "win32" ? 28000 : 33000;
+    const envRaw = process.env.NEXTCLAW_START_TIMEOUT_MS?.trim();
+    const envValue = envRaw ? Number(envRaw) : Number.NaN;
+    const fromEnv = Number.isFinite(envValue) && envValue > 0 ? Math.floor(envValue) : null;
+    const fromOverride = Number.isFinite(overrideTimeoutMs) && Number(overrideTimeoutMs) > 0
+      ? Math.floor(Number(overrideTimeoutMs))
+      : null;
+    const resolved = fromOverride ?? fromEnv ?? fallback;
+    return Math.max(3000, resolved);
+  }
+
+  private appendStartupStage(logPath: string, message: string): void {
+    try {
+      appendFileSync(logPath, `[${new Date().toISOString()}] [startup] ${message}\n`, "utf-8");
+    } catch {
+      // Best-effort diagnostics only.
+    }
   }
 
   private async probeHealthEndpoint(
@@ -893,19 +925,12 @@ export class ServiceCommands {
     uiConfig: Config["ui"],
     uiStaticDir: string | null,
     cronService: NextclawCore.CronService,
-    runtimePool: GatewayAgentRuntimePool
+    runtimePool: GatewayAgentRuntimePool,
+    sessionManager: SessionManager
   ): void {
     if (!uiConfig.enabled) {
       return;
     }
-    const activeTurnRuns = new Map<
-      string,
-      {
-        controller: AbortController;
-        sessionKey: string;
-        agentId?: string;
-      }
-    >();
     const resolveStopCapability = (params: {
       sessionKey?: string;
       agentId?: string;
@@ -971,6 +996,15 @@ export class ServiceCommands {
       ...(params.model ? { model: params.model } : {})
     });
 
+    let publishUiEvent: ((event: UiServerEvent) => void) | null = null;
+    const runCoordinator = new UiChatRunCoordinator({
+      runtimePool,
+      sessionManager,
+      onRunUpdated: (run) => {
+        publishUiEvent?.({ type: "run.updated", payload: { run } });
+      }
+    });
+
     const uiServer = startUiServer({
       host: uiConfig.host,
       port: uiConfig.port,
@@ -1025,198 +1059,32 @@ export class ServiceCommands {
             model: resolved.model
           });
         },
+        startTurnRun: async (params) => {
+          return runCoordinator.startRun(params);
+        },
+        listRuns: async (params) => {
+          return runCoordinator.listRuns(params);
+        },
+        getRun: async (params) => {
+          return runCoordinator.getRun(params);
+        },
+        streamRun: async function* (params) {
+          for await (const event of runCoordinator.streamRun(params)) {
+            yield event;
+          }
+        },
         stopTurn: async (params) => {
-          const runId = typeof params.runId === "string" ? params.runId.trim() : "";
-          if (!runId) {
-            return {
-              stopped: false,
-              runId: "",
-              reason: "runId is required"
-            };
-          }
-          const active = activeTurnRuns.get(runId);
-          if (!active) {
-            return {
-              stopped: false,
-              runId,
-              ...(typeof params.sessionKey === "string" && params.sessionKey.trim().length > 0
-                ? { sessionKey: params.sessionKey.trim() }
-                : {}),
-              reason: "run not found or already completed"
-            };
-          }
-          const requestedSessionKey = typeof params.sessionKey === "string" ? params.sessionKey.trim() : "";
-          if (requestedSessionKey && requestedSessionKey !== active.sessionKey) {
-            return {
-              stopped: false,
-              runId,
-              sessionKey: active.sessionKey,
-              reason: "session key mismatch"
-            };
-          }
-          active.controller.abort(new Error("chat turn stopped by user"));
-          return {
-            stopped: true,
-            runId,
-            sessionKey: active.sessionKey
-          };
+          return await runCoordinator.stopRun(params);
         },
         processTurnStream: async function* (params) {
-          const resolved = resolveChatTurnParams(params);
-          const runId = resolved.runId ?? `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-          const stopCapability = resolveStopCapability({
-            sessionKey: resolved.sessionKey,
-            agentId: resolved.inferredAgentId,
-            channel: resolved.channel,
-            chatId: resolved.chatId,
-            metadata: resolved.metadata
-          });
-          const controller = stopCapability.supported ? new AbortController() : null;
-          if (controller) {
-            activeTurnRuns.set(runId, {
-              controller,
-              sessionKey: resolved.sessionKey,
-              ...(resolved.inferredAgentId ? { agentId: resolved.inferredAgentId } : {})
-            });
-          }
-          type StreamEvent =
-            | { type: "delta"; delta: string }
-            | {
-                type: "session_event";
-                event: {
-                  seq: number;
-                  type: string;
-                  timestamp: string;
-                  message?: {
-                    role: string;
-                    content: unknown;
-                    timestamp: string;
-                    name?: string;
-                    tool_call_id?: string;
-                    tool_calls?: Array<Record<string, unknown>>;
-                    reasoning_content?: string;
-                  };
-                };
-              }
-            | { type: "final"; result: ReturnType<typeof buildTurnResult> }
-            | { type: "error"; error: string };
-          const queue: StreamEvent[] = [];
-          const assistantDeltaParts: string[] = [];
-          let waiter: (() => void) | null = null;
-          const push = (event: StreamEvent) => {
-            queue.push(event);
-            const currentWaiter = waiter;
-            waiter = null;
-            currentWaiter?.();
-          };
-
-          const run = runtimePool
-            .processDirect({
-              content: params.message,
-              sessionKey: resolved.sessionKey,
-              channel: resolved.channel,
-              chatId: resolved.chatId,
-              agentId: resolved.inferredAgentId,
-              metadata: resolved.metadata,
-              ...(controller ? { abortSignal: controller.signal } : {}),
-              onAssistantDelta: (delta) => {
-                if (typeof delta !== "string" || delta.length === 0) {
-                  return;
-                }
-                assistantDeltaParts.push(delta);
-                push({ type: "delta", delta });
-              },
-              onSessionEvent: (event) => {
-                const raw = event.data?.message;
-                const messageRecord =
-                  raw && typeof raw === "object" && !Array.isArray(raw)
-                    ? (raw as Record<string, unknown>)
-                    : null;
-                const message =
-                  messageRecord && typeof messageRecord.role === "string"
-                    ? {
-                        role: messageRecord.role,
-                        content: messageRecord.content,
-                        timestamp:
-                          typeof messageRecord.timestamp === "string"
-                            ? messageRecord.timestamp
-                            : event.timestamp,
-                        ...(typeof messageRecord.name === "string" ? { name: messageRecord.name } : {}),
-                        ...(typeof messageRecord.tool_call_id === "string"
-                          ? { tool_call_id: messageRecord.tool_call_id }
-                          : {}),
-                        ...(Array.isArray(messageRecord.tool_calls)
-                          ? { tool_calls: messageRecord.tool_calls as Array<Record<string, unknown>> }
-                          : {}),
-                        ...(typeof messageRecord.reasoning_content === "string"
-                          ? { reasoning_content: messageRecord.reasoning_content }
-                          : {})
-                      }
-                    : undefined;
-                push({
-                  type: "session_event",
-                  event: {
-                    seq: event.seq,
-                    type: event.type,
-                    timestamp: event.timestamp,
-                    ...(message ? { message } : {})
-                  }
-                });
-              }
-            })
-            .then((reply) => {
-              push({
-                type: "final",
-                result: buildTurnResult({
-                  reply,
-                  sessionKey: resolved.sessionKey,
-                  inferredAgentId: resolved.inferredAgentId,
-                  model: resolved.model
-                })
-              });
-            })
-            .catch((error) => {
-              if ((controller?.signal.aborted ?? false) || isAbortError(error)) {
-                const partialReply = assistantDeltaParts.join("");
-                push({
-                  type: "final",
-                  result: buildTurnResult({
-                    reply: partialReply,
-                    sessionKey: resolved.sessionKey,
-                    inferredAgentId: resolved.inferredAgentId,
-                    model: resolved.model
-                  })
-                });
-                return;
-              }
-              push({ type: "error", error: String(error) });
-            })
-            .finally(() => {
-              activeTurnRuns.delete(runId);
-            });
-
-          while (true) {
-            if (queue.length === 0) {
-              await new Promise<void>((resolve) => {
-                waiter = resolve;
-              });
-            }
-
-            while (queue.length > 0) {
-              const event = queue.shift();
-              if (!event) {
-                continue;
-              }
-              yield event;
-              if (event.type === "final" || event.type === "error") {
-                await run;
-                return;
-              }
-            }
+          const run = runCoordinator.startRun(params);
+          for await (const event of runCoordinator.streamRun({ runId: run.runId })) {
+            yield event;
           }
         }
       }
     });
+    publishUiEvent = uiServer.publish;
     const uiUrl = `http://${uiServer.host}:${uiServer.port}`;
     console.log(`✓ UI API: ${uiUrl}/api`);
     if (uiStaticDir) {

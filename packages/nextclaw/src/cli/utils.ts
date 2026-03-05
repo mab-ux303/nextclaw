@@ -15,6 +15,10 @@ export type ServiceState = {
   uiHost?: string;
   uiPort?: number;
   logPath: string;
+  startupState?: "ready" | "degraded";
+  startupLastProbeError?: string | null;
+  startupTimeoutMs?: number;
+  startupCheckedAt?: string;
 };
 
 export function resolveUiConfig(config: Config, overrides?: Partial<Config["ui"]>): Config["ui"] {

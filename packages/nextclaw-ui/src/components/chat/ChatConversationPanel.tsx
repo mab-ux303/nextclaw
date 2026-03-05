@@ -8,6 +8,7 @@ import { t } from '@/lib/i18n';
 import { Trash2 } from 'lucide-react';
 
 type ChatConversationPanelProps = {
+  isProviderStateResolved: boolean;
   modelOptions: ChatModelOption[];
   selectedModel: string;
   onSelectedModelChange: (value: string) => void;
@@ -40,6 +41,7 @@ type ChatConversationPanelProps = {
 };
 
 export function ChatConversationPanel({
+  isProviderStateResolved,
   modelOptions,
   selectedModel,
   onSelectedModelChange,
@@ -72,18 +74,13 @@ export function ChatConversationPanel({
 }: ChatConversationPanelProps) {
   const showWelcome = !selectedSessionKey && mergedEvents.length === 0;
   const hasConfiguredModel = modelOptions.length > 0;
+  const shouldShowProviderHint = isProviderStateResolved && !hasConfiguredModel;
   const hideEmptyHint =
     isHistoryLoading &&
     mergedEvents.length === 0 &&
     !isSending &&
     !isAwaitingAssistantOutput &&
     !streamingAssistantText.trim();
-  const shouldShowProviderSetup =
-    !hasConfiguredModel &&
-    !selectedSessionKey &&
-    mergedEvents.length === 0 &&
-    !hideEmptyHint &&
-    !isSending;
 
   return (
     <section className="flex-1 min-h-0 flex flex-col overflow-hidden bg-gradient-to-b from-gray-50/60 to-white">
@@ -107,7 +104,7 @@ export function ChatConversationPanel({
         </div>
       )}
 
-      {!hasConfiguredModel && !showWelcome && (
+      {shouldShowProviderHint && (
         <div className="px-5 py-2.5 border-b border-amber-200/70 bg-amber-50/70 flex items-center justify-between gap-3 shrink-0">
           <span className="text-xs text-amber-800">{t('chatModelNoOptions')}</span>
           <button
@@ -123,19 +120,7 @@ export function ChatConversationPanel({
       {/* Message thread or welcome */}
       <div ref={threadRef} onScroll={onThreadScroll} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         {showWelcome ? (
-          shouldShowProviderSetup ? (
-            <div className="h-full flex items-center justify-center p-8">
-              <div className="w-full max-w-xl rounded-2xl border border-amber-200 bg-amber-50/70 p-6 text-center">
-                <h2 className="text-lg font-semibold text-amber-900">{t('chatProviderSetupTitle')}</h2>
-                <p className="mt-2 text-sm text-amber-800">{t('chatProviderSetupDescription')}</p>
-                <Button className="mt-4" onClick={onGoToProviders}>
-                  {t('chatGoConfigureProvider')}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <ChatWelcome onCreateSession={onCreateSession} />
-          )
+          <ChatWelcome onCreateSession={onCreateSession} />
         ) : hideEmptyHint ? (
           <div className="h-full" />
         ) : mergedEvents.length === 0 ? (

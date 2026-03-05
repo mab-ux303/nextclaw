@@ -17,6 +17,8 @@ import {
   updateSession,
   deleteSession,
   sendChatTurn,
+  fetchChatRun,
+  fetchChatRuns,
   fetchChatCapabilities,
   fetchCronJobs,
   deleteCronJob,
@@ -256,6 +258,33 @@ export function useChatCapabilities(params?: { sessionKey?: string | null; agent
       }
     },
     staleTime: 10_000,
+    retry: false
+  });
+}
+
+export function useChatRuns(params?: { sessionKey?: string | null; states?: Array<'queued' | 'running' | 'completed' | 'failed' | 'aborted'>; limit?: number }) {
+  const sessionKey = params?.sessionKey?.trim() || undefined;
+  const states = Array.isArray(params?.states) && params.states.length > 0 ? params.states : undefined;
+  return useQuery({
+    queryKey: ['chat-runs', sessionKey ?? null, states ?? null, params?.limit ?? null],
+    queryFn: () => fetchChatRuns({
+      ...(sessionKey ? { sessionKey } : {}),
+      ...(states ? { states } : {}),
+      ...(typeof params?.limit === 'number' ? { limit: params.limit } : {})
+    }),
+    enabled: Boolean(sessionKey) || Boolean(states),
+    staleTime: 5_000,
+    retry: false
+  });
+}
+
+export function useChatRun(runId: string | null) {
+  const normalizedRunId = runId?.trim() || null;
+  return useQuery({
+    queryKey: ['chat-run', normalizedRunId],
+    queryFn: () => fetchChatRun(normalizedRunId as string),
+    enabled: Boolean(normalizedRunId),
+    staleTime: 5_000,
     retry: false
   });
 }

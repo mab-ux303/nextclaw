@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type { SessionEventView } from '@/api/types';
-import { sendChatTurnStream, stopChatTurn } from '@/api/config';
+import type { ChatRunView, SessionEventView } from '@/api/types';
+import { sendChatTurnStream, stopChatTurn, streamChatRun } from '@/api/config';
 
 type PendingChatMessage = {
   id: number;
@@ -17,7 +17,7 @@ type PendingChatMessage = {
 type ActiveRunState = {
   localRunId: number;
   sessionKey: string;
-  agentId: string;
+  agentId?: string;
   requestAbortController: AbortController;
   backendRunId?: string;
   backendStopSupported: boolean;
@@ -141,62 +141,86 @@ async function refetchIfSessionVisible(params: {
   }
 }
 
-async function executeSendRun(params: {
-  item: PendingChatMessage;
+function upsertStreamingEvent(
+  setStreamingSessionEvents: Dispatch<SetStateAction<SessionEventView[]>>,
+  event: SessionEventView
+) {
+  setStreamingSessionEvents((prev) => {
+    const next = [...prev];
+    const hit = next.findIndex((streamEvent) => streamEvent.seq === event.seq);
+    if (hit >= 0) {
+      next[hit] = event;
+    } else {
+      next.push(event);
+    }
+    return next;
+  });
+}
+
+type ExecuteStreamRunParams = {
   runId: number;
   runIdRef: MutableRefObject<number>;
   activeRunRef: MutableRefObject<ActiveRunState | null>;
-  nextOptimisticUserSeq: number;
   selectedSessionKeyRef: MutableRefObject<string | null>;
   setSelectedSessionKey: Dispatch<SetStateAction<string | null>>;
   setDraft: Dispatch<SetStateAction<string>>;
   refetchSessions: () => Promise<unknown>;
   refetchHistory: () => Promise<unknown>;
   restoreDraftOnError?: boolean;
+  sourceSessionKey: string;
+  sourceAgentId?: string;
+  sourceMessage?: string;
+  sourceStopSupported?: boolean;
+  sourceStopReason?: string;
+  optimisticUserEvent: SessionEventView | null;
+  openStream: (params: {
+    signal: AbortSignal;
+    onReady: (event: { runId?: string; stopSupported?: boolean; stopReason?: string; sessionKey: string }) => void;
+    onDelta: (event: { delta: string }) => void;
+    onSessionEvent: (event: { data: SessionEventView }) => void;
+  }) => Promise<{ sessionKey: string }>;
   setters: StreamSetters;
-}): Promise<void> {
+};
+
+async function executeStreamRun(params: ExecuteStreamRunParams): Promise<void> {
   const {
-    item,
     runId,
     runIdRef,
     activeRunRef,
-    nextOptimisticUserSeq,
     selectedSessionKeyRef,
     setSelectedSessionKey,
     setDraft,
     refetchSessions,
     refetchHistory,
     restoreDraftOnError,
+    sourceSessionKey,
+    sourceAgentId,
+    sourceMessage,
+    sourceStopSupported,
+    sourceStopReason,
+    optimisticUserEvent,
+    openStream,
     setters
   } = params;
 
   const requestAbortController = new AbortController();
   activeRunRef.current = {
     localRunId: runId,
-    sessionKey: item.sessionKey,
-    agentId: item.agentId,
+    sessionKey: sourceSessionKey,
+    ...(sourceAgentId ? { agentId: sourceAgentId } : {}),
     requestAbortController,
-    backendStopSupported: Boolean(item.stopSupported),
-    ...(item.stopReason ? { backendStopReason: item.stopReason } : {})
+    backendStopSupported: Boolean(sourceStopSupported),
+    ...(sourceStopReason ? { backendStopReason: sourceStopReason } : {})
   };
 
   setters.setStreamingSessionEvents([]);
   setters.setStreamingAssistantText('');
   setters.setStreamingAssistantTimestamp(null);
-  setters.setOptimisticUserEvent({
-    seq: nextOptimisticUserSeq,
-    type: 'message.user.optimistic',
-    timestamp: new Date().toISOString(),
-    message: {
-      role: 'user',
-      content: item.message,
-      timestamp: new Date().toISOString()
-    }
-  });
+  setters.setOptimisticUserEvent(optimisticUserEvent);
   setters.setIsSending(true);
   setters.setIsAwaitingAssistantOutput(true);
   setters.setCanStopCurrentRun(false);
-  setters.setStopDisabledReason(item.stopSupported ? '__preparing__' : item.stopReason ?? null);
+  setters.setStopDisabledReason(sourceStopSupported ? '__preparing__' : sourceStopReason ?? null);
   setters.setLastSendError(null);
 
   let streamText = '';
@@ -205,96 +229,69 @@ async function executeSendRun(params: {
     const streamTimestamp = new Date().toISOString();
     setters.setStreamingAssistantTimestamp(streamTimestamp);
 
-    const requestedSkills = normalizeRequestedSkills(item.requestedSkills);
-    const result = await sendChatTurnStream(
-      {
-        message: item.message,
-        sessionKey: item.sessionKey,
-        agentId: item.agentId,
-        ...(item.model ? { model: item.model } : {}),
-        ...(requestedSkills.length > 0
-          ? {
-              metadata: {
-                requested_skills: requestedSkills
-              }
-            }
-          : {}),
-        channel: 'ui',
-        chatId: 'web-ui'
+    const result = await openStream({
+      signal: requestAbortController.signal,
+      onReady: (event) => {
+        if (runId !== runIdRef.current) {
+          return;
+        }
+        const activeRun = activeRunRef.current;
+        if (activeRun && activeRun.localRunId === runId) {
+          activeRun.backendRunId = event.runId?.trim() || undefined;
+          if (typeof event.stopSupported === 'boolean') {
+            activeRun.backendStopSupported = event.stopSupported;
+          }
+          if (typeof event.stopReason === 'string' && event.stopReason.trim().length > 0) {
+            activeRun.backendStopReason = event.stopReason.trim();
+          }
+          const canStopNow = Boolean(activeRun.backendStopSupported && activeRun.backendRunId);
+          setters.setCanStopCurrentRun(canStopNow);
+          setters.setStopDisabledReason(
+            canStopNow
+              ? null
+              : activeRun.backendStopReason ?? (activeRun.backendStopSupported ? '__preparing__' : null)
+          );
+        }
+        if (event.sessionKey) {
+          setSelectedSessionKey((prev) => (prev === event.sessionKey ? prev : event.sessionKey));
+        }
       },
-      {
-        signal: requestAbortController.signal,
-        onReady: (event) => {
-          if (runId !== runIdRef.current) {
-            return;
-          }
-          const activeRun = activeRunRef.current;
-          if (activeRun && activeRun.localRunId === runId) {
-            activeRun.backendRunId = event.runId?.trim() || undefined;
-            if (typeof event.stopSupported === 'boolean') {
-              activeRun.backendStopSupported = event.stopSupported;
-            }
-            if (typeof event.stopReason === 'string' && event.stopReason.trim().length > 0) {
-              activeRun.backendStopReason = event.stopReason.trim();
-            }
-            const canStopNow = Boolean(activeRun.backendStopSupported && activeRun.backendRunId);
-            setters.setCanStopCurrentRun(canStopNow);
-            setters.setStopDisabledReason(
-              canStopNow
-                ? null
-                : activeRun.backendStopReason ?? (activeRun.backendStopSupported ? '__preparing__' : null)
-            );
-          }
-          if (event.sessionKey) {
-            setSelectedSessionKey((prev) => (prev === event.sessionKey ? prev : event.sessionKey));
-          }
-        },
-        onDelta: (event) => {
-          if (runId !== runIdRef.current) {
-            return;
-          }
-          streamText += event.delta;
-          setters.setStreamingAssistantText(streamText);
+      onDelta: (event) => {
+        if (runId !== runIdRef.current) {
+          return;
+        }
+        streamText += event.delta;
+        setters.setStreamingAssistantText(streamText);
+        setters.setIsAwaitingAssistantOutput(false);
+      },
+      onSessionEvent: (event) => {
+        if (runId !== runIdRef.current) {
+          return;
+        }
+        if (event.data.message?.role === 'user') {
+          setters.setOptimisticUserEvent(null);
+        }
+        upsertStreamingEvent(setters.setStreamingSessionEvents, event.data);
+        if (event.data.message?.role === 'assistant') {
+          hasAssistantSessionEvent = true;
+          streamText = '';
+          setters.setStreamingAssistantText('');
           setters.setIsAwaitingAssistantOutput(false);
-        },
-        onSessionEvent: (event) => {
-          if (runId !== runIdRef.current) {
-            return;
-          }
-          if (event.data.message?.role === 'user') {
-            setters.setOptimisticUserEvent(null);
-          }
-          setters.setStreamingSessionEvents((prev) => {
-            const next = [...prev];
-            const hit = next.findIndex((streamEvent) => streamEvent.seq === event.data.seq);
-            if (hit >= 0) {
-              next[hit] = event.data;
-            } else {
-              next.push(event.data);
-            }
-            return next;
-          });
-          if (event.data.message?.role === 'assistant') {
-            hasAssistantSessionEvent = true;
-            streamText = '';
-            setters.setStreamingAssistantText('');
-            setters.setIsAwaitingAssistantOutput(false);
-          }
         }
       }
-    );
+    });
     if (runId !== runIdRef.current) {
       return;
     }
     setters.setOptimisticUserEvent(null);
-    if (result.sessionKey !== item.sessionKey) {
+    if (result.sessionKey !== sourceSessionKey) {
       setSelectedSessionKey(result.sessionKey);
     }
 
     const localAssistantText = !hasAssistantSessionEvent ? streamText.trim() : '';
     await refetchIfSessionVisible({
       selectedSessionKeyRef,
-      currentSessionKey: item.sessionKey,
+      currentSessionKey: sourceSessionKey,
       resultSessionKey: result.sessionKey,
       refetchSessions,
       refetchHistory
@@ -317,23 +314,14 @@ async function executeSendRun(params: {
     const wasAborted = requestAbortController.signal.aborted || isAbortLikeError(error);
     runIdRef.current += 1;
     if (wasAborted) {
-      const localAssistantText = streamText.trim();
-      setters.setOptimisticUserEvent(null);
-      setters.setStreamingAssistantText('');
-      setters.setStreamingAssistantTimestamp(null);
-      setters.setIsSending(false);
-      setters.setIsAwaitingAssistantOutput(false);
-      setters.setCanStopCurrentRun(false);
-      setters.setStopDisabledReason(null);
-      setters.setLastSendError(null);
+      clearStreamingState(setters);
       activeRunRef.current = null;
       await refetchIfSessionVisible({
         selectedSessionKeyRef,
-        currentSessionKey: item.sessionKey,
+        currentSessionKey: sourceSessionKey,
         refetchSessions,
         refetchHistory
       });
-      setters.setStreamingSessionEvents(localAssistantText ? [buildLocalAssistantEvent(localAssistantText)] : []);
       return;
     }
 
@@ -343,7 +331,7 @@ async function executeSendRun(params: {
     setters.setStreamingSessionEvents([buildLocalAssistantEvent(sendError, 'message.assistant.error.local')]);
     activeRunRef.current = null;
     if (restoreDraftOnError) {
-      setDraft((prev) => (prev.trim().length === 0 ? item.message : prev));
+      setDraft((prev) => (prev.trim().length === 0 && sourceMessage ? sourceMessage : prev));
     }
   }
 }
@@ -394,18 +382,51 @@ export function useChatStreamController(params: UseChatStreamControllerParams) {
     async (item: PendingChatMessage, options?: { restoreDraftOnError?: boolean }) => {
       setLastSendError(null);
       streamRunIdRef.current += 1;
-      await executeSendRun({
-        item,
+      const requestedSkills = normalizeRequestedSkills(item.requestedSkills);
+      await executeStreamRun({
         runId: streamRunIdRef.current,
         runIdRef: streamRunIdRef,
         activeRunRef,
-        nextOptimisticUserSeq: params.nextOptimisticUserSeq,
         selectedSessionKeyRef: params.selectedSessionKeyRef,
         setSelectedSessionKey: params.setSelectedSessionKey,
         setDraft: params.setDraft,
         refetchSessions: params.refetchSessions,
         refetchHistory: params.refetchHistory,
         restoreDraftOnError: options?.restoreDraftOnError,
+        sourceSessionKey: item.sessionKey,
+        sourceAgentId: item.agentId,
+        sourceMessage: item.message,
+        sourceStopSupported: item.stopSupported,
+        sourceStopReason: item.stopReason,
+        optimisticUserEvent: {
+          seq: params.nextOptimisticUserSeq,
+          type: 'message.user.optimistic',
+          timestamp: new Date().toISOString(),
+          message: {
+            role: 'user',
+            content: item.message,
+            timestamp: new Date().toISOString()
+          }
+        },
+        openStream: ({ signal, onReady, onDelta, onSessionEvent }) =>
+          sendChatTurnStream(
+            {
+              message: item.message,
+              sessionKey: item.sessionKey,
+              agentId: item.agentId,
+              ...(item.model ? { model: item.model } : {}),
+              ...(requestedSkills.length > 0
+                ? {
+                    metadata: {
+                      requested_skills: requestedSkills
+                    }
+                  }
+                : {}),
+              channel: 'ui',
+              chatId: 'web-ui'
+            },
+            { signal, onReady, onDelta, onSessionEvent }
+          ),
         setters: {
           setOptimisticUserEvent,
           setStreamingSessionEvents,
@@ -420,6 +441,60 @@ export function useChatStreamController(params: UseChatStreamControllerParams) {
       });
     },
     [params]
+  );
+
+  const resumeRun = useCallback(
+    async (run: ChatRunView) => {
+      const runId = run.runId?.trim();
+      const sessionKey = run.sessionKey?.trim();
+      if (!runId || !sessionKey) {
+        return;
+      }
+      const active = activeRunRef.current;
+      if (active?.backendRunId === runId) {
+        return;
+      }
+      if (isSending && active) {
+        return;
+      }
+
+      setLastSendError(null);
+      streamRunIdRef.current += 1;
+      await executeStreamRun({
+        runId: streamRunIdRef.current,
+        runIdRef: streamRunIdRef,
+        activeRunRef,
+        selectedSessionKeyRef: params.selectedSessionKeyRef,
+        setSelectedSessionKey: params.setSelectedSessionKey,
+        setDraft: params.setDraft,
+        refetchSessions: params.refetchSessions,
+        refetchHistory: params.refetchHistory,
+        sourceSessionKey: sessionKey,
+        sourceAgentId: run.agentId,
+        sourceStopSupported: run.stopSupported,
+        sourceStopReason: run.stopReason,
+        optimisticUserEvent: null,
+        openStream: ({ signal, onReady, onDelta, onSessionEvent }) =>
+          streamChatRun(
+            {
+              runId
+            },
+            { signal, onReady, onDelta, onSessionEvent }
+          ),
+        setters: {
+          setOptimisticUserEvent,
+          setStreamingSessionEvents,
+          setStreamingAssistantText,
+          setStreamingAssistantTimestamp,
+          setIsSending,
+          setIsAwaitingAssistantOutput,
+          setCanStopCurrentRun,
+          setStopDisabledReason,
+          setLastSendError
+        }
+      });
+    },
+    [isSending, params]
   );
 
   useEffect(() => {
@@ -472,7 +547,7 @@ export function useChatStreamController(params: UseChatStreamControllerParams) {
         await stopChatTurn({
           runId: activeRun.backendRunId,
           sessionKey: activeRun.sessionKey,
-          agentId: activeRun.agentId
+          ...(activeRun.agentId ? { agentId: activeRun.agentId } : {})
         });
       } catch {
         // Keep local abort as fallback even if stop API fails.
@@ -492,7 +567,9 @@ export function useChatStreamController(params: UseChatStreamControllerParams) {
     canStopCurrentRun,
     stopDisabledReason,
     lastSendError,
+    activeBackendRunId: activeRunRef.current?.backendRunId ?? null,
     sendMessage,
+    resumeRun,
     stopCurrentRun,
     resetStreamState
   };

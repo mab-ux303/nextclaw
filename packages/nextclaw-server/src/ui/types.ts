@@ -312,9 +312,40 @@ export type ChatTurnStopResult = {
   reason?: string;
 };
 
+export type ChatRunState = "queued" | "running" | "completed" | "failed" | "aborted";
+
+export type ChatRunView = {
+  runId: string;
+  sessionKey: string;
+  agentId?: string;
+  model?: string;
+  state: ChatRunState;
+  requestedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  stopSupported: boolean;
+  stopReason?: string;
+  error?: string;
+  reply?: string;
+  eventCount: number;
+};
+
+export type ChatRunListView = {
+  runs: ChatRunView[];
+  total: number;
+};
+
 export type UiChatRuntime = {
   processTurn: (params: ChatTurnRequest) => Promise<ChatTurnResult>;
   processTurnStream?: (params: ChatTurnRequest) => AsyncGenerator<ChatTurnStreamEvent>;
+  startTurnRun?: (params: ChatTurnRequest) => Promise<ChatRunView> | ChatRunView;
+  streamRun?: (params: { runId: string; fromEventIndex?: number }) => AsyncGenerator<ChatTurnStreamEvent>;
+  getRun?: (params: { runId: string }) => Promise<ChatRunView | null> | ChatRunView | null;
+  listRuns?: (params: {
+    sessionKey?: string;
+    states?: ChatRunState[];
+    limit?: number;
+  }) => Promise<ChatRunListView> | ChatRunListView;
   getCapabilities?: (
     params: Pick<ChatTurnRequest, "sessionKey" | "agentId">
   ) => Promise<ChatCapabilitiesView> | ChatCapabilitiesView;
@@ -650,6 +681,7 @@ export type MarketplaceApiConfig = {
 
 export type UiServerEvent =
   | { type: "config.updated"; payload: { path: string } }
+  | { type: "run.updated"; payload: { run: ChatRunView } }
   | { type: "config.reload.started"; payload?: Record<string, unknown> }
   | { type: "config.reload.finished"; payload?: Record<string, unknown> }
   | { type: "error"; payload: { message: string; code?: string } };

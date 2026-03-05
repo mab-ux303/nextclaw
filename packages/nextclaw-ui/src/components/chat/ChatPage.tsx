@@ -7,7 +7,8 @@ import {
   useConfigMeta,
   useDeleteSession,
   useSessionHistory,
-  useSessions
+  useSessions,
+  useChatRuns
 } from '@/hooks/useConfig';
 import { useMarketplaceInstalled } from '@/hooks/useMarketplace';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
@@ -242,6 +243,9 @@ export function ChatPage({ view }: ChatPageProps) {
 
   const configQuery = useConfig();
   const configMetaQuery = useConfigMeta();
+  const isProviderStateResolved =
+    (configQuery.isFetched || configQuery.isSuccess) &&
+    (configMetaQuery.isFetched || configMetaQuery.isSuccess);
   const sessionsQuery = useSessions({ q: query.trim() || undefined, limit: 120, activeMinutes: 0 });
   const installedSkillsQuery = useMarketplaceInstalled('skill');
   const chatCapabilitiesQuery = useChatCapabilities({
@@ -334,6 +338,8 @@ export function ChatPage({ view }: ChatPageProps) {
     stopDisabledReason,
     lastSendError,
     sendMessage,
+    resumeRun,
+    activeBackendRunId,
     stopCurrentRun,
     resetStreamState
   } = useChatStreamController({
@@ -345,17 +351,51 @@ export function ChatPage({ view }: ChatPageProps) {
     refetchHistory: historyQuery.refetch
   });
 
-  const mergedEvents = useMemo(() => {
-    const next = [...historyEvents];
-    if (optimisticUserEvent) {
-      next.push(optimisticUserEvent);
+  const activeRunsQuery = useChatRuns(
+    selectedSessionKey
+      ? {
+          sessionKey: selectedSessionKey,
+          states: ['queued', 'running'],
+          limit: 5
+        }
+      : undefined
+  );
+  const activeRun = useMemo(() => {
+    const candidates = activeRunsQuery.data?.runs ?? [];
+    if (!selectedSessionKey) {
+      return null;
     }
-    next.push(...streamingSessionEvents);
+    return candidates.find((entry) => entry.sessionKey === selectedSessionKey) ?? null;
+  }, [activeRunsQuery.data?.runs, selectedSessionKey]);
+
+  useEffect(() => {
+    if (view !== 'chat' || !selectedSessionKey || !activeRun) {
+      return;
+    }
+    if (activeBackendRunId === activeRun.runId) {
+      return;
+    }
+    void resumeRun(activeRun);
+  }, [activeBackendRunId, activeRun, resumeRun, selectedSessionKey, view]);
+
+  const mergedEvents = useMemo(() => {
+    const bySeq = new Map<number, SessionEventView>();
+    const append = (event: SessionEventView) => {
+      if (!Number.isFinite(event.seq)) {
+        return;
+      }
+      bySeq.set(event.seq, event);
+    };
+
+    historyEvents.forEach(append);
+    if (optimisticUserEvent) {
+      append(optimisticUserEvent);
+    }
+    streamingSessionEvents.forEach(append);
+
+    const next = [...bySeq.values()].sort((left, right) => left.seq - right.seq);
     if (streamingAssistantText.trim()) {
-      const maxSeq = next.reduce((max, event) => {
-        const seq = Number.isFinite(event.seq) ? event.seq : 0;
-        return seq > max ? seq : max;
-      }, 0);
+      const maxSeq = next.reduce((max, event) => (event.seq > max ? event.seq : max), 0);
       next.push({
         seq: maxSeq + 1,
         type: 'stream.assistant_delta',
@@ -483,6 +523,7 @@ export function ChatPage({ view }: ChatPageProps) {
   };
 
   const conversationProps: ComponentProps<typeof ChatConversationPanel> = {
+    isProviderStateResolved,
     modelOptions,
     selectedModel,
     onSelectedModelChange: setSelectedModel,

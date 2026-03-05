@@ -443,6 +443,7 @@ export class CliRuntime {
   }
 
   async start(opts: StartCommandOptions): Promise<void> {
+    const startupTimeoutMs = this.parseStartTimeoutMs(opts.startTimeout);
     await this.init({ source: "start", auto: true });
     const uiOverrides: Partial<Config["ui"]> = {
       enabled: true,
@@ -456,6 +457,7 @@ export class CliRuntime {
     await this.serviceCommands.startService({
       uiOverrides,
       open: Boolean(opts.open),
+      startupTimeoutMs,
     });
   }
 
@@ -490,6 +492,18 @@ export class CliRuntime {
       uiOverrides,
       open: Boolean(opts.open),
     });
+  }
+
+  private parseStartTimeoutMs(value: string | number | undefined): number | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      console.error("Invalid --start-timeout value. Provide milliseconds (e.g. 45000).");
+      process.exit(1);
+    }
+    return Math.floor(parsed);
   }
 
   async stop(): Promise<void> {

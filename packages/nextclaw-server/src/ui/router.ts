@@ -22,6 +22,9 @@ import {
   deleteSession
 } from "./config.js";
 import type {
+  ChatRunListView,
+  ChatRunState,
+  ChatRunView,
   ChatCapabilitiesView,
   ChatTurnRequest,
   ChatTurnStopRequest,
@@ -341,6 +344,24 @@ function createChatRunId(): string {
   return `run-${now}-${rand}`;
 }
 
+function isChatRunState(value: string): value is ChatRunState {
+  return value === "queued" || value === "running" || value === "completed" || value === "failed" || value === "aborted";
+}
+
+function readChatRunStates(value: unknown): ChatRunState[] | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const values = value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter((item): item is ChatRunState => Boolean(item) && isChatRunState(item));
+  if (values.length === 0) {
+    return undefined;
+  }
+  return Array.from(new Set(values));
+}
+
 function buildChatTurnView(params: {
   result: {
     reply: string;
@@ -367,6 +388,35 @@ function buildChatTurnView(params: {
     requestedAt: params.requestedAt.toISOString(),
     completedAt: completedAt.toISOString(),
     durationMs: Math.max(0, completedAt.getTime() - params.startedAtMs)
+  };
+}
+
+function buildChatTurnViewFromRun(params: {
+  run: ChatRunView;
+  fallbackSessionKey: string;
+  fallbackAgentId?: string;
+  fallbackModel?: string;
+  fallbackReply?: string;
+}): ChatTurnView {
+  const requestedAt = readNonEmptyString(params.run.requestedAt) ?? new Date().toISOString();
+  const completedAt = readNonEmptyString(params.run.completedAt) ?? new Date().toISOString();
+  const requestedAtMs = Date.parse(requestedAt);
+  const completedAtMs = Date.parse(completedAt);
+  return {
+    reply: readNonEmptyString(params.run.reply) ?? params.fallbackReply ?? "",
+    sessionKey: readNonEmptyString(params.run.sessionKey) ?? params.fallbackSessionKey,
+    ...(readNonEmptyString(params.run.agentId) || params.fallbackAgentId
+      ? { agentId: readNonEmptyString(params.run.agentId) ?? params.fallbackAgentId }
+      : {}),
+    ...(readNonEmptyString(params.run.model) || params.fallbackModel
+      ? { model: readNonEmptyString(params.run.model) ?? params.fallbackModel }
+      : {}),
+    requestedAt,
+    completedAt,
+    durationMs:
+      Number.isFinite(requestedAtMs) && Number.isFinite(completedAtMs)
+        ? Math.max(0, completedAtMs - requestedAtMs)
+        : 0
   };
 }
 
@@ -1898,7 +1948,8 @@ export function createUiRouter(options: UiRouterOptions): Hono {
     const metadata = isRecord(body.data.metadata) ? body.data.metadata : undefined;
     const requestedAgentId = readNonEmptyString(body.data.agentId) ?? resolveAgentIdFromSessionKey(sessionKey);
     const requestedModel = readNonEmptyString(body.data.model);
-    const runId = createChatRunId();
+    let runId = createChatRunId();
+    const supportsManagedRuns = Boolean(chatRuntime.startTurnRun && chatRuntime.streamRun);
     let stopCapabilities: ChatCapabilitiesView = { stopSupported: Boolean(chatRuntime.stopTurn) };
     if (chatRuntime.getCapabilities) {
       try {
@@ -1924,6 +1975,24 @@ export function createUiRouter(options: UiRouterOptions): Hono {
       ...(metadata ? { metadata } : {})
     };
 
+    let managedRun: ChatRunView | null = null;
+    if (supportsManagedRuns && chatRuntime.startTurnRun) {
+      try {
+        managedRun = await chatRuntime.startTurnRun(request);
+      } catch (error) {
+        return c.json(err("CHAT_TURN_FAILED", String(error)), 500);
+      }
+      if (readNonEmptyString(managedRun.runId)) {
+        runId = readNonEmptyString(managedRun.runId) as string;
+      }
+      stopCapabilities = {
+        stopSupported: managedRun.stopSupported,
+        ...(readNonEmptyString(managedRun.stopReason)
+          ? { stopReason: readNonEmptyString(managedRun.stopReason) }
+          : {})
+      };
+    }
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       start: async (controller) => {
@@ -1933,14 +2002,70 @@ export function createUiRouter(options: UiRouterOptions): Hono {
 
         try {
           push("ready", {
-            sessionKey,
-            requestedAt: requestedAt.toISOString(),
+            sessionKey: managedRun?.sessionKey ?? sessionKey,
+            requestedAt: managedRun?.requestedAt ?? requestedAt.toISOString(),
             runId,
             stopSupported: stopCapabilities.stopSupported,
             ...(readNonEmptyString(stopCapabilities.stopReason)
               ? { stopReason: readNonEmptyString(stopCapabilities.stopReason) }
               : {})
           });
+
+          if (supportsManagedRuns && chatRuntime.streamRun) {
+            let hasFinal = false;
+            for await (const event of chatRuntime.streamRun({ runId })) {
+              const typed = event as ChatTurnStreamEvent;
+              if (typed.type === "delta") {
+                if (typed.delta) {
+                  push("delta", { delta: typed.delta });
+                }
+                continue;
+              }
+              if (typed.type === "session_event") {
+                push("session_event", typed.event);
+                continue;
+              }
+              if (typed.type === "final") {
+                const latestRun = chatRuntime.getRun ? await chatRuntime.getRun({ runId }) : null;
+                const response = latestRun
+                  ? buildChatTurnViewFromRun({
+                      run: latestRun,
+                      fallbackSessionKey: sessionKey,
+                      fallbackAgentId: requestedAgentId,
+                      fallbackModel: requestedModel,
+                      fallbackReply: typed.result.reply
+                    })
+                  : buildChatTurnView({
+                      result: typed.result,
+                      fallbackSessionKey: sessionKey,
+                      requestedAgentId,
+                      requestedModel,
+                      requestedAt,
+                      startedAtMs
+                    });
+                hasFinal = true;
+                push("final", response);
+                options.publish({ type: "config.updated", payload: { path: "session" } });
+                continue;
+              }
+              if (typed.type === "error") {
+                push("error", {
+                  code: "CHAT_TURN_FAILED",
+                  message: typed.error
+                });
+                return;
+              }
+            }
+            if (!hasFinal) {
+              push("error", {
+                code: "CHAT_TURN_FAILED",
+                message: "stream ended without a final result"
+              });
+              return;
+            }
+            push("done", { ok: true });
+            return;
+          }
 
           const streamTurn = chatRuntime.processTurnStream;
           if (!streamTurn) {
@@ -2001,6 +2126,164 @@ export function createUiRouter(options: UiRouterOptions): Hono {
               message: "stream ended without a final result"
             });
             return;
+          }
+
+          push("done", { ok: true });
+        } catch (error) {
+          push("error", {
+            code: "CHAT_TURN_FAILED",
+            message: String(error)
+          });
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+      }
+    });
+  });
+
+  app.get("/api/chat/runs", async (c) => {
+    const chatRuntime = options.chatRuntime;
+    if (!chatRuntime?.listRuns) {
+      return c.json(err("NOT_AVAILABLE", "chat run management unavailable"), 503);
+    }
+    const query = c.req.query();
+    const sessionKey = readNonEmptyString(query.sessionKey);
+    const states = readChatRunStates(query.states);
+    const limit = typeof query.limit === "string" ? Number.parseInt(query.limit, 10) : undefined;
+    try {
+      const data = await chatRuntime.listRuns({
+        ...(sessionKey ? { sessionKey } : {}),
+        ...(states ? { states } : {}),
+        ...(Number.isFinite(limit) ? { limit } : {})
+      });
+      return c.json(ok(data satisfies ChatRunListView));
+    } catch (error) {
+      return c.json(err("CHAT_RUN_QUERY_FAILED", String(error)), 500);
+    }
+  });
+
+  app.get("/api/chat/runs/:runId", async (c) => {
+    const chatRuntime = options.chatRuntime;
+    if (!chatRuntime?.getRun) {
+      return c.json(err("NOT_AVAILABLE", "chat run management unavailable"), 503);
+    }
+    const runId = readNonEmptyString(c.req.param("runId"));
+    if (!runId) {
+      return c.json(err("INVALID_PATH", "runId is required"), 400);
+    }
+    try {
+      const run = await chatRuntime.getRun({ runId });
+      if (!run) {
+        return c.json(err("NOT_FOUND", `chat run not found: ${runId}`), 404);
+      }
+      return c.json(ok(run));
+    } catch (error) {
+      return c.json(err("CHAT_RUN_QUERY_FAILED", String(error)), 500);
+    }
+  });
+
+  app.get("/api/chat/runs/:runId/stream", async (c) => {
+    const chatRuntime = options.chatRuntime;
+    const streamRun = chatRuntime?.streamRun;
+    const getRun = chatRuntime?.getRun;
+    if (!streamRun || !getRun) {
+      return c.json(err("NOT_AVAILABLE", "chat run stream unavailable"), 503);
+    }
+
+    const runId = readNonEmptyString(c.req.param("runId"));
+    if (!runId) {
+      return c.json(err("INVALID_PATH", "runId is required"), 400);
+    }
+
+    const query = c.req.query();
+    const fromEventIndex =
+      typeof query.fromEventIndex === "string" ? Number.parseInt(query.fromEventIndex, 10) : undefined;
+    const run = await getRun({ runId });
+    if (!run) {
+      return c.json(err("NOT_FOUND", `chat run not found: ${runId}`), 404);
+    }
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start: async (controller) => {
+        const push = (event: string, data: unknown) => {
+          controller.enqueue(encoder.encode(toSseFrame(event, data)));
+        };
+        try {
+          push("ready", {
+            sessionKey: run.sessionKey,
+            requestedAt: run.requestedAt,
+            runId: run.runId,
+            stopSupported: run.stopSupported,
+            ...(readNonEmptyString(run.stopReason) ? { stopReason: readNonEmptyString(run.stopReason) } : {})
+          });
+
+          let hasFinal = false;
+          for await (const event of streamRun({
+            runId: run.runId,
+            ...(Number.isFinite(fromEventIndex) ? { fromEventIndex } : {})
+          })) {
+            const typed = event as ChatTurnStreamEvent;
+            if (typed.type === "delta") {
+              if (typed.delta) {
+                push("delta", { delta: typed.delta });
+              }
+              continue;
+            }
+            if (typed.type === "session_event") {
+              push("session_event", typed.event);
+              continue;
+            }
+            if (typed.type === "final") {
+              const latestRun = await getRun({ runId: run.runId });
+              const response = latestRun
+                ? buildChatTurnViewFromRun({
+                    run: latestRun,
+                    fallbackSessionKey: run.sessionKey,
+                    fallbackAgentId: run.agentId,
+                    fallbackModel: run.model,
+                    fallbackReply: typed.result.reply
+                  })
+                : buildChatTurnView({
+                    result: typed.result,
+                    fallbackSessionKey: run.sessionKey,
+                    requestedAgentId: run.agentId,
+                    requestedModel: run.model,
+                    requestedAt: new Date(run.requestedAt),
+                    startedAtMs: Date.parse(run.requestedAt)
+                  });
+              hasFinal = true;
+              push("final", response);
+              continue;
+            }
+            if (typed.type === "error") {
+              push("error", {
+                code: "CHAT_TURN_FAILED",
+                message: typed.error
+              });
+              return;
+            }
+          }
+
+          if (!hasFinal) {
+            const latestRun = await getRun({ runId: run.runId });
+            if (latestRun?.state === "failed") {
+              push("error", {
+                code: "CHAT_TURN_FAILED",
+                message: latestRun.error ?? "chat run failed"
+              });
+              return;
+            }
           }
 
           push("done", { ok: true });
