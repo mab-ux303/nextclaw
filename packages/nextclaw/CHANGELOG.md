@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.9.3
+
+### Patch Changes
+
+- chore(release): republish service-start readiness timeout fix with a new patch version
+
 ## 0.9.2
 
 ### Patch Changes
