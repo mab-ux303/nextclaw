@@ -7,12 +7,12 @@ import {
   stopPluginChannelGateways
 } from "@nextclaw/openclaw-compat";
 import { startUiServer, type UiServerEvent } from "@nextclaw/server";
-import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, openSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, rmSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { spawn } from "node:child_process";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { homedir, userInfo } from "node:os";
 import { fileURLToPath } from "node:url";
 import chokidar from "chokidar";
 import { GatewayControllerImpl } from "../gateway/controller.js";
@@ -33,6 +33,7 @@ import {
   resolvePublicIp,
   waitForExit,
   writeServiceState,
+  findExecutableOnPath,
   type ServiceState
 } from "../utils.js";
 import {
@@ -43,7 +44,6 @@ import {
   toPluginConfigView
 } from "./plugins.js";
 import type { RequestRestartParams } from "../types.js";
-import type { InstallSystemdCommandOptions, UninstallSystemdCommandOptions } from "../types.js";
 import {
   consumeRestartSentinel,
   formatRestartSentinelMessage,
@@ -747,99 +747,6 @@ export class ServiceCommands {
     console.log(`✓ ${APP_NAME} stopped`);
   }
 
-  async installSystemdService(options: InstallSystemdCommandOptions): Promise<void> {
-    if (process.platform !== "linux") {
-      console.error("Error: systemd installation is only supported on Linux.");
-      return;
-    }
-    if (typeof process.getuid === "function" && process.getuid() !== 0) {
-      console.error("Error: Run this command as root (for example: sudo nextclaw service install-systemd).");
-      return;
-    }
-
-    const serviceName = this.resolveSystemdServiceName(options.name);
-    const config = loadConfig();
-    const uiConfig = resolveUiConfig(config, { enabled: true, host: "0.0.0.0" });
-    const uiPort = this.parseSystemdUiPort(options.uiPort, uiConfig.port);
-    if (uiPort === null) {
-      console.error("Error: Invalid --ui-port. Provide a positive integer.");
-      return;
-    }
-
-    const systemctlAvailable = this.runSystemCommand("systemctl", ["--version"]);
-    if (!systemctlAvailable.ok) {
-      console.error("Error: systemctl is not available on this machine.");
-      return;
-    }
-
-    const runUser = this.resolveSystemdRunUser();
-    const runHome = this.resolveSystemdRunHome(runUser);
-    const servicePath = `/etc/systemd/system/${serviceName}.service`;
-    const cliPath = fileURLToPath(new URL("../index.js", import.meta.url));
-    const execArgs = [process.execPath, ...process.execArgv, cliPath, "serve", "--ui-port", String(uiPort)];
-    const unit = this.buildSystemdUnit({
-      runUser,
-      runHome,
-      execArgs,
-    });
-
-    writeFileSync(servicePath, unit, "utf-8");
-
-    const daemonReload = this.runSystemCommand("systemctl", ["daemon-reload"]);
-    if (!daemonReload.ok) {
-      console.error(`Error: Failed to reload systemd. ${daemonReload.stderr}`.trim());
-      return;
-    }
-
-    const enableStart = this.runSystemCommand("systemctl", ["enable", "--now", `${serviceName}.service`]);
-    if (!enableStart.ok) {
-      console.error(`Error: Failed to enable/start ${serviceName}.service. ${enableStart.stderr}`.trim());
-      return;
-    }
-
-    const active = this.runSystemCommand("systemctl", ["is-active", `${serviceName}.service`]);
-    if (!active.ok || active.stdout.trim() !== "active") {
-      console.error(`Error: ${serviceName}.service is not active. ${active.stderr || active.stdout}`.trim());
-      return;
-    }
-
-    console.log(`✓ Installed systemd service: ${serviceName}.service`);
-    console.log(`Run user: ${runUser}`);
-    console.log(`UI port: ${uiPort}`);
-    console.log(`Unit file: ${servicePath}`);
-    console.log(`Health: http://127.0.0.1:${uiPort}/api/health`);
-    console.log(`Logs: journalctl -u ${serviceName}.service -f`);
-  }
-
-  async uninstallSystemdService(options: UninstallSystemdCommandOptions): Promise<void> {
-    if (process.platform !== "linux") {
-      console.error("Error: systemd removal is only supported on Linux.");
-      return;
-    }
-    if (typeof process.getuid === "function" && process.getuid() !== 0) {
-      console.error("Error: Run this command as root.");
-      return;
-    }
-
-    const serviceName = this.resolveSystemdServiceName(options.name);
-    const servicePath = `/etc/systemd/system/${serviceName}.service`;
-    if (!existsSync(servicePath)) {
-      console.error(`Error: ${servicePath} does not exist.`);
-      return;
-    }
-
-    this.runSystemCommand("systemctl", ["disable", "--now", `${serviceName}.service`]);
-    rmSync(servicePath, { force: true });
-
-    const daemonReload = this.runSystemCommand("systemctl", ["daemon-reload"]);
-    if (!daemonReload.ok) {
-      console.error(`Warning: Removed unit file but failed to reload systemd. ${daemonReload.stderr}`.trim());
-      return;
-    }
-
-    console.log(`✓ Removed systemd service: ${serviceName}.service`);
-  }
-
   async waitForBackgroundServiceReady(params: {
     pid: number;
     healthUrl: string;
@@ -876,89 +783,6 @@ export class ServiceCommands {
       : null;
     const resolved = fromOverride ?? fromEnv ?? fallback;
     return Math.max(3000, resolved);
-  }
-
-  private resolveSystemdServiceName(rawName: string | undefined): string {
-    const trimmed = rawName?.trim() || APP_NAME;
-    return trimmed.endsWith(".service") ? trimmed.slice(0, -".service".length) : trimmed;
-  }
-
-  private parseSystemdUiPort(rawPort: string | number | undefined, fallbackPort: number): number | null {
-    if (rawPort === undefined || rawPort === null || rawPort === "") {
-      return fallbackPort;
-    }
-    const parsed = Number(rawPort);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      return null;
-    }
-    return parsed;
-  }
-
-  private resolveSystemdRunUser(): string {
-    const sudoUser = process.env.SUDO_USER?.trim();
-    if (sudoUser && sudoUser !== "root") {
-      return sudoUser;
-    }
-    return userInfo().username;
-  }
-
-  private resolveSystemdRunHome(runUser: string): string {
-    const passwd = this.runSystemCommand("getent", ["passwd", runUser]);
-    if (passwd.ok) {
-      const fields = passwd.stdout.trim().split(":");
-      if (fields.length >= 6 && fields[5]) {
-        return fields[5];
-      }
-    }
-    return process.env.HOME?.trim() || homedir();
-  }
-
-  private buildSystemdUnit(params: {
-    runUser: string;
-    runHome: string;
-    execArgs: string[];
-  }): string {
-    const execStart = params.execArgs.map((arg) => this.escapeSystemdArg(arg)).join(" ");
-    return [
-      "[Unit]",
-      `Description=${APP_NAME} gateway + UI`,
-      "After=network-online.target",
-      "Wants=network-online.target",
-      "",
-      "[Service]",
-      "Type=simple",
-      `User=${params.runUser}`,
-      `WorkingDirectory=${params.runHome}`,
-      `Environment=HOME=${params.runHome}`,
-      "Environment=NODE_ENV=production",
-      `ExecStart=${execStart}`,
-      "Restart=always",
-      "RestartSec=3",
-      "TimeoutStopSec=20",
-      "",
-      "[Install]",
-      "WantedBy=multi-user.target",
-      "",
-    ].join("\n");
-  }
-
-  private escapeSystemdArg(value: string): string {
-    if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) {
-      return value;
-    }
-    return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
-  }
-
-  private runSystemCommand(command: string, args: string[]): { ok: boolean; stdout: string; stderr: string } {
-    const result = spawnSync(command, args, {
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return {
-      ok: result.status === 0,
-      stdout: result.stdout ?? "",
-      stderr: result.stderr ?? "",
-    };
   }
 
   private appendStartupStage(logPath: string, message: string): void {
@@ -1358,59 +1182,122 @@ export class ServiceCommands {
       rmSync(destination, { recursive: true, force: true });
     }
 
-    const skildArgs = ["--yes", "skild", "install", source, "--target", "agents", "--local", "--json", "--skill", skillName];
-    if (params.registry) {
-      skildArgs.push("--registry", params.registry);
-    }
-    if (params.force) {
-      skildArgs.push("--force");
-    }
-
-    let result = await this.runCommandWithFallback(
-      ["npx", "/opt/homebrew/bin/npx", "/usr/local/bin/npx"],
-      skildArgs,
-      {
-        cwd: workspace,
-        timeoutMs: 180_000
+    const materialized = await this.materializeMarketplaceGitSkillSource({ source, skillName });
+    try {
+      const installSkillFile = join(materialized.skillDir, "SKILL.md");
+      if (!existsSync(installSkillFile)) {
+        throw new Error(`git skill source does not contain SKILL.md for ${skillName}`);
       }
-    );
 
-    let payload = this.parseSkildJsonOutput(result.stdout);
-    if (!payload) {
-      const forceArgs = skildArgs.includes("--force") ? skildArgs : [...skildArgs, "--force"];
-      result = await this.runCommandWithFallback(
-        ["npx", "/opt/homebrew/bin/npx", "/usr/local/bin/npx"],
-        forceArgs,
-        {
-          cwd: workspace,
-          timeoutMs: 180_000
-        }
-      );
-      payload = this.parseSkildJsonOutput(result.stdout);
+      mkdirSync(dirname(destination), { recursive: true });
+      cpSync(materialized.skillDir, destination, { recursive: true, force: true });
+      return {
+        message: `Installed skill: ${skillName}`,
+        output: [
+          `Source: ${source}`,
+          `Materialized skill: ${materialized.skillDir}`,
+          `Workspace target: ${destination}`,
+          materialized.commandOutput
+        ].filter(Boolean).join("\n")
+      };
+    } finally {
+      rmSync(materialized.tempRoot, { recursive: true, force: true });
+    }
+  }
+
+  private async materializeMarketplaceGitSkillSource(params: {
+    source: string;
+    skillName: string;
+  }): Promise<{ tempRoot: string; skillDir: string; commandOutput: string }> {
+    const parsed = this.parseMarketplaceGitSkillSource(params.source);
+    const gitPath = findExecutableOnPath("git");
+    if (!gitPath) {
+      throw new Error("git is required to install marketplace git skills");
     }
 
-    if (!payload) {
-      throw new Error("skild returned null json payload even after force reinstall");
+    const tempRoot = mkdtempSync(join(tmpdir(), "nextclaw-marketplace-skill-"));
+    const repoDir = join(tempRoot, "repo");
+    try {
+      const cloneArgs = ["clone", "--depth", "1", "--filter=blob:none", "--sparse"];
+      if (parsed.ref) {
+        cloneArgs.push("--branch", parsed.ref);
+      }
+      cloneArgs.push(parsed.repoUrl, repoDir);
+      const cloneResult = await this.runCommand(gitPath, cloneArgs, {
+        cwd: tempRoot,
+        timeoutMs: 180_000
+      });
+      const sparseResult = await this.runCommand(gitPath, ["-C", repoDir, "sparse-checkout", "set", parsed.skillPath], {
+        cwd: tempRoot,
+        timeoutMs: 60_000
+      });
+      const skillDir = join(repoDir, parsed.skillPath);
+      return {
+        tempRoot,
+        skillDir,
+        commandOutput: [
+          `Git repository: ${parsed.repoUrl}`,
+          `Git path: ${parsed.skillPath}`,
+          this.mergeCommandOutput(cloneResult.stdout, cloneResult.stderr),
+          this.mergeCommandOutput(sparseResult.stdout, sparseResult.stderr)
+        ].filter(Boolean).join("\n")
+      };
+    } catch (error) {
+      rmSync(tempRoot, { recursive: true, force: true });
+      throw error;
+    }
+  }
+
+  private parseMarketplaceGitSkillSource(source: string): {
+    repoUrl: string;
+    skillPath: string;
+    ref?: string;
+  } {
+    const trimmed = source.trim();
+    if (!trimmed) {
+      throw new Error("Git skill source is required");
     }
 
-    const installDir = typeof payload.installDir === "string" ? payload.installDir.trim() : "";
-    const installSkillFile = installDir ? join(installDir, "SKILL.md") : "";
-    if (!installDir || !existsSync(installSkillFile)) {
-      throw new Error(`skild install did not produce a valid skill directory for ${skillName}`);
+    if (trimmed.includes("://")) {
+      const parsedUrl = new URL(trimmed);
+      if (parsedUrl.hostname !== "github.com") {
+        throw new Error(`Unsupported git skill source host: ${parsedUrl.hostname}`);
+      }
+      const parts = parsedUrl.pathname.split("/").filter(Boolean);
+      if (parts.length < 5 || (parts[2] !== "tree" && parts[2] !== "blob")) {
+        throw new Error(`Unsupported GitHub skill source URL: ${source}`);
+      }
+      const [owner, repoRaw, , ref, ...pathParts] = parts;
+      const repo = repoRaw.replace(/\.git$/i, "");
+      if (!owner || !repo || !ref || pathParts.length === 0) {
+        throw new Error(`Unsupported GitHub skill source URL: ${source}`);
+      }
+      return {
+        repoUrl: `https://github.com/${owner}/${repo}.git`,
+        skillPath: pathParts.join("/"),
+        ref
+      };
     }
 
-    mkdirSync(dirname(destination), { recursive: true });
-    if (resolve(installDir) !== resolve(destination)) {
-      cpSync(installDir, destination, { recursive: true, force: true });
+    const parts = trimmed.split("/").filter(Boolean);
+    if (parts.length < 3) {
+      throw new Error(`Unsupported git skill source: ${source}`);
     }
+
+    const owner = parts[0] ?? "";
+    const repoWithOptionalRef = parts[1] ?? "";
+    const pathParts = parts.slice(2);
+    const atIndex = repoWithOptionalRef.indexOf("@");
+    const repo = (atIndex >= 0 ? repoWithOptionalRef.slice(0, atIndex) : repoWithOptionalRef).replace(/\.git$/i, "");
+    const ref = atIndex >= 0 ? repoWithOptionalRef.slice(atIndex + 1) : undefined;
+    if (!owner || !repo || pathParts.length === 0) {
+      throw new Error(`Unsupported git skill source: ${source}`);
+    }
+
     return {
-      message: `Installed skill: ${skillName}`,
-      output: [
-        `Source: ${source}`,
-        `Installed via skild: ${installDir}`,
-        `Workspace target: ${destination}`,
-        this.mergeCommandOutput(result.stdout, result.stderr)
-      ].filter(Boolean).join("\n")
+      repoUrl: `https://github.com/${owner}/${repo}.git`,
+      skillPath: pathParts.join("/"),
+      ref: ref && ref.trim().length > 0 ? ref.trim() : undefined
     };
   }
 
@@ -1435,20 +1322,16 @@ export class ServiceCommands {
   private async uninstallMarketplaceSkill(slug: string): Promise<{ message: string; output?: string }> {
     const workspace = getWorkspacePath(loadConfig().agents.defaults.workspace);
     const targetDir = join(workspace, "skills", slug);
-    const skildDir = join(workspace, ".agents", "skills", slug);
-    const existingTargets = [targetDir, skildDir].filter((path) => existsSync(path));
 
-    if (existingTargets.length === 0) {
+    if (!existsSync(targetDir)) {
       throw new Error(`Skill not installed in workspace: ${slug}`);
     }
 
-    for (const path of existingTargets) {
-      rmSync(path, { recursive: true, force: true });
-    }
+    rmSync(targetDir, { recursive: true, force: true });
 
     return {
       message: `Uninstalled skill: ${slug}`,
-      output: existingTargets.map((path) => `Removed ${path}`).join("\n")
+      output: `Removed ${targetDir}`
     };
   }
 
@@ -1524,42 +1407,6 @@ export class ServiceCommands {
       throw new Error("installPath escapes workspace");
     }
     return destination;
-  }
-
-  private parseSkildJsonOutput(stdout: string): Record<string, unknown> | null {
-    const trimmed = stdout.trim();
-    if (!trimmed) {
-      throw new Error("skild returned empty output");
-    }
-
-    const maybeJson = (() => {
-      const start = trimmed.indexOf("{");
-      const end = trimmed.lastIndexOf("}");
-      if (start >= 0 && end > start) {
-        return trimmed.slice(start, end + 1);
-      }
-      return trimmed;
-    })();
-
-    try {
-      const parsed = JSON.parse(maybeJson);
-      if (parsed === null) {
-        return null;
-      }
-      if (Array.isArray(parsed)) {
-        const firstObject = parsed.find((item) => item && typeof item === "object" && !Array.isArray(item));
-        if (firstObject) {
-          return firstObject as Record<string, unknown>;
-        }
-        throw new Error("skild json output array does not contain an object");
-      }
-      if (typeof parsed !== "object") {
-        throw new Error("skild json output is not an object");
-      }
-      return parsed as Record<string, unknown>;
-    } catch (error) {
-      throw new Error(`failed to parse skild --json output: ${String(error)}`);
-    }
   }
 
   private mergeCommandOutput(stdout: string, stderr: string): string {

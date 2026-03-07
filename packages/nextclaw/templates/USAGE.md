@@ -418,8 +418,6 @@ Created under the workspace:
 | `nextclaw start` | Start gateway + UI in the background |
 | `nextclaw restart` | Restart the background service with optional start flags |
 | `nextclaw stop` | Stop the background service |
-| `sudo nextclaw service install-systemd` | Install a managed Linux `systemd` service for public/server deployment |
-| `sudo nextclaw service uninstall-systemd` | Remove the managed Linux `systemd` service |
 | `nextclaw ui` | Start UI and gateway in the foreground |
 | `nextclaw gateway` | Start gateway only (for channels) |
 | `nextclaw serve` | Run gateway + UI in the foreground (no background) |
@@ -459,13 +457,6 @@ Gateway options (when running `nextclaw gateway` or `nextclaw start`):
 - `--ui-open` — open the browser when the UI starts
 
 If service is already running, new UI port flags do not hot-apply; use `nextclaw restart ...` to apply them.
-
-Linux server deployment tip:
-
-- If you put Nginx/Caddy/Traefik in front of NextClaw, do not rely on a one-time `nextclaw start` only.
-- `nextclaw start` is a background convenience command, not a crash/reboot supervisor.
-- On Linux servers, install a managed unit with `sudo nextclaw service install-systemd` so the UI/API comes back automatically after reboot or unexpected exit.
-- Verify with `systemctl status nextclaw`, `journalctl -u nextclaw -f`, and `curl http://127.0.0.1:18791/api/health`.
 
 Status/diagnostics tips:
 

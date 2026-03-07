@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.9.11
+
+### Patch Changes
+
+- Replace marketplace git skill installation with a native NextClaw installer that writes only to the NextClaw skills directory.
+
 ## 0.9.10
 
 ### Patch Changes

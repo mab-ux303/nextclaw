@@ -68,21 +68,6 @@ program
   .description(`Stop the ${APP_NAME} background service`)
   .action(async () => runtime.stop());
 
-const service = program.command("service").description("Manage OS service integration");
-
-service
-  .command("install-systemd")
-  .description(`Install a systemd unit for ${APP_NAME} on Linux servers`)
-  .option("--name <name>", "Systemd unit name", APP_NAME)
-  .option("--ui-port <port>", "UI port")
-  .action(async (opts) => runtime.serviceInstallSystemd(opts));
-
-service
-  .command("uninstall-systemd")
-  .description(`Remove the systemd unit for ${APP_NAME}`)
-  .option("--name <name>", "Systemd unit name", APP_NAME)
-  .action(async (opts) => runtime.serviceUninstallSystemd(opts));
-
 program
   .command("agent")
   .description("Interact with the agent directly")
