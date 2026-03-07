@@ -18,7 +18,7 @@ export class SubagentManager {
       id: string;
       label: string;
       task: string;
-      origin: { channel: string; chatId: string };
+      origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string };
       startedAt: string;
       status: "running" | "done" | "error" | "cancelled";
       cancelled: boolean;
@@ -76,6 +76,8 @@ export class SubagentManager {
     sessionModel?: string;
     originChannel?: string;
     originChatId?: string;
+    originSessionKey?: string;
+    originAgentId?: string;
   }): Promise<string> {
     const taskId = randomUUID().slice(0, 8);
     const displayLabel = params.label ?? `${params.task.slice(0, 30)}${params.task.length > 30 ? "..." : ""}`;
@@ -87,7 +89,9 @@ export class SubagentManager {
     });
     const origin = {
       channel: params.originChannel ?? "cli",
-      chatId: params.originChatId ?? "direct"
+      chatId: params.originChatId ?? "direct",
+      ...(params.originSessionKey?.trim() ? { sessionKey: params.originSessionKey.trim() } : {}),
+      ...(params.originAgentId?.trim() ? { agentId: params.originAgentId.trim() } : {})
     };
     this.runs.set(taskId, {
       id: taskId,
@@ -126,7 +130,7 @@ export class SubagentManager {
     task: string;
     label: string;
     model: string;
-    origin: { channel: string; chatId: string };
+    origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string };
   }): Promise<void> {
     try {
       const run = this.runs.get(params.taskId);
@@ -236,7 +240,7 @@ export class SubagentManager {
     label: string;
     task: string;
     result: string;
-    origin: { channel: string; chatId: string };
+    origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string };
     status: "ok" | "error";
   }): Promise<void> {
     const statusText = params.status === "ok" ? "completed successfully" : "failed";
@@ -249,7 +253,10 @@ export class SubagentManager {
       content: announceContent,
       timestamp: new Date(),
       attachments: [],
-      metadata: {}
+      metadata: {
+        ...(params.origin.sessionKey ? { session_key_override: params.origin.sessionKey } : {}),
+        ...(params.origin.agentId ? { target_agent_id: params.origin.agentId } : {})
+      }
     };
 
     await this.options.bus.publishInbound(msg);

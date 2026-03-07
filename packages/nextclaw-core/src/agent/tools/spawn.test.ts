@@ -20,7 +20,9 @@ describe("SpawnTool", () => {
       model: "anthropic/claude-sonnet-4-5",
       sessionModel: "openai/gpt-5",
       originChannel: "discord",
-      originChatId: "room-1"
+      originChatId: "room-1",
+      originSessionKey: undefined,
+      originAgentId: undefined
     });
   });
 
@@ -40,7 +42,30 @@ describe("SpawnTool", () => {
       model: undefined,
       sessionModel: "openai/gpt-5",
       originChannel: "telegram",
-      originChatId: "chat-2"
+      originChatId: "chat-2",
+      originSessionKey: undefined,
+      originAgentId: undefined
+    });
+  });
+
+  it("forwards origin session and agent context when available", async () => {
+    const spawn = vi.fn(async () => "ok");
+    const tool = new SpawnTool({ spawn } as unknown as SubagentManager);
+    tool.setContext("ui", "web-ui", "openai/gpt-5", "agent:main:ui:direct:web-ui", "main");
+
+    await tool.execute({
+      task: "summarize changelog"
+    });
+
+    expect(spawn).toHaveBeenCalledWith({
+      task: "summarize changelog",
+      label: undefined,
+      model: undefined,
+      sessionModel: "openai/gpt-5",
+      originChannel: "ui",
+      originChatId: "web-ui",
+      originSessionKey: "agent:main:ui:direct:web-ui",
+      originAgentId: "main"
     });
   });
 });

@@ -38,14 +38,29 @@ export function useWebSocket(queryClient?: QueryClient) {
     })();
     const client = new ConfigWebSocket(wsUrl);
 
+    const invalidateSessionQueries = (sessionKey?: string) => {
+      if (!queryClient) {
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      if (sessionKey && sessionKey.trim().length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['session-history', sessionKey.trim()] });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ['session-history'] });
+    };
+
     client.on('connection.open', () => {
       setConnectionStatus('connected');
     });
 
-    client.on('config.updated', () => {
+    client.on('config.updated', (event) => {
       // Trigger refetch of config
       if (queryClient) {
         queryClient.invalidateQueries({ queryKey: ['config'] });
+      }
+      if (event.type === 'config.updated' && event.payload.path.startsWith('session')) {
+        invalidateSessionQueries();
       }
     });
 
@@ -68,6 +83,13 @@ export function useWebSocket(queryClient?: QueryClient) {
       if (runId) {
         queryClient.invalidateQueries({ queryKey: ['chat-run', runId] });
       }
+    });
+
+    client.on('session.updated', (event) => {
+      if (event.type !== 'session.updated') {
+        return;
+      }
+      invalidateSessionQueries(event.payload.sessionKey);
     });
 
     client.on('error', (event) => {

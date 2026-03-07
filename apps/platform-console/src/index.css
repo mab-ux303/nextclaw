@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-family: "SF Pro Text", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: radial-gradient(circle at top right, #dcecff 0%, #f8fafc 46%, #f1f5f9 100%);
+}
+
+* {
+  box-sizing: border-box;
+}

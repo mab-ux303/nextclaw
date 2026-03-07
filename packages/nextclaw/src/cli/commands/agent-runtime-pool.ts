@@ -25,6 +25,11 @@ type AgentProfileRuntime = {
   engine: AgentEngine;
 };
 
+type SystemSessionUpdatedHandler = (params: {
+  sessionKey: string;
+  message: InboundMessage;
+}) => void;
+
 type ResolvedAgentProfile = {
   id: string;
   workspace: string;
@@ -111,6 +116,7 @@ export class GatewayAgentRuntimePool {
   private runtimes = new Map<string, AgentProfileRuntime>();
   private running = false;
   private defaultAgentId = "main";
+  private onSystemSessionUpdated: SystemSessionUpdatedHandler | null = null;
 
   constructor(
     private options: {
@@ -149,6 +155,10 @@ export class GatewayAgentRuntimePool {
   applyExtensionRegistry(extensionRegistry?: ExtensionRegistry): void {
     this.options.extensionRegistry = extensionRegistry;
     this.rebuild(this.options.config);
+  }
+
+  setSystemSessionUpdatedHandler(handler: SystemSessionUpdatedHandler | null): void {
+    this.onSystemSessionUpdated = handler;
   }
 
   async processDirect(params: {
@@ -287,6 +297,12 @@ export class GatewayAgentRuntimePool {
           sessionKey: route.sessionKey,
           publishResponse: true
         });
+        if (message.channel === "system") {
+          this.onSystemSessionUpdated?.({
+            sessionKey: route.sessionKey,
+            message
+          });
+        }
       } catch (error) {
         await this.options.bus.publishOutbound({
           channel: message.channel,

@@ -28,6 +28,13 @@ export type UpdateCommandOptions = {
   timeout?: string | number;
 };
 
+export type LoginCommandOptions = {
+  apiBase?: string;
+  email?: string;
+  password?: string;
+  register?: boolean;
+};
+
 export type PluginsListOptions = {
   json?: boolean;
   enabled?: boolean;

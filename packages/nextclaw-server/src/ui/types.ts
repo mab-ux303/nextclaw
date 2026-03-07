@@ -746,6 +746,7 @@ export type MarketplaceApiConfig = {
 export type UiServerEvent =
   | { type: "config.updated"; payload: { path: string } }
   | { type: "run.updated"; payload: { run: ChatRunView } }
+  | { type: "session.updated"; payload: { sessionKey: string } }
   | { type: "config.reload.started"; payload?: Record<string, unknown> }
   | { type: "config.reload.finished"; payload?: Record<string, unknown> }
   | { type: "error"; payload: { message: string; code?: string } };

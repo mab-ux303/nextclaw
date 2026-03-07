@@ -1,19 +1,19 @@
 name = "nextclaw-provider-gateway-api"
 main = "src/main.ts"
-compatibility_date = "2026-03-05"
+compatibility_date = "2026-03-07"
 
 [observability]
 enabled = true
 
-[[durable_objects.bindings]]
-name = "NEXTCLAW_QUOTA"
-class_name = "NextclawQuotaDurableObject"
-
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["NextclawQuotaDurableObject"]
+[[d1_databases]]
+binding = "NEXTCLAW_PLATFORM_DB"
+database_name = "nextclaw-platform"
+database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
 
 [vars]
 DASHSCOPE_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-FREE_TRIAL_USD_LIMIT = "0.50"
-FREE_TRIAL_FLAT_USD_PER_REQUEST = "0.0002"
+AUTH_TOKEN_SECRET = "dev-only-change-me"
+GLOBAL_FREE_USD_LIMIT = "20"
+DEFAULT_USER_FREE_USD_LIMIT = "2"
+REQUEST_FLAT_USD_PER_REQUEST = "0.0002"
+ALLOW_SELF_SIGNUP = "true"

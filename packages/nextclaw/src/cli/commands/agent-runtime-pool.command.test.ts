@@ -124,4 +124,89 @@ describe("GatewayAgentRuntimePool slash commands", () => {
     expect(result).toBe("engine-reply");
     expect(processDirect).toHaveBeenCalledTimes(1);
   });
+
+  it("routes system messages back to session_key_override and emits session update hook", async () => {
+    const workspace = createWorkspace();
+    const handleInbound = vi.fn(async () => null);
+    const engine: AgentEngine = {
+      kind: "mock",
+      handleInbound,
+      processDirect: vi.fn(async () => "ok"),
+      applyRuntimeConfig: vi.fn()
+    };
+
+    const config = createConfig(workspace);
+    const sessionManager = new SessionManager(workspace);
+    const providerManager = {
+      setConfig: () => {},
+      get: () => ({
+        getDefaultModel: () => "openai/gpt-5"
+      })
+    };
+    const inboundQueue: Array<Record<string, unknown> | null> = [
+      {
+        channel: "system",
+        senderId: "subagent",
+        chatId: "ui:web-ui",
+        content: "subagent done",
+        timestamp: new Date(),
+        attachments: [],
+        metadata: {
+          session_key_override: "agent:main:ui:direct:web-ui",
+          target_agent_id: "main"
+        }
+      },
+      null
+    ];
+    const bus = {
+      consumeInbound: vi.fn(async () => {
+        const next = inboundQueue.shift();
+        if (!next) {
+          throw new Error("stop-loop");
+        }
+        return next;
+      }),
+      publishOutbound: vi.fn(async () => undefined)
+    };
+
+    const runtimePool = new GatewayAgentRuntimePool({
+      bus: bus as never,
+      providerManager: providerManager as never,
+      sessionManager,
+      config,
+      restrictToWorkspace: true,
+      execConfig: config.tools.exec,
+      contextConfig: config.agents.context,
+      extensionRegistry: {
+        engines: [
+          {
+            extensionId: "test.mock",
+            source: "workspace",
+            kind: "mock",
+            factory: () => engine
+          }
+        ],
+        channels: [],
+        tools: [],
+        diagnostics: []
+      }
+    });
+    const sessionUpdated = vi.fn();
+    runtimePool.setSystemSessionUpdatedHandler(sessionUpdated);
+
+    await expect(runtimePool.run()).rejects.toThrow("stop-loop");
+    expect(handleInbound).toHaveBeenCalledWith({
+      message: expect.objectContaining({
+        channel: "system",
+        chatId: "ui:web-ui"
+      }),
+      sessionKey: "agent:main:ui:direct:web-ui",
+      publishResponse: true
+    });
+    expect(sessionUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionKey: "agent:main:ui:direct:web-ui"
+      })
+    );
+  });
 });

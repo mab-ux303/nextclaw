@@ -24,6 +24,15 @@ program
   .action(async (opts) => runtime.init({ force: Boolean(opts.force) }));
 
 program
+  .command("login")
+  .description("Login to NextClaw platform and save token into providers.nextclaw.apiKey")
+  .option("--api-base <url>", "Platform API base (supports /v1 suffix)")
+  .option("--email <email>", "Login email")
+  .option("--password <password>", "Login password")
+  .option("--register", "Register first, then login", false)
+  .action(async (opts) => runtime.login(opts));
+
+program
   .command("gateway")
   .description(`Start the ${APP_NAME} gateway`)
   .option("-p, --port <port>", "Gateway port", "18790")

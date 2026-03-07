@@ -1,95 +1,55 @@
 # 渠道
 
-所有消息渠道共享 **allowFrom** 规则：
+这页面向“先连起来再优化”的使用路径。
 
-- **`allowFrom` 为空**（`[]`）：允许所有发送者。
-- **`allowFrom` 非空**：仅允许白名单中的用户 ID。
+## 一句话理解
 
-你可以在 UI 中配置渠道，也可以在 `~/.nextclaw/config.json` 的 `channels` 下配置。
+渠道就是把同一个 NextClaw 助手接到不同消息入口（如 Telegram、Discord、Slack）。
 
-## Discord
+## 先做最小可用
 
-1. 在 [Discord Developer Portal](https://discord.com/developers/applications) 创建 Bot 并获取 Token。
-2. 打开 Bot 的 **MESSAGE CONTENT INTENT**。
-3. 邀请 Bot 进服务器并授予读写消息权限。
+1. 在 UI 里选择一个渠道（建议先从你最常用的一个开始）。
+2. 填入该渠道要求的基础凭证（例如 token / appId / appSecret）。
+3. 保存后做一次真实收发测试。
+4. 跑通后再配置白名单与群组策略。
 
-```json
-{
-  "channels": {
-    "discord": {
-      "enabled": true,
-      "token": "YOUR_BOT_TOKEN",
-      "allowBots": false,
-      "allowFrom": [],
-      "accountId": "default",
-      "dmPolicy": "open",
-      "groupPolicy": "allowlist",
-      "groupAllowFrom": ["dev-room"],
-      "requireMention": true,
-      "mentionPatterns": ["@engineer"]
-    }
-  }
-}
-```
+## 通用安全项：`allowFrom`
 
-## Telegram
+- `allowFrom` 为空（`[]`）：允许所有发送者。
+- `allowFrom` 非空：仅允许白名单中的用户 ID。
 
-1. 使用 [@BotFather](https://t.me/BotFather) 创建 Bot 并获取 Token。
-2. 使用 [@userinfobot](https://t.me/userinfobot) 获取你的用户 ID。
+建议：上线前至少给高风险渠道设置 `allowFrom`。
 
-```json
-{
-  "channels": {
-    "telegram": {
-      "enabled": true,
-      "token": "YOUR_BOT_TOKEN",
-      "allowFrom": ["YOUR_USER_ID"],
-      "ackReaction": "👀",
-      "ackReactionScope": "all"
-    }
-  }
-}
-```
+## 各渠道你只需要先准备什么
 
-可选：设置 `"proxy": "http://localhost:7890"` 以支持代理网络。
+### Discord
 
-- `ackReaction` 默认 `"👀"`（设为空字符串可关闭表情确认）。
-- `ackReactionScope` 默认 `"all"`（`off` | `group-mentions` | `group-all` | `direct` | `all`）。
+- Bot Token
+- 打开 `MESSAGE CONTENT INTENT`
+- 给 Bot 授予基础读写消息权限
 
-## Slack
+### Telegram
 
-使用 Socket mode。需要 **Bot Token** 与 **App-Level Token**（含 `connections:write` 权限）。
+- BotFather 创建的 Bot Token
+- 你的用户 ID（用于白名单时）
 
-```json
-{
-  "channels": {
-    "slack": {
-      "enabled": true,
-      "mode": "socket",
-      "botToken": "xoxb-...",
-      "appToken": "xapp-...",
-      "allowBots": false,
-      "dm": { "enabled": true, "allowFrom": [] }
-    }
-  }
-}
-```
+### Slack
 
-## 飞书（Lark）
+- Bot Token
+- App-Level Token（含 `connections:write`）
 
-在 [飞书开放平台](https://open.feishu.com/) 创建应用后配置 `appId` 与 `appSecret`。
+### 飞书（Lark）
 
-## WhatsApp（whatsapp-web.js）
+- 飞书开放平台应用的 `appId` / `appSecret`
 
-首次登录需要扫码。配置示例：
+### WhatsApp（whatsapp-web.js）
 
-```json
-{
-  "channels": {
-    "whatsapp": {
-      "enabled": true,
-      "allowFrom": []
-    }
-  }
-}
-```
+- 首次登录扫码
+
+## 进阶配置（可选）
+
+如需批量管理或版本化配置，可在 `~/.nextclaw/config.json` 的 `channels` 下维护。
+
+完整参数说明见：
+- [配置](/zh/guide/configuration)
+- [命令](/zh/guide/commands)

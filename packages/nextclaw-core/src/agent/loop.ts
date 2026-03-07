@@ -536,7 +536,7 @@ export class AgentLoop {
     }
     const spawnTool = this.tools.get("spawn");
     if (spawnTool instanceof SpawnTool) {
-      spawnTool.setContext(msg.channel, msg.chatId, runtimeModel);
+      spawnTool.setContext(msg.channel, msg.chatId, runtimeModel, sessionKey, this.agentId);
     }
     const cronTool = this.tools.get("cron");
     if (cronTool instanceof CronTool) {
@@ -698,7 +698,8 @@ export class AgentLoop {
     const originChannel = separator > 0 ? msg.chatId.slice(0, separator) : "cli";
     const originChatId = separator > 0 ? msg.chatId.slice(separator + 1) : msg.chatId;
 
-    const sessionKey = sessionKeyOverride ?? `${originChannel}:${originChatId}`;
+    const metadataSessionKey = this.normalizeOptionalString(msg.metadata.session_key_override);
+    const sessionKey = sessionKeyOverride ?? metadataSessionKey ?? `${originChannel}:${originChatId}`;
     const session = this.sessions.getOrCreate(sessionKey);
     this.setExtensionToolContext({ sessionKey, channel: originChannel, chatId: originChatId });
     this.setSessionsSendToolContext({
@@ -719,7 +720,7 @@ export class AgentLoop {
     }
     const spawnTool = this.tools.get("spawn");
     if (spawnTool instanceof SpawnTool) {
-      spawnTool.setContext(originChannel, originChatId, runtimeModel);
+      spawnTool.setContext(originChannel, originChatId, runtimeModel, sessionKey, this.agentId);
     }
     const cronTool = this.tools.get("cron");
     if (cronTool instanceof CronTool) {

@@ -1,5 +1,14 @@
 # nextclaw
 
+## 0.9.16
+
+### Patch Changes
+
+- Fix marketplace skill install status sync when installing via running service API.
+
+  This patch fixes the packaged CLI subcommand entry resolution so service-driven installs execute the real CLI entry,
+  avoiding false-success responses where UI showed "installed" message but state/file were unchanged.
+
 ## 0.9.15
 
 ### Patch Changes

@@ -1,39 +1,34 @@
 # Cron 与 Heartbeat
 
-## Cron 任务
+这页讲“如何让助手自动做事”。
 
-可以创建一次性或周期任务，调度触发时消息会发送给 Agent。
+## Cron：按计划触发任务
 
-### 查看任务
+你可以创建：
 
-```bash
-nextclaw cron list
-```
+- 一次性任务（到点执行一次）
+- 周期任务（每天/每周等重复执行）
 
-### 创建一次性任务
+常见用途：
 
-```bash
-nextclaw cron add -n "reminder" -m "Stand up and stretch" --at "2026-02-15T09:00:00"
-```
+- 每天生成日报草稿
+- 固定时间提醒
+- 周期巡检与汇总
 
-### 创建周期任务
+## 推荐使用顺序（UI 优先）
 
-```bash
-nextclaw cron add -n "daily-summary" -m "Summarize yesterday" -c "0 9 * * *"
-```
+1. 先建一个一次性任务，确认链路可用。
+2. 再建一个周期任务（例如每天一次）。
+3. 最后再加复杂规则（渠道投递、禁用后强制运行等）。
 
-### 管理任务
+## Heartbeat：周期检查工作区任务
 
-```bash
-nextclaw cron remove <jobId>
-nextclaw cron enable <jobId>
-nextclaw cron enable <jobId> --disable
-nextclaw cron run <jobId>          # 立即执行一次
-nextclaw cron run <jobId> --force  # 即使禁用也执行
-```
+网关运行时会定期检查工作区里的 `HEARTBEAT.md`。
+如果文件中有可执行任务，Agent 会自动处理。
 
-## Heartbeat
+如果你暂时不需要 Heartbeat，保持文件为空即可。
 
-网关运行时会每 30 分钟检查一次工作区中的 `HEARTBEAT.md`。如果文件中有可执行任务，Agent 会自动处理。
+## 进阶入口（可选）
 
-如果希望跳过 Heartbeat 请求，可以保持文件为空（或仅保留注释）。
+如果你需要脚本化管理任务，可使用 `nextclaw cron` 子命令。
+详细参数与示例见：[命令](/zh/guide/commands)。

@@ -143,6 +143,29 @@ export function pickUserFacingCommandSummary(output: string, fallback: string): 
   return preferred ?? visibleLines[visibleLines.length - 1] ?? fallback;
 }
 
+export function buildMarketplaceSkillInstallArgs(params: {
+  slug: string;
+  workspace: string;
+  force?: boolean;
+}): string[] {
+  const args = ["skills", "install", params.slug, "--workdir", params.workspace];
+  if (params.force) {
+    args.push("--force");
+  }
+  return args;
+}
+
+export function resolveCliSubcommandEntry(params: {
+  argvEntry?: string;
+  importMetaUrl: string;
+}): string {
+  const argvEntry = params.argvEntry?.trim();
+  if (argvEntry) {
+    return resolve(argvEntry);
+  }
+  return fileURLToPath(new URL("../index.js", params.importMetaUrl));
+}
+
 export class ServiceCommands {
   constructor(
     private deps: {
@@ -1047,6 +1070,21 @@ export class ServiceCommands {
     });
 
     let publishUiEvent: ((event: UiServerEvent) => void) | null = null;
+    runtimePool.setSystemSessionUpdatedHandler(({ sessionKey, message }) => {
+      if (!publishUiEvent) {
+        return;
+      }
+      const isUiRoute = message.chatId.startsWith("ui:");
+      if (!isUiRoute) {
+        return;
+      }
+      publishUiEvent({
+        type: "session.updated",
+        payload: {
+          sessionKey
+        }
+      });
+    });
     const runCoordinator = new UiChatRunCoordinator({
       runtimePool,
       sessionManager,
@@ -1172,10 +1210,12 @@ export class ServiceCommands {
       throw new Error(`Unsupported marketplace skill kind: ${params.kind}`);
     }
 
-    const args = ["skills", "install", params.slug];
-    if (params.force) {
-      args.push("--force");
-    }
+    const workspace = getWorkspacePath(loadConfig().agents.defaults.workspace);
+    const args = buildMarketplaceSkillInstallArgs({
+      slug: params.slug,
+      workspace,
+      force: params.force
+    });
 
     try {
       const output = await this.runCliSubcommand(args);
@@ -1261,7 +1301,10 @@ export class ServiceCommands {
   }
 
   private runCliSubcommand(args: string[], timeoutMs = 180_000): Promise<string> {
-    const cliEntry = fileURLToPath(new URL("../index.js", import.meta.url));
+    const cliEntry = resolveCliSubcommandEntry({
+      argvEntry: process.argv[1],
+      importMetaUrl: import.meta.url
+    });
     return this.runCommand(process.execPath, [...process.execArgv, cliEntry, ...args], {
       cwd: process.cwd(),
       timeoutMs

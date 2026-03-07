@@ -67,6 +67,7 @@ import type {
   CronAddOptions,
   DoctorCommandOptions,
   GatewayCommandOptions,
+  LoginCommandOptions,
   PluginsInfoOptions,
   PluginsInstallOptions,
   PluginsListOptions,
@@ -82,6 +83,16 @@ export const LOGO = "🤖";
 
 const EXIT_COMMANDS = new Set(["exit", "quit", "/exit", "/quit", ":q"]);
 const FORCED_PUBLIC_UI_HOST = "0.0.0.0";
+
+export function resolveSkillsInstallWorkdir(params: {
+  explicitWorkdir?: string;
+  configuredWorkspace?: string;
+}): string {
+  if (params.explicitWorkdir) {
+    return expandHome(params.explicitWorkdir);
+  }
+  return getWorkspacePath(params.configuredWorkspace);
+}
 
 export class CliRuntime {
   private logo: string;
@@ -409,6 +420,131 @@ export class CliRuntime {
         `Tip: Run "${APP_NAME} init${force ? " --force" : ""}" to re-run initialization if needed.`,
       );
     }
+  }
+
+  async login(opts: LoginCommandOptions = {}): Promise<void> {
+    await this.init({ source: "login", auto: true });
+
+    const configPath = getConfigPath();
+    const config = loadConfig(configPath);
+    const providers = config.providers as Record<
+      string,
+      {
+        displayName?: string;
+        apiKey?: string;
+        apiBase?: string | null;
+        extraHeaders?: Record<string, string> | null;
+        wireApi?: "auto" | "chat" | "responses";
+        models?: string[];
+      }
+    >;
+    const nextclawProvider = providers.nextclaw ?? {
+      displayName: "",
+      apiKey: "",
+      apiBase: null,
+      extraHeaders: null,
+      wireApi: "auto",
+      models: [],
+    };
+
+    const configuredApiBase =
+      typeof nextclawProvider.apiBase === "string" &&
+      nextclawProvider.apiBase.trim().length > 0
+        ? nextclawProvider.apiBase.trim()
+        : "https://ai-gateway-api.nextclaw.io/v1";
+    const requestedApiBase =
+      typeof opts.apiBase === "string" && opts.apiBase.trim().length > 0
+        ? opts.apiBase.trim()
+        : configuredApiBase;
+    const platformBase = requestedApiBase.replace(/\/v1\/?$/i, "");
+    const v1Base = `${platformBase}/v1`;
+
+    let email =
+      typeof opts.email === "string" ? opts.email.trim() : "";
+    let password =
+      typeof opts.password === "string" ? opts.password : "";
+
+    if (!email || !password) {
+      const rl = createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      try {
+        if (!email) {
+          email = (await prompt(rl, "Email: ")).trim();
+        }
+        if (!password) {
+          password = await prompt(rl, "Password: ");
+        }
+      } finally {
+        rl.close();
+      }
+    }
+
+    if (!email || !password) {
+      throw new Error("Email and password are required.");
+    }
+
+    const endpoint = opts.register
+      ? `${platformBase}/platform/auth/register`
+      : `${platformBase}/platform/auth/login`;
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const raw = await response.text();
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = null;
+    }
+
+    if (!response.ok) {
+      const maybeMessage =
+        typeof parsed === "object" &&
+        parsed &&
+        "error" in parsed &&
+        typeof (parsed as { error?: { message?: unknown } }).error?.message ===
+          "string"
+          ? (parsed as { error: { message: string } }).error.message
+          : raw || `Request failed (${response.status})`;
+      throw new Error(maybeMessage);
+    }
+
+    const token =
+      typeof parsed === "object" &&
+      parsed &&
+      "data" in parsed &&
+      typeof (parsed as { data?: { token?: unknown } }).data?.token === "string"
+        ? (parsed as { data: { token: string } }).data.token
+        : "";
+    const role =
+      typeof parsed === "object" &&
+      parsed &&
+      "data" in parsed &&
+      typeof (parsed as { data?: { user?: { role?: unknown } } }).data?.user
+        ?.role === "string"
+        ? (parsed as { data: { user: { role: string } } }).data.user.role
+        : "user";
+
+    if (!token) {
+      throw new Error("Login succeeded but token is missing.");
+    }
+
+    nextclawProvider.apiBase = v1Base;
+    nextclawProvider.apiKey = token;
+    providers.nextclaw = nextclawProvider;
+    saveConfig(config, configPath);
+
+    console.log(`✓ Logged in to NextClaw platform (${platformBase})`);
+    console.log(`✓ Account: ${email} (${role})`);
+    console.log(`✓ Token saved into providers.nextclaw.apiKey`);
   }
 
   async gateway(opts: GatewayCommandOptions): Promise<void> {
@@ -807,9 +943,11 @@ export class CliRuntime {
     force?: boolean;
     apiBaseUrl?: string;
   }): Promise<void> {
-    const workdir = options.workdir
-      ? expandHome(options.workdir)
-      : getWorkspacePath();
+    const config = loadConfig();
+    const workdir = resolveSkillsInstallWorkdir({
+      explicitWorkdir: options.workdir,
+      configuredWorkspace: config.agents.defaults.workspace
+    });
     const result = await installMarketplaceSkill({
       slug: options.slug,
       workdir,

@@ -1,31 +1,37 @@
 # 工具
 
-## Web 搜索（Brave）
+工具让 Agent 不只“回答问题”，还能“执行动作”。
 
-配置 Brave Search API Key 以启用网页搜索：
+## 工具分两类
 
-```json
-{
-  "tools": {
-    "web": {
-      "search": { "apiKey": "YOUR_BRAVE_KEY", "maxResults": 5 }
-    }
-  }
-}
-```
+### 1) 信息获取类
 
-## 命令执行（exec）
+- Web 搜索（如 Brave）
+- 网页抓取与信息整理
 
-允许 Agent 执行 Shell 命令：
+适合场景：查资料、对比信息、汇总来源。
 
-```json
-{
-  "tools": {
-    "exec": { "timeout": 60 }
-  },
-  "restrictToWorkspace": false
-}
-```
+### 2) 执行动作类
 
-- `timeout`：单条命令最大执行秒数
-- `restrictToWorkspace`：若为 `true`，命令仅允许在 Agent 工作区目录内执行
+- 文件读写与编辑
+- 命令执行（`exec`）
+- 消息发送、任务调度
+
+适合场景：批量处理文件、自动化重复任务。
+
+## 新手建议
+
+1. 先开启“信息获取类”工具。
+2. 跑通后再开启“执行动作类”工具。
+3. 涉及 `exec` 时先缩小权限范围，再逐步放开。
+
+## 关于 `exec` 的安全建议
+
+- 设置合理超时，避免长时间阻塞。
+- 优先限制在工作区内执行。
+- 生产环境默认最小权限。
+
+## 进阶入口（可选）
+
+如果你希望通过配置文件精细控制工具参数（如 `timeout`、`restrictToWorkspace`），
+可参考：[配置](/zh/guide/configuration) 与 [命令](/zh/guide/commands)。
