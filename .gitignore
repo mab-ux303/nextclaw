@@ -12,3 +12,5 @@ apps/docs/.vitepress/cache/
 apps/docs/--host/
 packages/nextclaw/*.tgz
 **/.wrangler/
+
+apps/docs/.vitepress/.temp/
