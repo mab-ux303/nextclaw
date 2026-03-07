@@ -8,7 +8,7 @@ import {
   useDeleteSession,
   useSessionHistory,
   useSessions,
-  useChatRuns
+  useChatRuns,
 } from '@/hooks/useConfig';
 import { useMarketplaceInstalled } from '@/hooks/useMarketplace';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
@@ -209,11 +209,19 @@ function ChatPageLayout({ view, sidebarProps, conversationProps, confirmDialog }
         <ChatConversationPanel {...conversationProps} />
       ) : (
         <section className="flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-gray-50/60 to-white">
-          <div className="h-full overflow-auto custom-scrollbar">
-            <div className="mx-auto w-full max-w-[min(1120px,100%)] px-6 py-5">
-              {view === 'cron' ? <CronConfig /> : <MarketplacePage forcedType="skills" />}
+          {view === 'cron' ? (
+            <div className="h-full overflow-auto custom-scrollbar">
+              <div className="mx-auto w-full max-w-[min(1120px,100%)] px-6 py-5">
+                <CronConfig />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="h-full overflow-hidden">
+              <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(1120px,100%)] flex-col px-6 py-5">
+                <MarketplacePage forcedType="skills" />
+              </div>
+            </div>
+          )}
         </section>
       )}
 

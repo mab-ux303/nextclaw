@@ -1,10 +1,14 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SkillsPicker } from '@/components/chat/SkillsPicker';
 import type { MarketplaceInstalledRecord } from '@/api/types';
 import { t } from '@/lib/i18n';
 import { Paperclip, Send, Sparkles, Square, X } from 'lucide-react';
+
+const SLASH_PANEL_MAX_WIDTH = 920;
 
 export type ChatModelOption = {
   value: string;
@@ -33,6 +37,91 @@ type ChatInputBarProps = {
   onSelectedSkillsChange: (next: string[]) => void;
 };
 
+type SlashPanelItem = {
+  kind: 'skill';
+  key: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  detailLines: string[];
+  skillSpec?: string;
+};
+
+type RankedSkill = {
+  record: MarketplaceInstalledRecord;
+  score: number;
+  order: number;
+};
+
+function resolveSlashQuery(draft: string): string | null {
+  const match = /^\/([^\s]*)$/.exec(draft);
+  if (!match) {
+    return null;
+  }
+  return (match[1] ?? '').trim().toLowerCase();
+}
+
+function normalizeSearchText(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+function isSubsequenceMatch(query: string, target: string): boolean {
+  if (!query || !target) {
+    return false;
+  }
+  let pointer = 0;
+  for (const char of target) {
+    if (char === query[pointer]) {
+      pointer += 1;
+      if (pointer >= query.length) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function scoreSkillRecord(record: MarketplaceInstalledRecord, query: string): number {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) {
+    return 1;
+  }
+
+  const spec = normalizeSearchText(record.spec);
+  const label = normalizeSearchText(record.label || record.spec);
+  const description = normalizeSearchText(`${record.descriptionZh ?? ''} ${record.description ?? ''}`);
+  const labelTokens = label.split(/[\s/_-]+/).filter(Boolean);
+
+  if (spec === normalizedQuery) {
+    return 1200;
+  }
+  if (label === normalizedQuery) {
+    return 1150;
+  }
+  if (spec.startsWith(normalizedQuery)) {
+    return 1000;
+  }
+  if (label.startsWith(normalizedQuery)) {
+    return 950;
+  }
+  if (labelTokens.some((token) => token.startsWith(normalizedQuery))) {
+    return 900;
+  }
+  if (spec.includes(normalizedQuery)) {
+    return 800;
+  }
+  if (label.includes(normalizedQuery)) {
+    return 760;
+  }
+  if (description.includes(normalizedQuery)) {
+    return 500;
+  }
+  if (isSubsequenceMatch(normalizedQuery, label) || isSubsequenceMatch(normalizedQuery, spec)) {
+    return 300;
+  }
+  return 0;
+}
+
 export function ChatInputBar({
   isProviderStateResolved,
   draft,
@@ -53,6 +142,11 @@ export function ChatInputBar({
   selectedSkills,
   onSelectedSkillsChange
 }: ChatInputBarProps) {
+  const [activeSlashIndex, setActiveSlashIndex] = useState(0);
+  const [dismissedSlashPanel, setDismissedSlashPanel] = useState(false);
+  const [slashPanelWidth, setSlashPanelWidth] = useState<number | null>(null);
+  const slashAnchorRef = useRef<HTMLDivElement | null>(null);
+  const slashListRef = useRef<HTMLDivElement | null>(null);
   const hasModelOptions = modelOptions.length > 0;
   const isModelOptionsLoading = !isProviderStateResolved && !hasModelOptions;
   const isModelOptionsEmpty = isProviderStateResolved && !hasModelOptions;
@@ -69,36 +163,259 @@ export function ChatInputBar({
       label: matched?.label || spec
     };
   });
+  const slashQuery = useMemo(() => resolveSlashQuery(draft), [draft]);
+  const startsWithSlash = draft.startsWith('/');
+  const normalizedSlashQuery = slashQuery ?? '';
+  const skillSortCollator = useMemo(
+    () => new Intl.Collator(undefined, { sensitivity: 'base', numeric: true }),
+    []
+  );
+  const skillSlashItems = useMemo<SlashPanelItem[]>(() => {
+    const rankedRecords: RankedSkill[] = skillRecords
+      .map((record, order) => ({
+        record,
+        score: scoreSkillRecord(record, normalizedSlashQuery),
+        order
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort((left, right) => {
+        if (right.score !== left.score) {
+          return right.score - left.score;
+        }
+        const leftLabel = (left.record.label || left.record.spec).trim();
+        const rightLabel = (right.record.label || right.record.spec).trim();
+        const labelCompare = skillSortCollator.compare(leftLabel, rightLabel);
+        if (labelCompare !== 0) {
+          return labelCompare;
+        }
+        return left.order - right.order;
+      });
+
+    return rankedRecords
+      .map((entry) => entry.record)
+      .map((record) => ({
+        kind: 'skill',
+        key: `skill:${record.spec}`,
+        title: record.label || record.spec,
+        subtitle: t('chatSlashTypeSkill'),
+        description: (record.descriptionZh ?? record.description ?? '').trim() || t('chatSkillsPickerNoDescription'),
+        detailLines: [`${t('chatSlashSkillSpec')}: ${record.spec}`],
+        skillSpec: record.spec
+      }));
+  }, [normalizedSlashQuery, skillRecords, skillSortCollator]);
+  const slashItems = useMemo(() => [...skillSlashItems], [skillSlashItems]);
+  const isSlashPanelOpen = slashQuery !== null && !dismissedSlashPanel;
+  const activeSlashItem = slashItems[activeSlashIndex] ?? null;
+  const isSlashPanelLoading = isSkillsLoading;
+  const resolvedSlashPanelWidth = slashPanelWidth ? Math.min(slashPanelWidth, SLASH_PANEL_MAX_WIDTH) : undefined;
+
+  useEffect(() => {
+    const anchor = slashAnchorRef.current;
+    if (!anchor || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const update = () => {
+      setSlashPanelWidth(anchor.getBoundingClientRect().width);
+    };
+    update();
+    const observer = new ResizeObserver(() => update());
+    observer.observe(anchor);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isSlashPanelOpen) {
+      setActiveSlashIndex(0);
+      return;
+    }
+    if (slashItems.length === 0) {
+      setActiveSlashIndex(0);
+      return;
+    }
+    setActiveSlashIndex((current) => {
+      if (current < 0) {
+        return 0;
+      }
+      if (current >= slashItems.length) {
+        return slashItems.length - 1;
+      }
+      return current;
+    });
+  }, [isSlashPanelOpen, slashItems.length]);
+
+  useEffect(() => {
+    if (!startsWithSlash && dismissedSlashPanel) {
+      setDismissedSlashPanel(false);
+    }
+  }, [dismissedSlashPanel, startsWithSlash]);
+
+  useEffect(() => {
+    if (!isSlashPanelOpen || isSlashPanelLoading || slashItems.length === 0) {
+      return;
+    }
+    const container = slashListRef.current;
+    if (!container) {
+      return;
+    }
+    const active = container.querySelector<HTMLElement>(`[data-slash-index="${activeSlashIndex}"]`);
+    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeSlashIndex, isSlashPanelLoading, isSlashPanelOpen, slashItems.length]);
+
+  const handleSelectSlashItem = useCallback((item: SlashPanelItem) => {
+    if (item.kind === 'skill' && item.skillSpec) {
+      if (!selectedSkills.includes(item.skillSpec)) {
+        onSelectedSkillsChange([...selectedSkills, item.skillSpec]);
+      }
+      onDraftChange('');
+      setDismissedSlashPanel(false);
+    }
+  }, [onDraftChange, onSelectedSkillsChange, selectedSkills]);
+
+  const handleSlashPanelOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setDismissedSlashPanel(true);
+    }
+  }, []);
 
   return (
     <div className="border-t border-gray-200/80 bg-white p-4">
       <div className="mx-auto w-full max-w-[min(1120px,100%)]">
         <div className="rounded-2xl border border-gray-200 bg-white shadow-card overflow-hidden">
-          {/* Textarea */}
-          <textarea
-            value={draft}
-            onChange={(e) => onDraftChange(e.target.value)}
-            disabled={inputDisabled}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape' && isSending && canStopGeneration) {
-                e.preventDefault();
-                void onStop();
-                return;
+          <div className="relative">
+            {/* Textarea */}
+            <textarea
+              value={draft}
+              onChange={(e) => onDraftChange(e.target.value)}
+              disabled={inputDisabled}
+              onKeyDown={(e) => {
+                if (isSlashPanelOpen && !e.nativeEvent.isComposing && (e.key === ' ' || e.code === 'Space')) {
+                  setDismissedSlashPanel(true);
+                }
+                if (isSlashPanelOpen && slashItems.length > 0) {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setActiveSlashIndex((current) => (current + 1) % slashItems.length);
+                    return;
+                  }
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setActiveSlashIndex((current) => (current - 1 + slashItems.length) % slashItems.length);
+                    return;
+                  }
+                  if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+                    e.preventDefault();
+                    const selected = slashItems[activeSlashIndex];
+                    if (selected) {
+                      handleSelectSlashItem(selected);
+                    }
+                    return;
+                  }
+                }
+                if (e.key === 'Escape') {
+                  if (isSlashPanelOpen) {
+                    e.preventDefault();
+                    setDismissedSlashPanel(true);
+                    return;
+                  }
+                  if (isSending && canStopGeneration) {
+                    e.preventDefault();
+                    void onStop();
+                    return;
+                  }
+                }
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  void onSend();
+                }
+              }}
+              placeholder={
+                isModelOptionsLoading
+                  ? ''
+                  : hasModelOptions
+                    ? t('chatInputPlaceholder')
+                    : t('chatModelNoOptions')
               }
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void onSend();
-              }
-            }}
-            placeholder={
-              isModelOptionsLoading
-                ? ''
-                : hasModelOptions
-                  ? t('chatInputPlaceholder')
-                  : t('chatModelNoOptions')
-            }
-            className="w-full min-h-[68px] max-h-[220px] resize-y bg-transparent outline-none text-sm px-4 py-3 text-gray-800 placeholder:text-gray-400"
-          />
+              className="w-full min-h-[68px] max-h-[220px] resize-y bg-transparent outline-none text-sm px-4 py-3 text-gray-800 placeholder:text-gray-400"
+            />
+            <Popover open={isSlashPanelOpen} onOpenChange={handleSlashPanelOpenChange}>
+              <PopoverAnchor asChild>
+                <div ref={slashAnchorRef} className="pointer-events-none absolute left-3 right-3 bottom-full h-0" />
+              </PopoverAnchor>
+              <PopoverContent
+                side="top"
+                align="start"
+                sideOffset={10}
+                className="z-[70] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white/95 p-0 shadow-2xl backdrop-blur-md"
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                style={resolvedSlashPanelWidth ? { width: `${resolvedSlashPanelWidth}px` } : undefined}
+              >
+                  <div className="grid min-h-[240px] grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
+                    <div ref={slashListRef} className="max-h-[320px] overflow-y-auto border-r border-gray-200 p-3 custom-scrollbar">
+                      {isSlashPanelLoading ? (
+                        <div className="p-2 text-xs text-gray-500">{t('chatSlashLoading')}</div>
+                      ) : (
+                        <>
+                          <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                            {t('chatSlashSectionSkills')}
+                          </div>
+                          {skillSlashItems.length === 0 ? (
+                            <div className="px-2 text-xs text-gray-400">{t('chatSlashNoResult')}</div>
+                          ) : (
+                            <div className="space-y-1">
+                              {skillSlashItems.map((item, index) => {
+                                const isActive = index === activeSlashIndex;
+                                return (
+                                  <button
+                                    key={item.key}
+                                    type="button"
+                                    data-slash-index={index}
+                                    onMouseEnter={() => setActiveSlashIndex(index)}
+                                    onClick={() => handleSelectSlashItem(item)}
+                                    className={`flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left transition ${
+                                      isActive ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <span className="truncate text-xs font-semibold">{item.title}</span>
+                                    <span className="truncate text-xs text-gray-500">{item.subtitle}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      {activeSlashItem ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                              {activeSlashItem.subtitle}
+                            </span>
+                            <span className="text-sm font-semibold text-gray-900">{activeSlashItem.title}</span>
+                          </div>
+                          <p className="text-xs leading-5 text-gray-600">{activeSlashItem.description}</p>
+                          <div className="space-y-1">
+                            {activeSlashItem.detailLines.map((line) => (
+                              <div key={line} className="rounded-md bg-gray-50 px-2 py-1 text-[11px] text-gray-600">
+                                {line}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="pt-1 text-[11px] text-gray-500">
+                            {t('chatSlashSkillHint')}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500">{t('chatSlashHint')}</div>
+                      )}
+                    </div>
+                  </div>
+              </PopoverContent>
+            </Popover>
+          </div>
           {isModelOptionsLoading && (
             <div className="px-4 pb-2">
               <div className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
