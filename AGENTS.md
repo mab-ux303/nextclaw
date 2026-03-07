@@ -219,3 +219,9 @@
   - 反例：在 macOS 上开发时直接假设生产也有 `systemd`；或默认使用 `/usr/lib/node_modules`、`rm -rf`、POSIX shell、软链接语义而不给 Windows 与 macOS 对应方案。
   - 执行方式：方案阶段先列出三平台差异点（安装位置、可执行入口、权限模型、服务管理、路径/删除/重命名语义）；实现阶段优先抽象平台分支与公共层；验证阶段至少补充三平台兼容性检查结论，若某平台暂未实测必须明确风险、缺口与后续验证计划。
   - 维护责任人：当前助手。
+- **github-release-bilingual-two-blocks**：
+  - 约束/适用范围：凡执行 GitHub Release（创建或更新）时，发布说明必须提供两份完整语言版本，且固定顺序为 `English Version` 在前、`中文版` 在后；禁止中英逐条混排。
+  - 示例：Release body 结构为 `English Version`（User-Facing Changes / Upgrade Impact / Validation）+ `中文版`（用户可见变化 / 升级影响 / 验证结果），最后附 `Full Changelog`。
+  - 反例：只写单语；或中英混排在同一条 bullet；或中文在前英文在后且与用户约定冲突。
+  - 执行方式：发布前按模板生成 release notes；发布后立即校验线上正文结构（语言块顺序、分节完整性、changelog 链接）并回传链接。
+  - 维护责任人：当前助手。
