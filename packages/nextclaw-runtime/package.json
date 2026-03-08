@@ -19,7 +19,7 @@
     "tsc": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@nextclaw/core": "^0.7.3"
+    "@nextclaw/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.17.6",

@@ -246,62 +246,62 @@ importers:
   packages/extensions/nextclaw-channel-plugin-dingtalk:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-discord:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-email:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-feishu:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-mochat:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-qq:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-slack:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-telegram:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-wecom:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-plugin-whatsapp:
     dependencies:
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.28
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../nextclaw-channel-runtime
 
   packages/extensions/nextclaw-channel-runtime:
     dependencies:
@@ -309,8 +309,8 @@ importers:
         specifier: ^1.58.0
         version: 1.58.0
       '@nextclaw/core':
-        specifier: ^0.7.0
-        version: 0.7.1(ws@8.19.0)
+        specifier: workspace:*
+        version: link:../../nextclaw-core
       '@slack/socket-mode':
         specifier: ^1.3.3
         version: 1.3.6
@@ -459,14 +459,14 @@ importers:
   packages/nextclaw:
     dependencies:
       '@nextclaw/core':
-        specifier: ^0.7.2
-        version: 0.7.2(ws@8.19.0)
+        specifier: workspace:*
+        version: link:../nextclaw-core
       '@nextclaw/openclaw-compat':
         specifier: workspace:*
         version: link:../nextclaw-openclaw-compat
       '@nextclaw/runtime':
-        specifier: ^0.1.1
-        version: 0.1.1(ws@8.19.0)
+        specifier: workspace:*
+        version: link:../nextclaw-runtime
       '@nextclaw/server':
         specifier: workspace:*
         version: link:../nextclaw-server
@@ -578,41 +578,41 @@ importers:
   packages/nextclaw-openclaw-compat:
     dependencies:
       '@nextclaw/channel-plugin-dingtalk':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-dingtalk
       '@nextclaw/channel-plugin-discord':
-        specifier: ^0.1.7
-        version: 0.1.7
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-discord
       '@nextclaw/channel-plugin-email':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-email
       '@nextclaw/channel-plugin-feishu':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-feishu
       '@nextclaw/channel-plugin-mochat':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-mochat
       '@nextclaw/channel-plugin-qq':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-qq
       '@nextclaw/channel-plugin-slack':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-slack
       '@nextclaw/channel-plugin-telegram':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-telegram
       '@nextclaw/channel-plugin-wecom':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-wecom
       '@nextclaw/channel-plugin-whatsapp':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-plugin-whatsapp
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.29
-        version: 0.1.29
+        specifier: workspace:*
+        version: link:../extensions/nextclaw-channel-runtime
       '@nextclaw/core':
-        specifier: ^0.7.0
-        version: 0.7.1(ws@8.19.0)
+        specifier: workspace:*
+        version: link:../nextclaw-core
       ajv:
         specifier: ^8.17.1
         version: 8.18.0
@@ -660,8 +660,8 @@ importers:
   packages/nextclaw-runtime:
     dependencies:
       '@nextclaw/core':
-        specifier: ^0.7.1
-        version: 0.7.1(ws@8.19.0)
+        specifier: workspace:*
+        version: link:../nextclaw-core
     devDependencies:
       '@types/node':
         specifier: ^20.17.6
@@ -694,14 +694,14 @@ importers:
         specifier: ^1.13.3
         version: 1.19.9(hono@4.11.9)
       '@nextclaw/core':
-        specifier: ^0.7.2
-        version: 0.7.2(ws@8.19.0)
+        specifier: workspace:*
+        version: link:../nextclaw-core
       '@nextclaw/openclaw-compat':
         specifier: workspace:*
         version: link:../nextclaw-openclaw-compat
       '@nextclaw/runtime':
-        specifier: ^0.1.1
-        version: 0.1.1(ws@8.19.0)
+        specifier: workspace:*
+        version: link:../nextclaw-runtime
       hono:
         specifier: ^4.6.2
         version: 4.11.9
@@ -2030,47 +2030,8 @@ packages:
   '@manypkg/get-packages@1.1.3':
     resolution: {integrity: sha512-fo+QhuU3qE/2TQMQmbVMqaQ6EWbMhi4ABWP+O4AM1NqPBuy0OrApV5LO6BrrgnhtAHS2NH6RrVk9OL181tTi8A==}
 
-  '@nextclaw/channel-plugin-dingtalk@0.1.6':
-    resolution: {integrity: sha512-YZL4KydcZc40fOuohxIaXSg9YEx6tcb9Mw4NQbLnSqdSNjBmQwZHYqqD1aTlk76K9DTG1QMsePLbxXvH/URNpg==}
-
-  '@nextclaw/channel-plugin-discord@0.1.7':
-    resolution: {integrity: sha512-wVx9ja4sNpKBYMc7VSqblF9QrhNOZtLO+d6HwRCgfZcIb6mOKCxvEyNt1umkAjczQYrpoxeHgqBh7tMfuQZGcw==}
-
-  '@nextclaw/channel-plugin-email@0.1.6':
-    resolution: {integrity: sha512-gPYyZV3YqdEF/vtbgoqqGfOQWVxCBsd3i8vULDqwnGcPRtZJsuaJIyD+84Kt57hiW3LN4mztss5+J9cfFuNXSQ==}
-
-  '@nextclaw/channel-plugin-feishu@0.1.6':
-    resolution: {integrity: sha512-o1SSp7gE04pw3K4d4ZTEGkMG8Wk22f+ujnsIxrSUu+X3AuY6Kff3uIOSjhyRGlAvMlcfSBSr/vEhyQvodpUAuA==}
-
-  '@nextclaw/channel-plugin-mochat@0.1.6':
-    resolution: {integrity: sha512-qnThV5kSfh/zcUdI/tRIhNTSD9mOxZ50itmT0V8aRbeAKOlsmeAoMWGUvg3XQ7fX3H5apJ3sQdcDemyc+J4hww==}
-
-  '@nextclaw/channel-plugin-qq@0.1.6':
-    resolution: {integrity: sha512-d7zCPWrjT+DudqzL1N5Sw+klDjXBSuK0mvHnyowbhm/zAs3DrXfhCVrKKK4qxx+C9jZNEFPYjsehnYdVCYgA+g==}
-
-  '@nextclaw/channel-plugin-slack@0.1.6':
-    resolution: {integrity: sha512-JiGibD6kSBdsh6xnRcz7Tz+zYVA9Ul9jqWn+iypJFiHq8KleBj7qAu5uIbUq+YGbhyh6JtBj9+ZzoJhBdbh8pA==}
-
-  '@nextclaw/channel-plugin-telegram@0.1.6':
-    resolution: {integrity: sha512-31NHuEteFar/0YUVkiLCGbXENUbsKKYDNPHxWF+ZDKSMxiEFP6uabWDlKJdQIlpDr2ij3duaQy2pS8QPPLAu7A==}
-
-  '@nextclaw/channel-plugin-wecom@0.1.6':
-    resolution: {integrity: sha512-9GJK5jgmoReeQAHce55axlfL8k663JpusLbIx77GD2mreiLui+CQ2mx1WvgQsGmDL3yWDpNXoGIMXLKeCWWqOg==}
-
-  '@nextclaw/channel-plugin-whatsapp@0.1.6':
-    resolution: {integrity: sha512-C/rw+bpd77078wlhXaz1538XVyltRE53FBigbcaJiZB/matplFxv+Q2FgSq8KuY7WQ5yMMwjYqQo0St80fai5A==}
-
-  '@nextclaw/channel-runtime@0.1.29':
-    resolution: {integrity: sha512-ICqLgvr1dO5+AvtjC8/kYYQr1F9pgy23jWfFzqUlgp6qyIeaMWMdQUwCRiYT744GRq8w5FQyNkWYSK/RrCfIAg==}
-
   '@nextclaw/core@0.7.1':
     resolution: {integrity: sha512-kBrl8tWi0pjQRxL/1hqHXl0IJGV/bV9v83tBaKjJUxVceocdJNfP+AjIdFc3zGonW2zbWnVMo4WCzLOx8iktbw==}
-
-  '@nextclaw/core@0.7.2':
-    resolution: {integrity: sha512-PVqwvxWf0eWBt3pPiLU+TbLrmoilOE8w0/21TTIS+C2L8U0KY8Na0CoK/jL0OvPJ+WhwZurinHpsAfykh3umaQ==}
-
-  '@nextclaw/runtime@0.1.1':
-    resolution: {integrity: sha512-orJKcFvSH+OhATHIPwZmq8o+xgx4yZAadmF6b/77p2suFKSzg2YMtQnlUEO6j8V9e967E/kv/83fJfO6xaWK7Q==}
 
   '@noble/curves@1.9.7':
     resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
@@ -8061,141 +8022,6 @@ snapshots:
       globby: 11.1.0
       read-yaml-file: 1.1.0
 
-  '@nextclaw/channel-plugin-dingtalk@0.1.6':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-plugin-discord@0.1.7':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-plugin-email@0.1.6':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-plugin-feishu@0.1.6':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-plugin-mochat@0.1.6':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-plugin-qq@0.1.6':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-plugin-slack@0.1.6':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-plugin-telegram@0.1.6':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-plugin-wecom@0.1.6':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-plugin-whatsapp@0.1.6':
-    dependencies:
-      '@nextclaw/channel-runtime': 0.1.29
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
-  '@nextclaw/channel-runtime@0.1.29':
-    dependencies:
-      '@larksuiteoapi/node-sdk': 1.58.0
-      '@nextclaw/core': 0.7.1(ws@8.19.0)
-      '@slack/socket-mode': 1.3.6
-      '@slack/web-api': 7.13.0
-      dingtalk-stream: 2.1.4
-      discord.js: 14.25.1
-      imapflow: 1.2.9
-      mailparser: 3.9.3
-      node-telegram-bot-api: 0.66.0(request@2.88.2)
-      nodemailer: 6.10.1
-      qq-official-bot: 1.0.12
-      socket.io-client: 4.8.3
-      socket.io-msgpack-parser: 3.0.2
-      undici: 6.23.0
-      ws: 8.19.0
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - request
-      - supports-color
-      - utf-8-validate
-
   '@nextclaw/core@0.7.1(ws@8.19.0)':
     dependencies:
       '@larksuiteoapi/node-sdk': 1.58.0
@@ -8209,36 +8035,6 @@ snapshots:
       undici: 6.23.0
       zod: 3.25.76
       zod-to-json-schema: 3.25.1(zod@3.25.76)
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - utf-8-validate
-      - ws
-
-  '@nextclaw/core@0.7.2(ws@8.19.0)':
-    dependencies:
-      '@larksuiteoapi/node-sdk': 1.58.0
-      chokidar: 3.6.0
-      commander: 12.1.0
-      cron-parser: 4.9.0
-      dotenv: 16.6.1
-      openai: 4.104.0(encoding@0.1.13)(ws@8.19.0)(zod@3.25.76)
-      pino: 9.14.0
-      socket.io-msgpack-parser: 3.0.2
-      undici: 6.23.0
-      zod: 3.25.76
-      zod-to-json-schema: 3.25.1(zod@3.25.76)
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - utf-8-validate
-      - ws
-
-  '@nextclaw/runtime@0.1.1(ws@8.19.0)':
-    dependencies:
-      '@nextclaw/core': 0.7.2(ws@8.19.0)
     transitivePeerDependencies:
       - bufferutil
       - debug
