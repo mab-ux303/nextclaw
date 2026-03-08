@@ -26,6 +26,7 @@ export type AgentEngineInboundRequest = {
   message: InboundMessage;
   sessionKey?: string;
   publishResponse?: boolean;
+  onAssistantDelta?: AssistantDeltaHandler;
 };
 
 export type AgentEngineMessageToolHintsResolver = (params: {

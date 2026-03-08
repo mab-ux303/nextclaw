@@ -10,10 +10,19 @@ import { APP_NAME } from "../config/brand.js";
 import { join } from "node:path";
 import { mkdirSync } from "node:fs";
 import { ChannelTypingController } from "./typing-controller.js";
-import { isTypingStopControlMessage } from "@nextclaw/core";
+import {
+  isAssistantStreamResetControlMessage,
+  isTypingStopControlMessage,
+  readAssistantStreamDelta
+} from "@nextclaw/core";
 
 const TYPING_HEARTBEAT_MS = 6000;
 const TYPING_AUTO_STOP_MS = 120000;
+const TELEGRAM_TEXT_LIMIT = 4096;
+const STREAM_PREVIEW_MIN_CHARS = 30;
+const STREAM_PREVIEW_PARTIAL_MIN_INTERVAL_MS = 700;
+const STREAM_PREVIEW_BLOCK_MIN_INTERVAL_MS = 1200;
+const STREAM_PREVIEW_BLOCK_MIN_GROWTH = 120;
 
 const BOT_COMMANDS: BotCommand[] = [
   { command: "start", description: "Start the bot" },
@@ -23,6 +32,264 @@ const BOT_COMMANDS: BotCommand[] = [
 
 type TelegramMentionState = { wasMentioned: boolean; requireMention: boolean };
 type TelegramAckReactionScope = Config["channels"]["telegram"]["ackReactionScope"];
+type TelegramStreamingMode = "off" | "partial" | "block";
+
+type TelegramStreamState = {
+  chatId: string;
+  rawText: string;
+  lastRenderedText: string;
+  messageId?: number;
+  replyToMessageId?: number;
+  silent: boolean;
+  lastSentAt: number;
+  lastEmittedChars: number;
+  inFlight: boolean;
+  pending: boolean;
+  timer: ReturnType<typeof setTimeout> | null;
+};
+
+class TelegramStreamPreviewController {
+  private readonly states = new Map<string, TelegramStreamState>();
+
+  constructor(
+    private readonly params: {
+      resolveMode: () => TelegramStreamingMode;
+      getBot: () => TelegramBot | null;
+    }
+  ) {}
+
+  async handleReset(msg: OutboundMessage): Promise<void> {
+    const chatId = String(msg.chatId);
+    this.dispose(chatId);
+    if (this.params.resolveMode() === "off") {
+      return;
+    }
+    const replyToMessageId = readReplyToMessageId(msg.metadata);
+    this.states.set(chatId, {
+      chatId,
+      rawText: "",
+      lastRenderedText: "",
+      messageId: undefined,
+      replyToMessageId,
+      silent: msg.metadata?.silent === true,
+      lastSentAt: 0,
+      lastEmittedChars: 0,
+      inFlight: false,
+      pending: false,
+      timer: null
+    });
+  }
+
+  async handleDelta(msg: OutboundMessage, delta: string): Promise<void> {
+    if (!delta) {
+      return;
+    }
+    if (this.params.resolveMode() === "off") {
+      return;
+    }
+    const chatId = String(msg.chatId);
+    const state = this.ensureState(chatId);
+    state.rawText += delta;
+    this.scheduleFlush(state);
+  }
+
+  async finalizeWithFinalMessage(msg: OutboundMessage): Promise<boolean> {
+    if (this.params.resolveMode() === "off") {
+      return false;
+    }
+    const chatId = String(msg.chatId);
+    const state = this.states.get(chatId);
+    if (!state) {
+      return false;
+    }
+    state.rawText = msg.content ?? "";
+    const replyToMessageId = msg.replyTo ? Number(msg.replyTo) : state.replyToMessageId;
+    state.silent = msg.metadata?.silent === true || state.silent;
+    if (!state.rawText.trim()) {
+      this.dispose(chatId);
+      return false;
+    }
+    const handled = await this.flushNow(state, {
+      force: true,
+      allowInitialBelowThreshold: true,
+      replyToMessageId,
+      silent: state.silent
+    });
+    this.dispose(chatId);
+    return handled;
+  }
+
+  stopAll(): void {
+    for (const chatId of this.states.keys()) {
+      this.dispose(chatId);
+    }
+  }
+
+  private ensureState(chatId: string): TelegramStreamState {
+    const existing = this.states.get(chatId);
+    if (existing) {
+      return existing;
+    }
+    const created: TelegramStreamState = {
+      chatId,
+      rawText: "",
+      lastRenderedText: "",
+      messageId: undefined,
+      replyToMessageId: undefined,
+      silent: false,
+      lastSentAt: 0,
+      lastEmittedChars: 0,
+      inFlight: false,
+      pending: false,
+      timer: null
+    };
+    this.states.set(chatId, created);
+    return created;
+  }
+
+  private scheduleFlush(state: TelegramStreamState): void {
+    if (state.timer) {
+      return;
+    }
+    const minInterval =
+      this.params.resolveMode() === "block"
+        ? STREAM_PREVIEW_BLOCK_MIN_INTERVAL_MS
+        : STREAM_PREVIEW_PARTIAL_MIN_INTERVAL_MS;
+    const delay = Math.max(0, minInterval - (Date.now() - state.lastSentAt));
+    state.timer = setTimeout(() => {
+      state.timer = null;
+      void this.flushScheduled(state);
+    }, delay);
+  }
+
+  private async flushScheduled(state: TelegramStreamState): Promise<void> {
+    const current = this.states.get(state.chatId);
+    if (current !== state) {
+      return;
+    }
+    if (state.inFlight) {
+      state.pending = true;
+      return;
+    }
+    state.inFlight = true;
+    try {
+      await this.flushNow(state, {
+        force: false,
+        allowInitialBelowThreshold: false,
+        replyToMessageId: state.replyToMessageId,
+        silent: state.silent
+      });
+    } finally {
+      state.inFlight = false;
+      if (state.pending) {
+        state.pending = false;
+        this.scheduleFlush(state);
+      }
+    }
+  }
+
+  private async flushNow(
+    state: TelegramStreamState,
+    opts: {
+      force: boolean;
+      allowInitialBelowThreshold: boolean;
+      replyToMessageId?: number;
+      silent: boolean;
+    }
+  ): Promise<boolean> {
+    const bot = this.params.getBot();
+    if (!bot) {
+      return false;
+    }
+    const plainText = state.rawText.trimEnd();
+    if (!plainText) {
+      return false;
+    }
+    const mode = this.params.resolveMode();
+    if (
+      mode === "block" &&
+      !opts.force &&
+      plainText.length - state.lastEmittedChars < STREAM_PREVIEW_BLOCK_MIN_GROWTH
+    ) {
+      return typeof state.messageId === "number";
+    }
+    if (
+      typeof state.messageId !== "number" &&
+      !opts.allowInitialBelowThreshold &&
+      plainText.length < STREAM_PREVIEW_MIN_CHARS
+    ) {
+      return false;
+    }
+    const renderedText = markdownToTelegramHtml(plainText).trimEnd();
+    if (!renderedText) {
+      return false;
+    }
+    const limitedRenderedText = renderedText.slice(0, TELEGRAM_TEXT_LIMIT);
+    if (limitedRenderedText === state.lastRenderedText) {
+      return typeof state.messageId === "number";
+    }
+
+    if (typeof state.messageId === "number") {
+      try {
+        await bot.editMessageText(limitedRenderedText, {
+          chat_id: Number(state.chatId),
+          message_id: state.messageId,
+          parse_mode: "HTML"
+        });
+      } catch {
+        try {
+          await bot.editMessageText(plainText.slice(0, TELEGRAM_TEXT_LIMIT), {
+            chat_id: Number(state.chatId),
+            message_id: state.messageId
+          });
+        } catch {
+          return false;
+        }
+      }
+      state.lastRenderedText = limitedRenderedText;
+      state.lastSentAt = Date.now();
+      state.lastEmittedChars = plainText.length;
+      return true;
+    }
+
+    const sendOptions = {
+      parse_mode: "HTML" as const,
+      ...(opts.replyToMessageId ? { reply_to_message_id: opts.replyToMessageId } : {}),
+      ...(opts.silent ? { disable_notification: true } : {})
+    };
+    try {
+      const sent = await bot.sendMessage(Number(state.chatId), limitedRenderedText, sendOptions);
+      if (typeof sent.message_id === "number") {
+        state.messageId = sent.message_id;
+      }
+    } catch {
+      const sent = await bot.sendMessage(Number(state.chatId), plainText.slice(0, TELEGRAM_TEXT_LIMIT), {
+        ...(opts.replyToMessageId ? { reply_to_message_id: opts.replyToMessageId } : {}),
+        ...(opts.silent ? { disable_notification: true } : {})
+      });
+      if (typeof sent.message_id === "number") {
+        state.messageId = sent.message_id;
+      }
+    }
+
+    state.lastRenderedText = limitedRenderedText;
+    state.lastSentAt = Date.now();
+    state.lastEmittedChars = plainText.length;
+    return true;
+  }
+
+  private dispose(chatId: string): void {
+    const state = this.states.get(chatId);
+    if (!state) {
+      return;
+    }
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    this.states.delete(chatId);
+  }
+}
 
 export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]> {
   name = "telegram";
@@ -31,6 +298,7 @@ export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]>
   private botUserId: number | null = null;
   private botUsername: string | null = null;
   private readonly typingController: ChannelTypingController;
+  private readonly streamPreview: TelegramStreamPreviewController;
   private transcriber: GroqTranscriptionProvider;
 
   constructor(
@@ -47,6 +315,10 @@ export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]>
       sendTyping: async (chatId) => {
         await this.bot?.sendChatAction(Number(chatId), "typing");
       }
+    });
+    this.streamPreview = new TelegramStreamPreviewController({
+      resolveMode: () => resolveTelegramStreamingMode(this.config),
+      getBot: () => this.bot
     });
   }
 
@@ -158,6 +430,7 @@ export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]>
   async stop(): Promise<void> {
     this.running = false;
     this.typingController.stopAll();
+    this.streamPreview.stopAll();
     if (this.bot) {
       await this.bot.stopPolling();
       this.bot = null;
@@ -165,11 +438,20 @@ export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]>
   }
 
   async handleControlMessage(msg: OutboundMessage): Promise<boolean> {
-    if (!isTypingStopControlMessage(msg)) {
-      return false;
+    if (isTypingStopControlMessage(msg)) {
+      this.stopTyping(msg.chatId);
+      return true;
     }
-    this.stopTyping(msg.chatId);
-    return true;
+    if (isAssistantStreamResetControlMessage(msg)) {
+      await this.streamPreview.handleReset(msg);
+      return true;
+    }
+    const delta = readAssistantStreamDelta(msg);
+    if (delta !== null) {
+      await this.streamPreview.handleDelta(msg, delta);
+      return true;
+    }
+    return false;
   }
 
   async send(msg: OutboundMessage): Promise<void> {
@@ -181,6 +463,9 @@ export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]>
       return;
     }
     this.stopTyping(msg.chatId);
+    if (await this.streamPreview.finalizeWithFinalMessage(msg)) {
+      return;
+    }
     const htmlContent = markdownToTelegramHtml(msg.content ?? "");
     const silent = msg.metadata?.silent === true;
     const replyTo = msg.replyTo ? Number(msg.replyTo) : undefined;
@@ -522,6 +807,37 @@ function shouldSendAckReaction(params: {
     return params.isGroup && params.requireMention && params.wasMentioned;
   }
   return false;
+}
+
+function readReplyToMessageId(metadata: Record<string, unknown>): number | undefined {
+  const raw = metadata.message_id;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.trunc(raw);
+  }
+  if (typeof raw === "string") {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) {
+      return Math.trunc(parsed);
+    }
+  }
+  return undefined;
+}
+
+function resolveTelegramStreamingMode(config: Config["channels"]["telegram"]): TelegramStreamingMode {
+  const raw = config.streaming;
+  if (raw === true) {
+    return "partial";
+  }
+  if (raw === false || raw === undefined || raw === null) {
+    return "off";
+  }
+  if (raw === "progress") {
+    return "partial";
+  }
+  if (raw === "partial" || raw === "block" || raw === "off") {
+    return raw;
+  }
+  return "off";
 }
 
 function markdownToTelegramHtml(text: string): string {

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { createTypingStopControlMessage, isTypingStopControlMessage, NEXTCLAW_CONTROL_METADATA_KEY } from "./control.js";
+import {
+  createAssistantStreamDeltaControlMessage,
+  createAssistantStreamResetControlMessage,
+  createTypingStopControlMessage,
+  isAssistantStreamResetControlMessage,
+  isNextclawControlMessage,
+  isTypingStopControlMessage,
+  NEXTCLAW_CONTROL_METADATA_KEY,
+  readAssistantStreamDelta
+} from "./control.js";
 import type { InboundMessage } from "./events.js";
 
 describe("typing control message helpers", () => {
@@ -38,5 +47,41 @@ describe("typing control message helpers", () => {
         }
       })
     ).toBe(false);
+  });
+
+  it("creates assistant stream reset control message", () => {
+    const inbound: InboundMessage = {
+      channel: "telegram",
+      senderId: "u-2",
+      chatId: "c-2",
+      content: "hello",
+      timestamp: new Date(),
+      attachments: [],
+      metadata: { message_id: 1234 }
+    };
+    const outbound = createAssistantStreamResetControlMessage(inbound);
+    expect(outbound.channel).toBe("telegram");
+    expect(outbound.chatId).toBe("c-2");
+    expect(isAssistantStreamResetControlMessage(outbound)).toBe(true);
+    expect(isNextclawControlMessage(outbound)).toBe(true);
+    expect(outbound.metadata[NEXTCLAW_CONTROL_METADATA_KEY]).toEqual({
+      type: "assistant_stream",
+      action: "reset"
+    });
+  });
+
+  it("creates assistant stream delta control message and reads delta", () => {
+    const inbound: InboundMessage = {
+      channel: "telegram",
+      senderId: "u-3",
+      chatId: "c-3",
+      content: "hello",
+      timestamp: new Date(),
+      attachments: [],
+      metadata: {}
+    };
+    const outbound = createAssistantStreamDeltaControlMessage(inbound, " partial ");
+    expect(isNextclawControlMessage(outbound)).toBe(true);
+    expect(readAssistantStreamDelta(outbound)).toBe(" partial ");
   });
 });

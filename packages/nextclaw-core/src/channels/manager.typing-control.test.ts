@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Config } from "../config/schema.js";
 import type { OutboundMessage, InboundMessage } from "../bus/events.js";
 import { MessageBus } from "../bus/queue.js";
-import { createTypingStopControlMessage } from "../bus/control.js";
+import { createAssistantStreamResetControlMessage, createTypingStopControlMessage } from "../bus/control.js";
 import { ChannelManager } from "./manager.js";
 import { BaseChannel } from "./base.js";
 import type { ExtensionChannelRegistration } from "../extensions/types.js";
@@ -88,5 +88,35 @@ describe("ChannelManager typing control", () => {
     expect(delivered).toBe(true);
     expect(mockChannel.sent).toHaveLength(1);
     expect(mockChannel.controls).toHaveLength(0);
+  });
+
+  it("routes assistant stream control to handleControlMessage and skips send", async () => {
+    const bus = new MessageBus();
+    const mockChannel = new MockChannel({}, bus);
+    const registration: ExtensionChannelRegistration = {
+      extensionId: "mock",
+      source: "test",
+      channel: {
+        id: "discord",
+        nextclaw: {
+          createChannel: () => mockChannel
+        }
+      }
+    };
+    const manager = new ChannelManager({} as Config, bus, undefined, [registration]);
+    const inbound: InboundMessage = {
+      channel: "discord",
+      senderId: "user-1",
+      chatId: "room-2",
+      content: "hello",
+      timestamp: new Date(),
+      attachments: [],
+      metadata: {}
+    };
+    const delivered = await manager.deliver(createAssistantStreamResetControlMessage(inbound));
+
+    expect(delivered).toBe(true);
+    expect(mockChannel.controls).toHaveLength(1);
+    expect(mockChannel.sent).toHaveLength(0);
   });
 });

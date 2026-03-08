@@ -12,6 +12,9 @@ const dmPolicySchema = z.enum(["pairing", "allowlist", "open", "disabled"]);
 const ackReactionScopeSchema = z.enum(["off", "group-mentions", "group-all", "direct", "all"]);
 const sessionDmScopeSchema = z.enum(["main", "per-peer", "per-channel-peer", "per-account-channel-peer"]);
 const streamingModeSchema = z.union([z.boolean(), z.enum(["off", "partial", "block", "progress"])]).default("off");
+const telegramStreamingModeSchema = z
+  .union([z.boolean(), z.enum(["off", "partial", "block", "progress"])])
+  .default("partial");
 const discordDraftChunkSchema = z
   .object({
     minChars: z.number().int().default(200),
@@ -42,6 +45,7 @@ export const TelegramConfigSchema = z.object({
   dmPolicy: dmPolicySchema.default("open"),
   groupPolicy: groupPolicySchema.default("open"),
   groupAllowFrom: allowFrom,
+  streaming: telegramStreamingModeSchema,
   requireMention: z.boolean().default(false),
   mentionPatterns: z.array(z.string()).default([]),
   groups: z.record(GroupRuleSchema).default({})

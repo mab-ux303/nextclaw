@@ -7,7 +7,7 @@ import { sanitizeOutboundAssistantContent } from "../utils/reasoning-tags.js";
 import { ExtensionChannelAdapter } from "./extension_channel.js";
 import type { ExtensionChannelRegistration } from "../extensions/types.js";
 import { evaluateSilentReply } from "../agent/silent-reply-policy.js";
-import { isTypingStopControlMessage } from "../bus/control.js";
+import { isNextclawControlMessage } from "../bus/control.js";
 
 export class ChannelManager {
   private channels: Record<string, BaseChannel<Record<string, unknown>>> = {};
@@ -117,7 +117,7 @@ export class ChannelManager {
       return false;
     }
 
-    if (isTypingStopControlMessage(msg)) {
+    if (isNextclawControlMessage(msg)) {
       await channel.handleControlMessage(msg);
       return true;
     }

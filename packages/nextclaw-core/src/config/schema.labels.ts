@@ -110,6 +110,7 @@ export const FIELD_LABELS: Record<string, string> = {
   "channels.telegram.dmPolicy": "DM Policy",
   "channels.telegram.groupPolicy": "Group Policy",
   "channels.telegram.groupAllowFrom": "Group Allow From",
+  "channels.telegram.streaming": "Streaming Mode",
   "channels.telegram.requireMention": "Require Mention",
   "channels.telegram.mentionPatterns": "Mention Patterns",
   "channels.telegram.groups": "Group Rules",

@@ -1,6 +1,8 @@
 import {
   NativeAgentEngine,
   CommandRegistry,
+  createAssistantStreamDeltaControlMessage,
+  createAssistantStreamResetControlMessage,
   type CommandOption,
   type AgentEngine,
   type AgentEngineFactory,
@@ -292,10 +294,22 @@ export class GatewayAgentRuntimePool {
           sessionKeyOverride: explicitSessionKey
         });
         const runtime = this.resolveRuntime(route.agentId);
+        if (message.channel !== "system") {
+          await this.options.bus.publishOutbound(createAssistantStreamResetControlMessage(message));
+        }
         await runtime.engine.handleInbound({
           message,
           sessionKey: route.sessionKey,
-          publishResponse: true
+          publishResponse: true,
+          onAssistantDelta:
+            message.channel !== "system"
+              ? (delta) => {
+                  if (!delta) {
+                    return;
+                  }
+                  void this.options.bus.publishOutbound(createAssistantStreamDeltaControlMessage(message, delta));
+                }
+              : undefined
         });
         if (message.channel === "system") {
           this.onSystemSessionUpdated?.({

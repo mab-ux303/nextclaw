@@ -96,6 +96,8 @@ export const FIELD_HELP: Record<string, string> = {
   "channels.telegram.dmPolicy": "DM policy for Telegram (pairing/allowlist/open/disabled).",
   "channels.telegram.groupPolicy": "Group policy for Telegram (open/allowlist/disabled).",
   "channels.telegram.groupAllowFrom": "Telegram group allowlist used when groupPolicy=allowlist.",
+  "channels.telegram.streaming":
+    "Telegram stream preview mode (off/partial/block/progress). Boolean true maps to partial, false maps to off.",
   "channels.telegram.requireMention": "Whether Telegram group messages require mention by default.",
   "channels.telegram.mentionPatterns": "Regex/plain mention patterns accepted in Telegram groups.",
   "channels.telegram.groups": "Per-group mention overrides for Telegram.",
