@@ -25,6 +25,7 @@ import {
   isProcessRunning,
   openBrowser,
   readServiceState,
+  resolveServiceStatePath,
   resolveServiceLogPath,
   resolveUiApiBase,
   resolveUiConfig,
@@ -705,6 +706,13 @@ export class ServiceCommands {
     if (!child.pid) {
       this.appendStartupStage(logPath, "spawn failed: child pid missing");
       console.error("Error: Failed to start background service.");
+      this.printStartupFailureDiagnostics({
+        uiUrl,
+        apiUrl,
+        healthUrl: `${apiUrl}/health`,
+        logPath,
+        lastProbeError: null
+      });
       return;
     }
 
@@ -737,6 +745,13 @@ export class ServiceCommands {
         const hint = readiness.lastProbeError ? ` Last probe error: ${readiness.lastProbeError}` : "";
         this.appendStartupStage(logPath, `startup failed: process exited before ready.${hint}`);
         console.error(`Error: Failed to start background service. Check logs: ${logPath}.${hint}`);
+        this.printStartupFailureDiagnostics({
+          uiUrl,
+          apiUrl,
+          healthUrl,
+          logPath,
+          lastProbeError: readiness.lastProbeError
+        });
         return;
       }
       this.appendStartupStage(
@@ -858,9 +873,59 @@ export class ServiceCommands {
   private appendStartupStage(logPath: string, message: string): void {
     try {
       appendFileSync(logPath, `[${new Date().toISOString()}] [startup] ${message}\n`, "utf-8");
-    } catch {
-      // Best-effort diagnostics only.
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error(`Warning: failed to write startup diagnostics log (${logPath}): ${detail}`);
     }
+  }
+
+  private printStartupFailureDiagnostics(params: {
+    uiUrl: string;
+    apiUrl: string;
+    healthUrl: string;
+    logPath: string;
+    lastProbeError: string | null;
+  }): void {
+    const statePath = resolveServiceStatePath();
+    const lines = [
+      "Startup diagnostics:",
+      `- UI URL: ${params.uiUrl}`,
+      `- API URL: ${params.apiUrl}`,
+      `- Health probe: ${params.healthUrl}`,
+      `- Service state path: ${statePath}`,
+      `- Startup log path: ${params.logPath}`
+    ];
+    if (params.lastProbeError) {
+      lines.push(`- Last probe detail: ${params.lastProbeError}`);
+    }
+    console.error(lines.join("\n"));
+  }
+
+  private getHeaderValue(
+    headers: Record<string, string | string[] | undefined>,
+    key: string
+  ): string | null {
+    const value = headers[key];
+    if (typeof value === "string") {
+      const normalized = value.trim();
+      return normalized.length > 0 ? normalized : null;
+    }
+    if (Array.isArray(value)) {
+      const joined = value.map((item) => item.trim()).filter(Boolean).join(", ");
+      return joined.length > 0 ? joined : null;
+    }
+    return null;
+  }
+
+  private formatProbeBodySnippet(raw: string, maxLength = 180): string | null {
+    const normalized = raw.replace(/\s+/g, " ").trim();
+    if (!normalized) {
+      return null;
+    }
+    const clipped = normalized.length > maxLength
+      ? `${normalized.slice(0, maxLength)}...`
+      : normalized;
+    return JSON.stringify(clipped);
   }
 
   private async probeHealthEndpoint(
@@ -900,13 +965,27 @@ export class ServiceCommands {
             chunks.push(chunk);
           });
           res.on("end", () => {
+            const responseText = Buffer.concat(chunks).toString("utf-8");
             if ((res.statusCode ?? 0) < 200 || (res.statusCode ?? 0) >= 300) {
-              resolve({ healthy: false, error: `http ${res.statusCode ?? "unknown"}` });
+              const serverHeader = this.getHeaderValue(res.headers, "server");
+              const contentType = this.getHeaderValue(res.headers, "content-type");
+              const bodySnippet = this.formatProbeBodySnippet(responseText);
+              const details = [`http ${res.statusCode ?? "unknown"}`];
+              if (serverHeader) {
+                details.push(`server=${serverHeader}`);
+              }
+              if (contentType) {
+                details.push(`content-type=${contentType}`);
+              }
+              if (bodySnippet) {
+                details.push(`body=${bodySnippet}`);
+              }
+              resolve({ healthy: false, error: details.join("; ") });
               return;
             }
 
             try {
-              const payload = JSON.parse(Buffer.concat(chunks).toString("utf-8")) as {
+              const payload = JSON.parse(responseText) as {
                 ok?: boolean;
                 data?: { status?: string };
               };
