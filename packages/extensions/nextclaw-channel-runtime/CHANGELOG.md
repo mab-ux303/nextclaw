@@ -1,5 +1,11 @@
 # @nextclaw/channel-runtime
 
+## 0.1.31
+
+### Patch Changes
+
+- Guard Telegram runtime creation when `providers.groq` is not configured to prevent startup crash.
+
 ## 0.1.30
 
 ### Patch Changes

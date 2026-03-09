@@ -26,13 +26,16 @@ const BUILTIN_CHANNEL_RUNTIMES = {
   telegram: {
     id: "telegram",
     isEnabled: (config: Config) => config.channels.telegram.enabled,
-    createChannel: (context: BuiltinChannelCreateContext) =>
-      new TelegramChannel(
+    createChannel: (context: BuiltinChannelCreateContext) => {
+      const providers = context.config.providers as Record<string, { apiKey?: string } | undefined>;
+      const groqApiKey = providers.groq?.apiKey;
+      return new TelegramChannel(
         context.config.channels.telegram,
         context.bus,
-        context.config.providers.groq.apiKey,
+        groqApiKey,
         context.sessionManager,
-      ),
+      );
+    },
   },
   whatsapp: {
     id: "whatsapp",
