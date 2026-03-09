@@ -6,7 +6,7 @@ Electron desktop shell for NextClaw.
 
 - `pnpm -C apps/desktop dev`: build desktop main/preload and run Electron.
 - `pnpm -C apps/desktop build`: build desktop runtime bundle (`dist/`).
-- `pnpm -C apps/desktop dist`: build installer artifacts with electron-builder.
+- `pnpm -C apps/desktop dist`: build desktop artifacts with electron-builder.
 - `pnpm -C apps/desktop smoke`: run non-GUI runtime smoke test.
 
 ## Notes
@@ -40,15 +40,15 @@ Expected startup logs include:
 - `UI API: http://0.0.0.0:<port>/api`
 - `UI frontend: http://0.0.0.0:<port>`
 
-### 2) Build unsigned installers
+### 2) Build unsigned desktop artifacts
 
 macOS (dmg + zip, no publish):
 
 - `PATH=/opt/homebrew/bin:$PATH CSC_IDENTITY_AUTO_DISCOVERY=false pnpm -C apps/desktop dist -- --mac dmg zip --publish never`
 
-Windows (NSIS x64, no publish):
+Windows (unpacked EXE directory, no publish):
 
-- `PATH=/opt/homebrew/bin:$PATH CSC_IDENTITY_AUTO_DISCOVERY=false pnpm -C apps/desktop exec electron-builder --win nsis --x64 --publish never`
+- `PATH=/opt/homebrew/bin:$PATH CSC_IDENTITY_AUTO_DISCOVERY=false pnpm -C apps/desktop exec electron-builder --win dir --x64 --publish never`
 
 ### 3) Artifacts to upload
 
@@ -56,7 +56,7 @@ All artifacts are under `apps/desktop/release`:
 
 - `NextClaw Desktop-<version>-arm64.dmg`
 - `NextClaw Desktop-<version>-arm64-mac.zip`
-- `NextClaw Desktop Setup <version>.exe`
+- `win-unpacked/NextClaw Desktop.exe`
 
 ### 4) User-facing warning for unsigned builds
 

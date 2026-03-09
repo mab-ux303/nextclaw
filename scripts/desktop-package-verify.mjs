@@ -98,18 +98,16 @@ function verifyWindowsDesktopPackage() {
     "exec",
     "electron-builder",
     "--win",
-    "nsis",
+    "dir",
     `--${arch}`,
     "--publish",
     "never"
   ], {
     env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
   });
-  const installerPath = findLatestReleaseFile(
-    (name) => name.toLowerCase().endsWith(".exe") && name.includes("Setup")
-  );
-  if (!installerPath) {
-    throw new Error("No Windows setup artifact found in apps/desktop/release");
+  const desktopExePath = resolve(releaseDir, "win-unpacked", "NextClaw Desktop.exe");
+  if (!existsSync(desktopExePath)) {
+    throw new Error(`No Windows desktop executable found: ${desktopExePath}`);
   }
 
   const psArgs = [
@@ -117,9 +115,9 @@ function verifyWindowsDesktopPackage() {
     "-ExecutionPolicy",
     "Bypass",
     "-File",
-    "apps/desktop/scripts/smoke-windows-installer.ps1",
-    "-InstallerPath",
-    installerPath,
+    "apps/desktop/scripts/smoke-windows-desktop.ps1",
+    "-DesktopExePath",
+    desktopExePath,
     "-StartupTimeoutSec",
     "120"
   ];
@@ -128,7 +126,7 @@ function verifyWindowsDesktopPackage() {
   } else {
     run("powershell", psArgs);
   }
-  console.log(`[desktop-verify] Windows package verified: ${installerPath}`);
+  console.log(`[desktop-verify] Windows desktop executable verified: ${desktopExePath}`);
 }
 
 function main() {

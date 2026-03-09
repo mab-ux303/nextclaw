@@ -135,8 +135,8 @@ jobs:
             apps/desktop/release/latest-mac.yml
             apps/desktop/release/*.blockmap
 
-  desktop-windows-installer-install-smoke:
-    name: desktop-windows-installer-install-smoke
+  desktop-windows-exe-smoke:
+    name: desktop-windows-exe-smoke
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -166,7 +166,7 @@ jobs:
           pnpm -C packages/nextclaw-server build
           pnpm -C packages/nextclaw build
 
-      - name: Build Windows installer
+      - name: Build Windows desktop executable
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -174,17 +174,17 @@ jobs:
           pnpm -C apps/desktop lint
           pnpm -C apps/desktop tsc
           pnpm -C apps/desktop build:main
-          pnpm -C apps/desktop exec electron-builder --win nsis --x64 --publish never
+          pnpm -C apps/desktop exec electron-builder --win dir --x64 --publish never
 
-      - name: Smoke test Windows install + runtime
+      - name: Smoke test Windows desktop executable
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $installer = (Get-ChildItem "apps/desktop/release/*Setup*.exe" | Select-Object -First 1).FullName
-          if (-not $installer) {
-            throw "Windows installer not found in apps/desktop/release"
+          if (-not (Test-Path "apps/desktop/release/win-unpacked/NextClaw Desktop.exe")) {
+            throw "Windows desktop executable not found in apps/desktop/release/win-unpacked"
           }
-          & "apps/desktop/scripts/smoke-windows-installer.ps1" -InstallerPath $installer -StartupTimeoutSec 120
+          $desktopExe = (Resolve-Path "apps/desktop/release/win-unpacked/NextClaw Desktop.exe").Path
+          & "apps/desktop/scripts/smoke-windows-desktop.ps1" -DesktopExePath $desktopExe -StartupTimeoutSec 120
 
       - name: Upload Windows smoke logs
         if: always()
@@ -196,13 +196,11 @@ jobs:
             ${{ runner.temp }}/nextclaw-desktop-smoke-home/logs/**
             ~\AppData\Roaming\NextClaw Desktop\logs\**
 
-      - name: Upload Windows installer artifact
+      - name: Upload Windows desktop executable artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-validate-win32-x64
+          name: desktop-validate-win32-x64-unpacked
           if-no-files-found: warn
           path: |
-            apps/desktop/release/*Setup*.exe
-            apps/desktop/release/latest.yml
-            apps/desktop/release/*.exe.blockmap
+            apps/desktop/release/win-unpacked/**

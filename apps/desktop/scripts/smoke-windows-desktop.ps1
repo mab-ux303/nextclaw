@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [string]$InstallerPath,
+  [string]$DesktopExePath,
   [int]$StartupTimeoutSec = 90
 )
 
@@ -84,13 +84,11 @@ function Get-CandidatePorts {
   return @($ports)
 }
 
-$resolvedInstaller = (Resolve-Path $InstallerPath).Path
-$installedDir = Join-Path $env:LOCALAPPDATA "Programs\NextClaw Desktop"
-$installedExe = Join-Path $installedDir "NextClaw Desktop.exe"
+$resolvedExe = (Resolve-Path $DesktopExePath).Path
 $tempRoot = Get-SmokeTempRoot
 $smokeHome = Join-Path $tempRoot "nextclaw-desktop-smoke-home"
 
-Write-Host "[desktop-smoke] installer: $resolvedInstaller"
+Write-Host "[desktop-smoke] desktop exe: $resolvedExe"
 Write-Host "[desktop-smoke] temp root: $tempRoot"
 Write-Host "[desktop-smoke] smoke home: $smokeHome"
 
@@ -98,25 +96,10 @@ Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $smokeHome
 New-Item -ItemType Directory -Path $smokeHome | Out-Null
 $env:NEXTCLAW_HOME = $smokeHome
 
-if (Test-Path $installedDir) {
-  Write-Host "[desktop-smoke] removing existing install dir: $installedDir"
-  Remove-Item -Recurse -Force $installedDir
-}
-
-Write-Host "[desktop-smoke] running silent install"
-$installProc = Start-Process -FilePath $resolvedInstaller -ArgumentList "/S" -PassThru -Wait
-if ($installProc.ExitCode -ne 0) {
-  throw "Installer exited with code $($installProc.ExitCode)"
-}
-
-if (-not (Test-Path $installedExe)) {
-  throw "Installed exe not found: $installedExe"
-}
-
 $appProc = $null
 try {
   Write-Host "[desktop-smoke] launching desktop app"
-  $appProc = Start-Process -FilePath $installedExe -PassThru
+  $appProc = Start-Process -FilePath $resolvedExe -PassThru
   $deadline = (Get-Date).AddSeconds($StartupTimeoutSec)
   $healthUrl = $null
 

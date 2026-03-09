@@ -7,10 +7,10 @@
 - 在未签名阶段，统一团队对 macOS / Windows 安装放行步骤的口径。
 - 为桌面端可用性验证提供标准操作流程。
 
-## 安装包
+## 安装产物
 
 - macOS（Apple Silicon）：`NextClaw Desktop-<version>-arm64.dmg`
-- Windows：`NextClaw Desktop Setup <version>.exe`
+- Windows：`NextClaw Desktop-win32-x64-unpacked.zip`（解压后运行 `NextClaw Desktop.exe`）
 
 ## macOS 验证步骤
 
@@ -27,14 +27,14 @@ open -a "NextClaw Desktop"
 
 ## Windows 验证步骤
 
-1. 运行 `NextClaw Desktop Setup <version>.exe`。
-2. 若出现 SmartScreen，点击 `More info -> Run anyway`。
-3. 完成安装后启动应用并验证主界面可正常进入。
-4. 若无法启动，右键安装器并“以管理员身份运行”后重试。
+1. 解压 `NextClaw Desktop-win32-x64-unpacked.zip`。
+2. 打开解压目录，双击 `NextClaw Desktop.exe`。
+3. 若出现 SmartScreen，点击 `More info -> Run anyway`。
+4. 启动后验证主界面可正常进入并可交互。
 
 ## 验收口径（内部）
 
-- 安装成功：安装流程可走完且入口图标可见。
-- 首次启动成功：应用可打开且主界面可交互。
-- 二次启动成功：关闭后再次打开仍可正常使用。
-- 升级成功：覆盖安装后可正常启动并保留核心配置。
+- 安装成功：用户无需命令行即可完成解压并看到 `NextClaw Desktop.exe`。
+- 首次启动成功：双击 `NextClaw Desktop.exe` 可打开且主界面可交互。
+- 二次启动成功：关闭后再次双击仍可正常使用。
+- 升级成功：替换为新版本目录后仍可正常启动并保留核心配置。

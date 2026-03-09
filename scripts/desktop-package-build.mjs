@@ -93,17 +93,16 @@ function packageForCurrentPlatform() {
         "exec",
         "electron-builder",
         "--win",
-        "nsis",
+        "dir",
         `--${arch}`,
         "--publish",
         "never"
       ],
       { env }
     );
+    const unpackedExe = resolve(releaseDir, "win-unpacked", "NextClaw Desktop.exe");
     printArtifacts(
-      readArtifacts().filter((path) =>
-        path.toLowerCase().endsWith(".exe") || path.endsWith(".yml") || path.endsWith(".blockmap")
-      )
+      [unpackedExe, ...readArtifacts().filter((path) => path.endsWith("win-unpacked"))]
     );
     return;
   }
