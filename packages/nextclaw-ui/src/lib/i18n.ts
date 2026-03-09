@@ -539,6 +539,7 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   chatQueueSend: { zh: '排队发送', en: 'Queue' },
   chatQueuedHintPrefix: { zh: '当前有', en: 'Queued' },
   chatQueuedHintSuffix: { zh: '条消息待发送。', en: 'pending messages.' },
+  chatQueueMoveFirst: { zh: '置顶到下一条', en: 'Move to Next' },
   chatDeleteSession: { zh: '删除会话', en: 'Delete Session' },
   chatDeleteSessionConfirm: { zh: '确认删除当前会话？', en: 'Delete the current session?' },
   chatSendFailed: { zh: '发送消息失败', en: 'Failed to send message' },

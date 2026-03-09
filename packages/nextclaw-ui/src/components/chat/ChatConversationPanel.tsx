@@ -1,4 +1,5 @@
 import type { MutableRefObject } from 'react';
+import type { QueuedChatMessageView } from '@/components/chat/useChatStreamController';
 import type { MarketplaceInstalledRecord, SessionEventView } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { ChatThread } from '@/components/chat/ChatThread';
@@ -38,6 +39,10 @@ type ChatConversationPanelProps = {
   stopDisabledReason?: string | null;
   sendError?: string | null;
   queuedCount: number;
+  queuedMessages: QueuedChatMessageView[];
+  onEditQueuedMessage: (messageId: number, message: string) => void;
+  onPromoteQueuedMessage: (messageId: number) => void;
+  onRemoveQueuedMessage: (messageId: number) => void;
 };
 
 function ChatConversationSkeleton() {
@@ -99,6 +104,10 @@ export function ChatConversationPanel({
   stopDisabledReason,
   sendError,
   queuedCount,
+  queuedMessages,
+  onEditQueuedMessage,
+  onPromoteQueuedMessage,
+  onRemoveQueuedMessage,
 }: ChatConversationPanelProps) {
   const showWelcome = !selectedSessionKey && mergedEvents.length === 0;
   const hasConfiguredModel = modelOptions.length > 0;
@@ -177,6 +186,10 @@ export function ChatConversationPanel({
         sendError={sendError}
         isSending={isSending}
         queuedCount={queuedCount}
+        queuedMessages={queuedMessages}
+        onEditQueuedMessage={onEditQueuedMessage}
+        onPromoteQueuedMessage={onPromoteQueuedMessage}
+        onRemoveQueuedMessage={onRemoveQueuedMessage}
         modelOptions={modelOptions}
         selectedModel={selectedModel}
         onSelectedModelChange={onSelectedModelChange}

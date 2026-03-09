@@ -343,6 +343,7 @@ export function ChatPage({ view }: ChatPageProps) {
     isSending,
     isAwaitingAssistantOutput,
     queuedCount,
+    queuedMessages,
     canStopCurrentRun,
     stopDisabledReason,
     lastSendError,
@@ -350,6 +351,8 @@ export function ChatPage({ view }: ChatPageProps) {
     resumeRun,
     activeBackendRunId,
     stopCurrentRun,
+    removeQueuedMessage,
+    promoteQueuedMessage,
     resetStreamState
   } = useChatStreamController({
     nextOptimisticUserSeq,
@@ -504,12 +507,14 @@ export function ChatPage({ view }: ChatPageProps) {
       stopSupported: chatCapabilitiesQuery.data?.stopSupported ?? false,
       stopReason: chatCapabilitiesQuery.data?.stopReason,
       requestedSkills,
-      restoreDraftOnError: true
+      restoreDraftOnError: true,
+      interruptIfSending: isSending
     });
   }, [
     chatCapabilitiesQuery.data?.stopReason,
     chatCapabilitiesQuery.data?.stopSupported,
     draft,
+    isSending,
     selectedAgentId,
     selectedModel,
     navigate,
@@ -519,6 +524,10 @@ export function ChatPage({ view }: ChatPageProps) {
   ]);
 
   const currentSessionDisplayName = selectedSession ? sessionDisplayName(selectedSession) : undefined;
+  const handleEditQueuedMessage = useCallback((messageId: number, message: string) => {
+    setDraft(message);
+    removeQueuedMessage(messageId);
+  }, [removeQueuedMessage]);
   const handleSelectSession = useCallback((nextSessionKey: string) => {
     const target = buildSessionPath(nextSessionKey);
     if (location.pathname !== target) {
@@ -572,7 +581,11 @@ export function ChatPage({ view }: ChatPageProps) {
     canStopGeneration: canStopCurrentRun,
     stopDisabledReason,
     sendError: lastSendError,
-    queuedCount
+    queuedCount,
+    queuedMessages,
+    onEditQueuedMessage: handleEditQueuedMessage,
+    onPromoteQueuedMessage: promoteQueuedMessage,
+    onRemoveQueuedMessage: removeQueuedMessage
   };
 
   return (

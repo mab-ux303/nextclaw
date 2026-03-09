@@ -5,8 +5,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SkillsPicker } from '@/components/chat/SkillsPicker';
 import type { MarketplaceInstalledRecord } from '@/api/types';
+import type { QueuedChatMessageView } from '@/components/chat/useChatStreamController';
 import { t } from '@/lib/i18n';
-import { Paperclip, Send, Sparkles, Square, X } from 'lucide-react';
+import { ArrowUp, ChevronDown, ChevronRight, Paperclip, Pencil, Send, Sparkles, Square, Trash2, X } from 'lucide-react';
 
 const SLASH_PANEL_MAX_WIDTH = 920;
 
@@ -28,6 +29,10 @@ type ChatInputBarProps = {
   sendError?: string | null;
   isSending: boolean;
   queuedCount: number;
+  queuedMessages: QueuedChatMessageView[];
+  onEditQueuedMessage: (messageId: number, message: string) => void;
+  onPromoteQueuedMessage: (messageId: number) => void;
+  onRemoveQueuedMessage: (messageId: number) => void;
   modelOptions: ChatModelOption[];
   selectedModel: string;
   onSelectedModelChange: (value: string) => void;
@@ -63,6 +68,14 @@ function resolveSlashQuery(draft: string): string | null {
 
 function normalizeSearchText(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
+}
+
+function previewQueuedMessage(message: string): string {
+  const compact = message.replace(/\s+/g, ' ').trim();
+  if (!compact) {
+    return '-';
+  }
+  return compact.length > 180 ? `${compact.slice(0, 180)}…` : compact;
 }
 
 function isSubsequenceMatch(query: string, target: string): boolean {
@@ -134,6 +147,10 @@ export function ChatInputBar({
   sendError = null,
   isSending,
   queuedCount,
+  queuedMessages,
+  onEditQueuedMessage,
+  onPromoteQueuedMessage,
+  onRemoveQueuedMessage,
   modelOptions,
   selectedModel,
   onSelectedModelChange,
@@ -145,6 +162,7 @@ export function ChatInputBar({
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const [dismissedSlashPanel, setDismissedSlashPanel] = useState(false);
   const [slashPanelWidth, setSlashPanelWidth] = useState<number | null>(null);
+  const [isQueueExpanded, setIsQueueExpanded] = useState(true);
   const slashAnchorRef = useRef<HTMLDivElement | null>(null);
   const slashListRef = useRef<HTMLDivElement | null>(null);
   const hasModelOptions = modelOptions.length > 0;
@@ -252,6 +270,12 @@ export function ChatInputBar({
   }, [dismissedSlashPanel, startsWithSlash]);
 
   useEffect(() => {
+    if (queuedMessages.length === 0) {
+      setIsQueueExpanded(true);
+    }
+  }, [queuedMessages.length]);
+
+  useEffect(() => {
     if (!isSlashPanelOpen || isSlashPanelLoading || slashItems.length === 0) {
       return;
     }
@@ -283,6 +307,67 @@ export function ChatInputBar({
     <div className="border-t border-gray-200/80 bg-white p-4">
       <div className="mx-auto w-full max-w-[min(1120px,100%)]">
         <div className="rounded-2xl border border-gray-200 bg-white shadow-card overflow-hidden">
+          {queuedMessages.length > 0 && (
+            <div className="border-b border-gray-200/80 bg-gray-50/70 px-3 py-2">
+              <button
+                type="button"
+                onClick={() => setIsQueueExpanded((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-800"
+              >
+                {isQueueExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                <span>
+                  {t('chatQueuedHintPrefix')} {queuedCount} {t('chatQueuedHintSuffix')}
+                </span>
+              </button>
+              {isQueueExpanded && (
+                <div className="mt-2 space-y-1.5">
+                  {queuedMessages.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="group flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-2"
+                    >
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                        {previewQueuedMessage(item.message)}
+                      </span>
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => onEditQueuedMessage(item.id, item.message)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title={t('edit')}
+                          aria-label={t('edit')}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => onPromoteQueuedMessage(item.id)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:text-gray-200"
+                          title={t('chatQueueMoveFirst')}
+                          aria-label={t('chatQueueMoveFirst')}
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onRemoveQueuedMessage(item.id)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-destructive"
+                          title={t('delete')}
+                          aria-label={t('delete')}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="relative">
             {/* Textarea */}
             <textarea
@@ -536,12 +621,16 @@ export function ChatInputBar({
                 <div className="max-w-[420px] text-right text-[11px] text-red-600">{sendError}</div>
               )}
               <div className="flex items-center gap-2">
-              {isSending && queuedCount > 0 && (
-                <span className="text-[11px] text-gray-400">
-                  {t('chatQueuedHintPrefix')} {queuedCount} {t('chatQueuedHintSuffix')}
-                </span>
-              )}
-              {isSending ? (
+                <Button
+                  size="sm"
+                  className="rounded-lg"
+                  onClick={() => void onSend()}
+                  disabled={draft.trim().length === 0 || !hasModelOptions}
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                  {t('chatSend')}
+                </Button>
+              {isSending && (
                 canStopGeneration ? (
                   <Button
                     size="sm"
@@ -569,16 +658,6 @@ export function ChatInputBar({
                     </Tooltip>
                   </TooltipProvider>
                 )
-              ) : (
-                <Button
-                  size="sm"
-                  className="rounded-lg"
-                  onClick={() => void onSend()}
-                  disabled={draft.trim().length === 0 || !hasModelOptions}
-                >
-                  <Send className="h-3.5 w-3.5 mr-1.5" />
-                  {t('chatSend')}
-                </Button>
               )}
               </div>
             </div>
