@@ -55,6 +55,7 @@ function packageForCurrentPlatform() {
 
   run(binName("pnpm"), ["-C", "packages/nextclaw-core", "build"]);
   run(binName("pnpm"), ["-C", "packages/nextclaw-runtime", "build"]);
+  run(binName("pnpm"), ["-C", "packages/extensions/nextclaw-channel-runtime", "build"]);
   run(binName("pnpm"), ["-C", "packages/nextclaw-ui", "build"]);
   run(binName("pnpm"), ["-C", "packages/nextclaw-openclaw-compat", "build"]);
   run(binName("pnpm"), ["-C", "packages/nextclaw-server", "build"]);
