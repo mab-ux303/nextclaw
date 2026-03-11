@@ -400,7 +400,7 @@ importers:
         specifier: ^0.2.63
         version: 0.2.63(zod@4.3.6)
       '@nextclaw/core':
-        specifier: ^0.7.4
+        specifier: ^0.7.5
         version: link:../../nextclaw-core
       zod:
         specifier: ^4.0.0
@@ -431,7 +431,7 @@ importers:
   packages/extensions/nextclaw-engine-plugin-codex-sdk:
     dependencies:
       '@nextclaw/core':
-        specifier: ^0.7.4
+        specifier: ^0.7.5
         version: link:../../nextclaw-core
       '@openai/codex-sdk':
         specifier: ^0.107.0
