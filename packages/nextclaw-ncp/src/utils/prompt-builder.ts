@@ -1,3 +1,4 @@
+// Draft helper to keep skill-augmented prompting format in one place.
 export function buildSkillAugmentedPrompt(params: {
   userMessage: string;
   requestedSkills: string[];

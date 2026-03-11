@@ -1,5 +1,6 @@
 import { getApiBase, getProvider, type Config } from "@nextclaw/core";
 
+// Small shared readers to avoid copy/paste across endpoint adapters.
 export function readString(input: Record<string, unknown>, key: string): string | undefined {
   const value = input[key];
   if (typeof value !== "string") {
@@ -82,6 +83,7 @@ export function readRequestedSkills(metadata: Record<string, unknown> | undefine
   return raw.filter((entry): entry is string => typeof entry === "string").map((entry) => entry.trim()).filter(Boolean);
 }
 
+// Shared normalization for abort-style errors in stream boundaries.
 export function toAbortError(reason: unknown): Error {
   if (reason instanceof Error) {
     return reason;
@@ -92,6 +94,7 @@ export function toAbortError(reason: unknown): Error {
   return error;
 }
 
+// Provider-aware config fallback strategy used by engine adapters.
 export function resolveEngineConfig(config: Config, model: string, engineConfig: Record<string, unknown>) {
   const provider = getProvider(config, model);
   return {

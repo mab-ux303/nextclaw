@@ -1,21 +1,34 @@
 import type {
-  Endpoint,
-  EndpointEvent,
-  EndpointSubscriber,
-  OutboundEnvelope,
-  SendReceipt,
+  NcpEndpoint,
+  NcpEndpointEvent,
+  NcpEndpointSubscriber,
+  NcpRequestEnvelope,
+  NcpSendReceipt,
 } from "../types/endpoint.js";
-import type { EndpointManifest } from "../types/manifest.js";
+import type { NcpEndpointManifest } from "../types/manifest.js";
 
-// Draft-level skeleton:
-// - Provides the minimal shared lifecycle + subscription layer for endpoints.
-// - Concrete transport/auth/send behavior is implemented by subclasses.
-export abstract class AbstractEndpoint implements Endpoint {
-  abstract readonly manifest: EndpointManifest;
+/**
+ * Base class for NCP endpoint adapters.
+ *
+ * Provides the shared lifecycle (start/stop idempotency) and pub/sub
+ * subscription layer so concrete adapters only need to implement
+ * the three transport hooks: `onStart`, `onStop`, and `onSend`.
+ *
+ * @example
+ * class MyAgentEndpoint extends AbstractEndpoint {
+ *   readonly manifest = { ... };
+ *   protected async onStart() { ... }
+ *   protected async onStop() { ... }
+ *   protected async onSend(envelope) { ... }
+ * }
+ */
+export abstract class AbstractEndpoint implements NcpEndpoint {
+  abstract readonly manifest: NcpEndpointManifest;
 
   private started = false;
-  private readonly listeners = new Set<EndpointSubscriber>();
+  private readonly listeners = new Set<NcpEndpointSubscriber>();
 
+  /** @inheritdoc */
   async start(): Promise<void> {
     if (this.started) {
       return;
@@ -25,6 +38,7 @@ export abstract class AbstractEndpoint implements Endpoint {
     this.emit({ type: "endpoint.ready" });
   }
 
+  /** @inheritdoc */
   async stop(): Promise<void> {
     if (!this.started) {
       return;
@@ -33,30 +47,48 @@ export abstract class AbstractEndpoint implements Endpoint {
     this.started = false;
   }
 
-  async send(message: OutboundEnvelope): Promise<SendReceipt> {
+  /** @inheritdoc */
+  async send(envelope: NcpRequestEnvelope): Promise<NcpSendReceipt> {
     this.assertStarted();
-    return this.onSend(message);
+    return this.onSend(envelope);
   }
 
-  subscribe(listener: EndpointSubscriber): () => void {
+  /** @inheritdoc */
+  subscribe(listener: NcpEndpointSubscriber): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
-  protected emit(event: EndpointEvent): void {
+  /**
+   * Broadcasts an event to all current subscribers.
+   * Call this from `onSend` or async callbacks to surface inbound events.
+   */
+  protected emit(event: NcpEndpointEvent): void {
     for (const listener of this.listeners) {
       listener(event);
     }
   }
 
+  /**
+   * Throws if the endpoint has not been started.
+   * Call at the top of any method that requires an active connection.
+   */
   protected assertStarted(): void {
     if (!this.started) {
-      throw new Error(`endpoint "${this.manifest.endpointId}" is not started`);
+      throw new Error(`NcpEndpoint "${this.manifest.endpointId}" is not started`);
     }
   }
 
-  // Lifecycle/send hooks to be implemented in concrete endpoint adapters.
+  // ---------------------------------------------------------------------------
+  // Abstract hooks — implement in concrete adapters
+  // ---------------------------------------------------------------------------
+
+  /** Called once on the first `start()` invocation. Open connections here. */
   protected abstract onStart(): Promise<void>;
+
+  /** Called once on the first `stop()` invocation. Release resources here. */
   protected abstract onStop(): Promise<void>;
-  protected abstract onSend(message: OutboundEnvelope): Promise<SendReceipt>;
+
+  /** Deliver the envelope to the remote participant via the adapter's transport. */
+  protected abstract onSend(envelope: NcpRequestEnvelope): Promise<NcpSendReceipt>;
 }
