@@ -5,12 +5,12 @@ import type { NcpMessage } from "./message.js";
  * NCP event and payload definitions.
  *
  * Streaming content (text, reasoning, tool args) uses start → delta sequence → end.
- * The same content can be sent as a single full event (e.g. message.received or message.completed)
+ * The same content can be sent as a single full event (e.g. message.incoming or message.completed)
  * instead; endpoints or upper layers choose as needed.
  */
 
 // ---------------------------------------------------------------------------
-// Message envelopes (used by request/response/completed/failed/received)
+// Message envelopes (used by request/incoming/completed/failed)
 // ---------------------------------------------------------------------------
 
 export type NcpRequestEnvelope = {
@@ -20,6 +20,7 @@ export type NcpRequestEnvelope = {
   metadata?: Record<string, unknown>;
 };
 
+/** Payload for message.incoming: message content from the other peer (partial or full). */
 export type NcpResponseEnvelope = {
   sessionKey: string;
   message: NcpMessage;
@@ -51,6 +52,63 @@ export type NcpMessageAcceptedPayload = {
 export type NcpMessageAbortPayload = {
   messageId?: string;
   correlationId?: string;
+};
+
+// ---------------------------------------------------------------------------
+// IM: typing indicator (user or bot)
+// ---------------------------------------------------------------------------
+
+export type NcpTypingStartPayload = {
+  sessionKey: string;
+  /** Participant who is typing (human user or bot/assistant). */
+  userId?: string;
+};
+
+export type NcpTypingEndPayload = {
+  sessionKey: string;
+  /** Participant who stopped typing (human user or bot/assistant). */
+  userId?: string;
+};
+
+// ---------------------------------------------------------------------------
+// IM: presence (online/offline/away)
+// ---------------------------------------------------------------------------
+
+export type NcpPresenceUpdatedPayload = {
+  sessionKey: string;
+  /** Participant this presence applies to (human user or bot/assistant). */
+  userId?: string;
+  status: "online" | "offline" | "away";
+};
+
+// ---------------------------------------------------------------------------
+// IM: read receipt, delivery receipt, recall, reaction
+// ---------------------------------------------------------------------------
+
+export type NcpMessageReadPayload = {
+  sessionKey: string;
+  messageId: string;
+  readAt?: string;
+  readerId?: string;
+};
+
+export type NcpMessageDeliveredPayload = {
+  sessionKey: string;
+  messageId: string;
+};
+
+export type NcpMessageRecalledPayload = {
+  sessionKey: string;
+  messageId: string;
+};
+
+export type NcpMessageReactionPayload = {
+  sessionKey: string;
+  messageId: string;
+  reaction: string;
+  added: boolean;
+  /** Participant who added or removed the reaction (human user or bot/assistant). */
+  userId?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -88,7 +146,7 @@ export type NcpRunMetadataPayload = {
 
 // ---------------------------------------------------------------------------
 // Text stream (aligned with agent-chat TEXT_*)
-// Streaming: text-start → text-delta sequence → text-end. Alternative: message.received / message.completed with full NcpMessage.
+// Streaming: text-start → text-delta sequence → text-end. Alternative: message.incoming / message.completed with full NcpMessage.
 // ---------------------------------------------------------------------------
 
 export type NcpTextStartPayload = {
@@ -109,7 +167,7 @@ export type NcpTextEndPayload = {
 
 // ---------------------------------------------------------------------------
 // Reasoning stream (aligned with agent-chat REASONING_*)
-// Streaming: reasoning-start → reasoning-delta sequence → reasoning-end. Alternative: message.received / message.completed with full NcpMessage.
+// Streaming: reasoning-start → reasoning-delta sequence → reasoning-end. Alternative: message.incoming / message.completed with full NcpMessage.
 // ---------------------------------------------------------------------------
 
 export type NcpReasoningStartPayload = {
@@ -130,7 +188,7 @@ export type NcpReasoningEndPayload = {
 
 // ---------------------------------------------------------------------------
 // Tool call stream (aligned with agent-chat TOOL_CALL_*)
-// Streaming: tool-call-start → tool-call-args or tool-call-args-delta sequence → tool-call-end; then tool-call-result. Alternative: message.received / message.completed with full NcpMessage.
+// Streaming: tool-call-start → tool-call-args or tool-call-args-delta sequence → tool-call-end; then tool-call-result. Alternative: message.incoming / message.completed with full NcpMessage.
 // ---------------------------------------------------------------------------
 
 export type NcpToolCallStartPayload = {
@@ -172,7 +230,7 @@ export type NcpEndpointEvent =
   | { type: "endpoint.ready" }
   | { type: "message.request"; payload: NcpRequestEnvelope }
   | { type: "message.accepted"; payload: NcpMessageAcceptedPayload }
-  | { type: "message.received"; payload: NcpResponseEnvelope }
+  | { type: "message.incoming"; payload: NcpResponseEnvelope }
   | { type: "message.completed"; payload: NcpCompletedEnvelope }
   | { type: "message.failed"; payload: NcpFailedEnvelope }
   | { type: "message.abort"; payload: NcpMessageAbortPayload }
@@ -191,6 +249,13 @@ export type NcpEndpointEvent =
   | { type: "message.tool-call-args"; payload: NcpToolCallArgsPayload }
   | { type: "message.tool-call-args-delta"; payload: NcpToolCallArgsDeltaPayload }
   | { type: "message.tool-call-end"; payload: NcpToolCallEndPayload }
-  | { type: "message.tool-call-result"; payload: NcpToolCallResultPayload };
+  | { type: "message.tool-call-result"; payload: NcpToolCallResultPayload }
+  | { type: "typing.start"; payload: NcpTypingStartPayload }
+  | { type: "typing.end"; payload: NcpTypingEndPayload }
+  | { type: "presence.updated"; payload: NcpPresenceUpdatedPayload }
+  | { type: "message.read"; payload: NcpMessageReadPayload }
+  | { type: "message.delivered"; payload: NcpMessageDeliveredPayload }
+  | { type: "message.recalled"; payload: NcpMessageRecalledPayload }
+  | { type: "message.reaction"; payload: NcpMessageReactionPayload };
 
 export type NcpEndpointSubscriber = (event: NcpEndpointEvent) => void;
