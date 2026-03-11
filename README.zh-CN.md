@@ -17,7 +17,7 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D18-blue)](https://nodejs.org)
 [![Discord](https://img.shields.io/badge/Discord-NextClaw-5865F2?logo=discord&logoColor=white)](https://discord.gg/j4Skbgye)
 
-[文档](https://docs.nextclaw.io/zh/) · [Discord](https://discord.gg/j4Skbgye) · [微信群](images/contact/nextclaw-contact-wechat-group.jpg) · [Issues](https://github.com/Peiiii/nextclaw/issues) · [路线图](https://docs.nextclaw.io/zh/guide/roadmap)
+[文档](https://docs.nextclaw.io/zh/) · [规划](docs/ROADMAP.md) · [Discord](https://discord.gg/j4Skbgye) · [微信群](images/contact/nextclaw-contact-wechat-group.jpg) · [Issues](https://github.com/Peiiii/nextclaw/issues) · [路线图](https://docs.nextclaw.io/zh/guide/roadmap)
 
 <p>
   <img src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white" alt="Windows" />
@@ -104,6 +104,7 @@ pnpm screenshots:refresh
 - [命令参考](https://docs.nextclaw.io/zh/guide/commands)
 - [愿景与路线图](https://docs.nextclaw.io/zh/guide/vision)
 - [飞书接入教程](https://docs.nextclaw.io/zh/guide/tutorials/feishu)
+- GitHub 规划文档：[Roadmap](docs/ROADMAP.md) · [TODO 待办池](docs/TODO.md)
 
 ## 社群
 

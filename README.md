@@ -17,7 +17,7 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D18-blue)](https://nodejs.org)
 [![Discord](https://img.shields.io/badge/Discord-NextClaw-5865F2?logo=discord&logoColor=white)](https://discord.gg/j4Skbgye)
 
-[Documentation](https://docs.nextclaw.io/en/) · [Discord](https://discord.gg/j4Skbgye) · [Issues](https://github.com/Peiiii/nextclaw/issues) · [Roadmap](https://docs.nextclaw.io/en/guide/roadmap)
+[Documentation](https://docs.nextclaw.io/en/) · [Planning](docs/ROADMAP.md) · [Discord](https://discord.gg/j4Skbgye) · [Issues](https://github.com/Peiiii/nextclaw/issues) · [Roadmap](https://docs.nextclaw.io/en/guide/roadmap)
 
 <p>
   <img src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white" alt="Windows" />
@@ -122,6 +122,7 @@ Visit **[docs.nextclaw.io](https://docs.nextclaw.io/en/)** for the full document
 - [Commands](https://docs.nextclaw.io/en/guide/commands)
 - [Vision & Roadmap](https://docs.nextclaw.io/en/guide/vision)
 - [Feishu Setup Tutorial](https://docs.nextclaw.io/en/guide/tutorials/feishu)
+- GitHub planning docs: [Roadmap](docs/ROADMAP.md) · [TODO Backlog](docs/TODO.md)
 
 ## Community
 
