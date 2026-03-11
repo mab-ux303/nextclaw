@@ -4,8 +4,8 @@
 
 约定：
 
-- **后端**：提供 `POST /api/chat`（body 为本次请求）+ `GET /api/chat/stream?sessionKey=...`（SSE，同一次对话的 accepted/delta/completed/failed 事件）。
-- **协议**：请求/响应都走 NCP 事件；SSE 里每行一个 JSON，对应一个 `NcpEndpointEvent`。
+- **后端**：提供 `POST /api/chat`（body 为本次请求）+ `GET /api/chat/stream?sessionKey=...`（SSE，同一次对话的 accepted/text-delta/completed/failed 等事件）。
+- **协议**：请求/响应都走 NCP 事件；SSE 里每行一个 JSON，对应一个 `NcpEndpointEvent`。事件类型与 payload 定义在 `src/types/events.ts`，与 agent-chat 对齐（含 `message.text-*` / `message.reasoning-*` / `message.tool-call-*` / `run.*`）。
 - **后端**：持有一个 `NcpEndpoint`，收到 HTTP 请求时把 body 转成 `message.request` 注入端点（broadcast），端点的一个订阅者跑 Agent 并 broadcast accepted/delta/completed，另一个订阅者把事件写到 SSE 响应里。
 
 ---
@@ -55,7 +55,7 @@ export class ServerAgentEndpoint extends AbstractEndpoint {
 后端在启动时创建端点、挂两个订阅者：一个跑 Agent 并 broadcast 结果，一个把事件写成 SSE。
 
 ```typescript
-// ---------- 后端：订阅者 1 — 跑 Agent 并 broadcast accepted/delta/completed/failed ----------
+// ---------- 后端：订阅者 1 — 跑 Agent 并 broadcast accepted/text-*/completed/failed ----------
 function subscribeAgentRunner(
   endpoint: ServerAgentEndpoint,
   runAgent: (message: NcpMessage) => AsyncIterable<string>,
@@ -72,14 +72,22 @@ function subscribeAgentRunner(
     });
 
     try {
+      endpoint.emit({
+        type: "message.text-start",
+        payload: { sessionKey, messageId },
+      });
       let fullText = "";
       for await (const chunk of runAgent(payload.message)) {
         fullText += chunk;
         endpoint.emit({
-          type: "message.delta",
+          type: "message.text-delta",
           payload: { sessionKey, messageId, delta: chunk },
         });
       }
+      endpoint.emit({
+        type: "message.text-end",
+        payload: { sessionKey, messageId },
+      });
       const reply: NcpMessage = {
         id: messageId,
         sessionKey,
@@ -164,7 +172,7 @@ http.createServer((req, res) => {
 
 ## 2. 前端：发 POST + 读 SSE，按 NCP 事件更新 UI
 
-前端发一条用户消息（POST body = NcpRequestEnvelope），然后读同一次请求返回的 SSE 流（或另开 GET stream 并带 sessionKey），解析为 NCP 事件，根据 `message.accepted` / `message.delta` / `message.completed` / `message.failed` 更新界面。
+前端发一条用户消息（POST body = NcpRequestEnvelope），然后读同一次请求返回的 SSE 流（或另开 GET stream 并带 sessionKey），解析为 NCP 事件，根据 `message.accepted` / `message.text-*` / `message.completed` / `message.failed` 等更新界面。
 
 ```typescript
 // ---------- 前端：构建请求并发送，消费 SSE 流里的 NCP 事件 ----------
@@ -220,8 +228,13 @@ function handleNcpEvent(event: NcpEndpointEvent): void {
     case "message.accepted":
       console.log("Accepted", event.payload.messageId);
       break;
-    case "message.delta":
+    case "message.text-start":
+      startAssistantMessage(event.payload.messageId);
+      break;
+    case "message.text-delta":
       appendToAssistantMessage(event.payload.delta);
+      break;
+    case "message.text-end":
       break;
     case "message.completed":
       setAssistantMessageFinal(event.payload.message);
@@ -234,6 +247,9 @@ function handleNcpEvent(event: NcpEndpointEvent): void {
   }
 }
 
+function startAssistantMessage(_messageId: string): void {
+  document.getElementById("assistant-text").textContent = "";
+}
 function appendToAssistantMessage(delta: string): void {
   document.getElementById("assistant-text").textContent += delta;
 }
@@ -256,7 +272,7 @@ function showError(msg: string): void {
 | 角色 | 做什么 |
 |------|--------|
 | **后端** | 持有一个 `ServerAgentEndpoint`（继承 `AbstractEndpoint`），`injectRequest(envelope)` 把 POST body 转成 `message.request` 并 broadcast；一个订阅者跑 Agent 并 `emit` accepted/delta/completed/failed，另一个订阅者把事件写成 SSE 发给前端。 |
-| **前端** | POST 发送 `NcpRequestEnvelope`，读取响应 body 为 SSE 流，按行解析 JSON 得到 `NcpEndpointEvent`，根据 `message.accepted` / `message.delta` / `message.completed` / `message.failed` 更新 UI。 |
+| **前端** | POST 发送 `NcpRequestEnvelope`，读取响应 body 为 SSE 流，按行解析 JSON 得到 `NcpEndpointEvent`，根据 `message.accepted` / `message.text-*` / `message.completed` / `message.failed` 等更新 UI。 |
 | **协议** | 请求 = `message.request`（POST body）；响应 = 同一 SSE 流上的 NCP 事件，无需再定义一套「chat API」格式。 |
 
 这样就是一个可落地的、前后端分离的 Agent 场景：后端只依赖 NCP 事件形态和端点抽象，前端只依赖同一套事件类型解析 SSE，便于和现有 NextClaw 后端/前端逐步对齐。
