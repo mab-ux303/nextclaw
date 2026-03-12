@@ -35,11 +35,24 @@ export class ToolRegistry {
       }
       return await tool.execute(params, toolCallId);
     } catch (err) {
-      return `Error executing ${name}: ${String(err)}`;
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[tool-registry] tool "${name}" execution failed`, err);
+      return `Error executing ${name}: ${clipForUser(message, 320)}`;
     }
   }
 
   get toolNames(): string[] {
     return Array.from(this.tools.keys());
   }
+}
+
+function clipForUser(input: string, maxChars = 320): string {
+  const normalized = input.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`;
 }

@@ -89,4 +89,46 @@ describe("normalizeChatCompletionsResponse", () => {
       expect((error as Error).message).toContain("model is blocked");
     }
   });
+
+  it("normalizes array-based message content", () => {
+    const response = {
+      choices: [
+        {
+          finish_reason: "stop",
+          message: {
+            content: [
+              { type: "output_text", text: "Scheduled successfully. " },
+              { type: "text", text: { value: "I will notify you daily." } }
+            ]
+          }
+        }
+      ]
+    };
+
+    const parsed = normalizeChatCompletionsResponse(response, () => ({}));
+    expect(parsed.content).toBe("Scheduled successfully. I will notify you daily.");
+    expect(parsed.toolCalls).toEqual([]);
+  });
+
+  it("normalizes object message content", () => {
+    const response = {
+      choices: [
+        {
+          finish_reason: "stop",
+          message: {
+            content: {
+              type: "output_text",
+              text: {
+                value: "done"
+              }
+            }
+          }
+        }
+      ]
+    };
+
+    const parsed = normalizeChatCompletionsResponse(response, () => ({}));
+    expect(parsed.content).toBe("done");
+    expect(parsed.toolCalls).toEqual([]);
+  });
 });

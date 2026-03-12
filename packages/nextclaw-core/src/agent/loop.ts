@@ -226,7 +226,7 @@ export class AgentLoop {
         await this.options.bus.publishOutbound({
           channel: msg.channel,
           chatId: msg.chatId,
-          content: `Sorry, I encountered an error: ${String(err)}`,
+          content: `Sorry, I encountered an error: ${formatUserFacingError(err)}`,
           media: [],
           metadata: {}
         });
@@ -670,6 +670,9 @@ export class AgentLoop {
     let finalContent: string | null = null;
     let lastToolName: string | null = null;
     let lastToolResult: string | null = null;
+    let lastFinishReason: string | null = null;
+    let lastToolCallsCount = 0;
+    let lastHadText = false;
     const maxIterations = this.options.maxIterations ?? 20;
     try {
       while (iteration < maxIterations) {
@@ -683,6 +686,9 @@ export class AgentLoop {
           signal: options?.abortSignal
         }, options?.onAssistantDelta);
         throwIfAborted(options?.abortSignal);
+        lastFinishReason = response.finishReason;
+        lastToolCallsCount = response.toolCalls.length;
+        lastHadText = typeof response.content === "string" && response.content.trim().length > 0;
 
         if (containsSilentReplyMarker(response.content)) {
           this.recordSessionMessage({
@@ -750,8 +756,12 @@ export class AgentLoop {
     if (typeof finalContent !== "string") {
       finalContent = buildToolLoopFallback({
         maxIterations,
+        actualIterations: iteration,
         lastToolName,
-        lastToolResult
+        lastToolResult,
+        lastFinishReason,
+        lastToolCallsCount,
+        lastHadText
       });
     }
 
@@ -866,6 +876,9 @@ export class AgentLoop {
     let finalContent: string | null = null;
     let lastToolName: string | null = null;
     let lastToolResult: string | null = null;
+    let lastFinishReason: string | null = null;
+    let lastToolCallsCount = 0;
+    let lastHadText = false;
     const maxIterations = this.options.maxIterations ?? 20;
     try {
       while (iteration < maxIterations) {
@@ -879,6 +892,9 @@ export class AgentLoop {
           signal: options?.abortSignal
         }, options?.onAssistantDelta);
         throwIfAborted(options?.abortSignal);
+        lastFinishReason = response.finishReason;
+        lastToolCallsCount = response.toolCalls.length;
+        lastHadText = typeof response.content === "string" && response.content.trim().length > 0;
 
         if (containsSilentReplyMarker(response.content)) {
           this.recordSessionMessage({
@@ -946,8 +962,12 @@ export class AgentLoop {
     if (typeof finalContent !== "string") {
       finalContent = buildToolLoopFallback({
         maxIterations,
+        actualIterations: iteration,
         lastToolName,
-        lastToolResult
+        lastToolResult,
+        lastFinishReason,
+        lastToolCallsCount,
+        lastHadText
       });
     }
     const { content: cleanedContent, replyTo } = parseReplyTags(finalContent, undefined);
@@ -1073,11 +1093,26 @@ function isAbortError(error: unknown): boolean {
 
 function buildToolLoopFallback(params: {
   maxIterations: number;
+  actualIterations: number;
   lastToolName: string | null;
   lastToolResult: string | null;
+  lastFinishReason: string | null;
+  lastToolCallsCount: number;
+  lastHadText: boolean;
 }): string {
-  const { maxIterations, lastToolName, lastToolResult } = params;
-  const base = `Sorry, tool calls did not converge after ${maxIterations} iterations. Please retry or rephrase.`;
+  const {
+    maxIterations,
+    actualIterations,
+    lastToolName,
+    lastToolResult,
+    lastFinishReason,
+    lastToolCallsCount,
+    lastHadText
+  } = params;
+  const didHitLimit = actualIterations >= maxIterations;
+  const base = didHitLimit
+    ? `Sorry, tool calls did not converge after ${actualIterations} iterations. Please retry or rephrase.`
+    : "Sorry, tool call flow ended without a final response. Please retry or rephrase.";
 
   const toolLabel = lastToolName?.trim();
   const rawResult = lastToolResult?.trim() ?? "";
@@ -1091,7 +1126,7 @@ function buildToolLoopFallback(params: {
     .filter((line) => line.length > 0)
     .slice(0, 2)
     .join(" ");
-  const clipped = snippet.length > 180 ? `${snippet.slice(0, 180)}...` : snippet;
+  const clipped = clipForUser(snippet, 320);
   const isError = clipped.startsWith("Error:");
 
   const detailParts: string[] = [];
@@ -1101,6 +1136,27 @@ function buildToolLoopFallback(params: {
   if (clipped) {
     detailParts.push(`${isError ? "Last error" : "Last result"}: ${clipped}`);
   }
+  if (!didHitLimit && lastToolCallsCount === 0 && !lastHadText) {
+    detailParts.push(`Last model output was empty (finishReason: ${lastFinishReason ?? "unknown"})`);
+  }
 
   return detailParts.length ? `${base} ${detailParts.join(". ")}` : base;
+}
+
+function clipForUser(input: string, maxChars = 320): string {
+  const normalized = input.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`;
+}
+
+function formatUserFacingError(error: unknown, maxChars = 320): string {
+  if (error instanceof Error) {
+    return clipForUser(error.message || error.name || "Unknown error", maxChars);
+  }
+  return clipForUser(String(error ?? "Unknown error"), maxChars);
 }

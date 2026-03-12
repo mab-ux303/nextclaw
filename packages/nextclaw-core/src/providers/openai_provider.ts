@@ -397,7 +397,7 @@ export class OpenAICompatibleProvider extends LLMProvider {
 
       const sseJson = this.extractSseJson(text);
       if (sseJson) {
-        return sseJson;
+        return this.unwrapResponsesEnvelope(sseJson);
       }
 
       throw new Error(`Responses API returned non-JSON payload: ${text.slice(0, 240)}`);
@@ -466,6 +466,7 @@ export class OpenAICompatibleProvider extends LLMProvider {
   private extractSseJson(text: string): Record<string, unknown> | null {
     const lines = text.split(/\r?\n/);
     let latestJson: Record<string, unknown> | null = null;
+    let latestResponse: Record<string, unknown> | null = null;
 
     for (const line of lines) {
       const trimmed = line.trim();
@@ -479,12 +480,28 @@ export class OpenAICompatibleProvider extends LLMProvider {
       try {
         const parsed = JSON.parse(payload) as Record<string, unknown>;
         latestJson = parsed;
+        if (Array.isArray(parsed.output)) {
+          latestResponse = parsed;
+          continue;
+        }
+        const response = parsed.response;
+        if (response && typeof response === "object" && !Array.isArray(response)) {
+          latestResponse = response as Record<string, unknown>;
+        }
       } catch {
         // ignore non-json data frame
       }
     }
 
-    return latestJson;
+    return latestResponse ?? latestJson;
+  }
+
+  private unwrapResponsesEnvelope(payload: Record<string, unknown>): Record<string, unknown> {
+    const response = payload.response;
+    if (response && typeof response === "object" && !Array.isArray(response)) {
+      return response as Record<string, unknown>;
+    }
+    return payload;
   }
 
   private shouldFallbackToResponses(error: unknown): boolean {

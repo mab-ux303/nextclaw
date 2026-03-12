@@ -352,6 +352,19 @@ function readNonEmptyString(value: unknown): string | undefined {
   return trimmed || undefined;
 }
 
+function formatUserFacingError(error: unknown, maxChars = 320): string {
+  const raw =
+    error instanceof Error ? error.message || error.name || "Unknown error" : String(error ?? "Unknown error");
+  const normalized = raw.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "Unknown error";
+  }
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`;
+}
+
 function normalizeSessionType(value: unknown): string | undefined {
   return readNonEmptyString(value)?.toLowerCase();
 }
@@ -1995,7 +2008,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
       options.publish({ type: "config.updated", payload: { path: "session" } });
       return c.json(ok(response));
     } catch (error) {
-      return c.json(err("CHAT_TURN_FAILED", String(error)), 500);
+      return c.json(err("CHAT_TURN_FAILED", formatUserFacingError(error)), 500);
     }
   });
 
@@ -2085,7 +2098,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
       try {
         managedRun = await chatRuntime.startTurnRun(request);
       } catch (error) {
-        return c.json(err("CHAT_TURN_FAILED", String(error)), 500);
+        return c.json(err("CHAT_TURN_FAILED", formatUserFacingError(error)), 500);
       }
       if (readNonEmptyString(managedRun.runId)) {
         runId = readNonEmptyString(managedRun.runId) as string;
@@ -2156,7 +2169,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
               if (typed.type === "error") {
                 push("error", {
                   code: "CHAT_TURN_FAILED",
-                  message: typed.error
+                  message: formatUserFacingError(typed.error)
                 });
                 return;
               }
@@ -2219,7 +2232,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
             if (typed.type === "error") {
               push("error", {
                 code: "CHAT_TURN_FAILED",
-                message: typed.error
+                message: formatUserFacingError(typed.error)
               });
               return;
             }
@@ -2237,7 +2250,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
         } catch (error) {
           push("error", {
             code: "CHAT_TURN_FAILED",
-            message: String(error)
+            message: formatUserFacingError(error)
           });
         } finally {
           controller.close();
@@ -2374,7 +2387,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
             if (typed.type === "error") {
               push("error", {
                 code: "CHAT_TURN_FAILED",
-                message: typed.error
+                message: formatUserFacingError(typed.error)
               });
               return;
             }
@@ -2385,7 +2398,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
             if (latestRun?.state === "failed") {
               push("error", {
                 code: "CHAT_TURN_FAILED",
-                message: latestRun.error ?? "chat run failed"
+                message: formatUserFacingError(latestRun.error ?? "chat run failed")
               });
               return;
             }
@@ -2395,7 +2408,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
         } catch (error) {
           push("error", {
             code: "CHAT_TURN_FAILED",
-            message: String(error)
+            message: formatUserFacingError(error)
           });
         } finally {
           controller.close();

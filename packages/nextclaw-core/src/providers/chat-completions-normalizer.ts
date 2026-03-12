@@ -1,7 +1,7 @@
 import type { LLMResponse, ToolCallRequest } from "./base.js";
 
 type ChatCompletionsMessage = {
-  content?: string | null;
+  content?: unknown;
   tool_calls?: Array<Record<string, unknown>>;
   function_call?: { name?: string; arguments?: unknown };
   reasoning_content?: string;
@@ -65,12 +65,80 @@ export function normalizeChatCompletionsResponse(
     null;
 
   return {
-    content: message?.content ?? null,
+    content: normalizeMessageContent(message?.content),
     toolCalls,
     finishReason: choice?.finish_reason ?? "stop",
     usage: normalizeUsageCounters(responseAny.usage),
     reasoningContent
   };
+}
+
+function normalizeMessageContent(content: unknown): string | null {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (content == null) {
+    return null;
+  }
+
+  if (Array.isArray(content)) {
+    const parts = content
+      .map((part) => extractTextPart(part))
+      .filter((text): text is string => typeof text === "string" && text.length > 0);
+    if (parts.length > 0) {
+      return parts.join("");
+    }
+    return null;
+  }
+
+  return extractTextPart(content) ?? null;
+}
+
+function extractTextPart(part: unknown): string | null {
+  if (typeof part === "string") {
+    return part;
+  }
+  if (!part || typeof part !== "object" || Array.isArray(part)) {
+    return null;
+  }
+
+  const record = part as { type?: unknown; text?: unknown; value?: unknown; content?: unknown };
+  const textValue = extractTextValue(record.text);
+  if (textValue) {
+    return textValue;
+  }
+
+  const directValue = extractTextValue(record.value);
+  if (directValue) {
+    return directValue;
+  }
+
+  if (typeof record.content === "string" && record.content.length > 0) {
+    return record.content;
+  }
+
+  if (
+    typeof record.type === "string" &&
+    (record.type === "text" || record.type === "output_text" || record.type === "input_text")
+  ) {
+    return "";
+  }
+
+  return null;
+}
+
+function extractTextValue(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const text = (value as { value?: unknown }).value;
+  if (typeof text === "string") {
+    return text;
+  }
+  return null;
 }
 
 function normalizeUsageCounters(raw: Record<string, unknown> | undefined): Record<string, number> {

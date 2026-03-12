@@ -359,7 +359,7 @@ export class GatewayAgentRuntimePool {
         await this.options.bus.publishOutbound({
           channel: message.channel,
           chatId: message.chatId,
-          content: `Sorry, I encountered an error: ${String(error)}`,
+          content: `Sorry, I encountered an error: ${formatUserFacingError(error)}`,
           media: [],
           metadata: {}
         });
@@ -636,4 +636,16 @@ function parseCommandOptionValue(type: CommandOption["type"], rawValue: string):
     return undefined;
   }
   return value;
+}
+
+function formatUserFacingError(error: unknown, maxChars = 320): string {
+  const raw = error instanceof Error ? error.message || error.name || "Unknown error" : String(error ?? "Unknown error");
+  const normalized = raw.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "Unknown error";
+  }
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`;
 }
