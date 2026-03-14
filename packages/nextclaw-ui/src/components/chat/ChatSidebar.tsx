@@ -13,8 +13,9 @@ import { LANGUAGE_OPTIONS, formatDateTime, t, type I18nLanguage } from '@/lib/i1
 import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
+import { useDocBrowser } from '@/components/doc-browser';
 import { NavLink } from 'react-router-dom';
-import { AlarmClock, BrainCircuit, Languages, MessageSquareText, Palette, Plus, Search, Settings } from 'lucide-react';
+import { AlarmClock, BookOpen, BrainCircuit, Languages, MessageSquareText, Palette, Plus, Search, Settings } from 'lucide-react';
 
 type DateGroup = {
   label: string;
@@ -68,6 +69,7 @@ const navItems = [
 
 export function ChatSidebar() {
   const presenter = usePresenter();
+  const docBrowser = useDocBrowser();
   const listSnapshot = useChatSessionListStore((state) => state.snapshot);
   const runSnapshot = useChatRunStatusStore((state) => state.snapshot);
   const { language, setLanguage } = useI18n();
@@ -207,6 +209,13 @@ export function ChatSidebar() {
             </>
           )}
         </NavLink>
+        <button
+          onClick={() => docBrowser.open(undefined, { kind: 'docs', newTab: true, title: 'Docs' })}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 text-gray-600 hover:bg-gray-200/60 hover:text-gray-800"
+        >
+          <BookOpen className="h-4 w-4 text-gray-400" />
+          <span>{t('docBrowserHelp')}</span>
+        </button>
         <Select value={theme} onValueChange={(value) => setTheme(value as UiTheme)}>
           <SelectTrigger className="w-full h-auto rounded-xl border-0 bg-transparent shadow-none px-3 py-2 text-[13px] font-medium text-gray-600 hover:bg-gray-200/60 focus:ring-0">
             <div className="flex items-center gap-2.5 min-w-0">

@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.6.14
+
+### Patch Changes
+
+- Expose the new NCP agent runtime/backend type exports and session delete API, and add the docs entry under Settings in the main chat sidebar.
+
 ## 0.6.13
 
 ### Patch Changes
