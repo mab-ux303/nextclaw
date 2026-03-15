@@ -10,7 +10,8 @@
     "build": "pnpm -C backend build && pnpm -C frontend build",
     "lint": "pnpm -C backend lint && pnpm -C frontend lint && eslint scripts",
     "tsc": "pnpm -C backend tsc && pnpm -C frontend tsc",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "smoke:ui": "node scripts/smoke-ui.mjs"
   },
   "devDependencies": {
     "eslint": "^9.39.3"

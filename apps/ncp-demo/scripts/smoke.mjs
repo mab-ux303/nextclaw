@@ -1,15 +1,70 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
+import { createServer as createNetServer, Socket } from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadNcpDemoEnv } from './env.mjs';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pnpmBin = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-const port = 3297;
+const DEFAULT_PORT = 3297;
+const PORT_SCAN_LIMIT = 20;
+const port = await resolveFreePort(DEFAULT_PORT, '127.0.0.1');
 const baseUrl = `http://127.0.0.1:${port}`;
 const loadedEnv = loadNcpDemoEnv(rootDir);
 const baseEnv = { ...loadedEnv, ...process.env };
+
+function isPortAvailable(portToCheck, host) {
+  return new Promise((resolveAvailable) => {
+    const server = createNetServer();
+    server.unref();
+    server.once('error', () => resolveAvailable(false));
+    server.listen(portToCheck, host, () => {
+      server.close(() => resolveAvailable(true));
+    });
+  });
+}
+
+function isPortOccupied(portToCheck, host) {
+  return new Promise((resolveOccupied) => {
+    const socket = new Socket();
+    let settled = false;
+
+    const finalize = (value) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      socket.destroy();
+      resolveOccupied(value);
+    };
+
+    socket.setTimeout(250, () => finalize(false));
+    socket.once('connect', () => finalize(true));
+    socket.once('error', (error) => {
+      const code = typeof error?.code === 'string' ? error.code : '';
+      if (code === 'ECONNREFUSED' || code === 'EHOSTUNREACH' || code === 'ENETUNREACH') {
+        finalize(false);
+        return;
+      }
+      finalize(true);
+    });
+
+    socket.connect(portToCheck, host);
+  });
+}
+
+async function resolveFreePort(startPort, host) {
+  let current = startPort;
+  for (let index = 0; index < PORT_SCAN_LIMIT; index += 1) {
+    const occupied = await isPortOccupied(current, host);
+    if (!occupied && (await isPortAvailable(current, host))) {
+      return current;
+    }
+    current += 1;
+  }
+  throw new Error(`Unable to find a free port from ${startPort} (${host})`);
+}
 
 const server = spawn(pnpmBin, ['-C', 'backend', 'exec', 'tsx', '--tsconfig', 'tsconfig.json', 'src/index.ts'], {
   cwd: rootDir,

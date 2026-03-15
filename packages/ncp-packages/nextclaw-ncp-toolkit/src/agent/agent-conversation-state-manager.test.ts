@@ -382,3 +382,170 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     });
   });
 });
+
+describe("DefaultNcpAgentConversationStateManager hydration", () => {
+  it("reset clears messages, streaming state, error, active run, and tool tracking", () => {
+    const manager = new DefaultNcpAgentConversationStateManager();
+
+    manager.dispatch({
+      type: NcpEventType.RunStarted,
+      payload: {
+        sessionId: "session-1",
+        runId: "run-6",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageToolCallStart,
+      payload: {
+        sessionId: "session-1",
+        messageId: "assistant-6",
+        toolCallId: "tool-6",
+        toolName: "search",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageToolCallArgsDelta,
+      payload: {
+        sessionId: "session-1",
+        messageId: "assistant-6",
+        toolCallId: "tool-6",
+        delta: "{\"q\":\"demo\"}",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.EndpointError,
+      payload: {
+        code: "config-error",
+        message: "failed",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageSent,
+      payload: {
+        sessionId: "session-1",
+        message: createMessage({
+          id: "user-6",
+          role: "user",
+          parts: [{ type: "text", text: "hello" }],
+        }),
+      },
+    });
+
+    manager.reset();
+
+    expect(manager.getSnapshot()).toEqual({
+      messages: [],
+      streamingMessage: null,
+      error: null,
+      activeRun: null,
+    });
+
+    manager.dispatch({
+      type: NcpEventType.MessageToolCallResult,
+      payload: {
+        sessionId: "session-1",
+        toolCallId: "tool-6",
+        content: { ok: true },
+      },
+    });
+    expect(manager.getSnapshot().streamingMessage?.id).toBe("tool-tool-6");
+  });
+});
+
+describe("DefaultNcpAgentConversationStateManager hydrated replay", () => {
+  it("hydrate restores history and active run", () => {
+    const manager = new DefaultNcpAgentConversationStateManager();
+
+    manager.hydrate({
+      sessionId: "session-2",
+      messages: [
+        createMessage({
+          id: "user-2",
+          sessionId: "session-2",
+          role: "user",
+          parts: [{ type: "text", text: "hello" }],
+        }),
+        createMessage({
+          id: "assistant-2",
+          sessionId: "session-2",
+          parts: [{ type: "text", text: "partial" }],
+          status: "streaming",
+        }),
+      ],
+      activeRunId: "run-2",
+    });
+
+    expect(manager.getSnapshot()).toEqual({
+      messages: [
+        createMessage({
+          id: "user-2",
+          sessionId: "session-2",
+          role: "user",
+          parts: [{ type: "text", text: "hello" }],
+        }),
+        createMessage({
+          id: "assistant-2",
+          sessionId: "session-2",
+          parts: [{ type: "text", text: "partial" }],
+          status: "streaming",
+        }),
+      ],
+      streamingMessage: null,
+      error: null,
+      activeRun: {
+        runId: "run-2",
+        sessionId: "session-2",
+        abortDisabledReason: null,
+      },
+    });
+  });
+
+  it("promotes hydrated message into streaming state when replay continues with the same message id", () => {
+    const manager = new DefaultNcpAgentConversationStateManager();
+
+    manager.hydrate({
+      sessionId: "session-3",
+      messages: [
+        createMessage({
+          id: "assistant-3",
+          sessionId: "session-3",
+          parts: [{ type: "text", text: "partial" }],
+          status: "streaming",
+        }),
+      ],
+      activeRunId: "run-3",
+    });
+
+    manager.dispatch({
+      type: NcpEventType.MessageTextStart,
+      payload: {
+        sessionId: "session-3",
+        messageId: "assistant-3",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageTextDelta,
+      payload: {
+        sessionId: "session-3",
+        messageId: "assistant-3",
+        delta: " reply",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.RunFinished,
+      payload: {
+        sessionId: "session-3",
+        runId: "run-3",
+      },
+    });
+
+    const snapshot = manager.getSnapshot();
+    expect(snapshot.streamingMessage).toBeNull();
+    expect(snapshot.messages).toHaveLength(1);
+    expect(snapshot.messages[0]).toMatchObject({
+      id: "assistant-3",
+      status: "final",
+      parts: [{ type: "text", text: "partial reply" }],
+    });
+  });
+});

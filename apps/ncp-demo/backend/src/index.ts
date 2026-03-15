@@ -29,6 +29,18 @@ app.get("/demo/sessions/:sessionId/messages", async (c) => {
   return c.json(messages);
 });
 
+app.get("/demo/sessions/:sessionId/seed", async (c) => {
+  const sessionId = c.req.param("sessionId");
+  const [session, messages] = await Promise.all([
+    backend.getSession(sessionId),
+    backend.listSessionMessages(sessionId),
+  ]);
+  return c.json({
+    messages,
+    activeRunId: session?.activeRunId ?? null,
+  });
+});
+
 app.delete("/demo/sessions/:sessionId", async (c) => {
   const sessionId = c.req.param("sessionId");
   await backend.deleteSession(sessionId);

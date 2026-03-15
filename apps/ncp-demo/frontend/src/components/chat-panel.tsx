@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NcpHttpAgentClientEndpoint } from "@nextclaw/ncp-http-agent-client";
-import { useNcpAgent } from "@nextclaw/ncp-react";
+import { useHydratedNcpAgent } from "@nextclaw/ncp-react";
+import { loadConversationSeed } from "../lib/session";
 import { ChatHeader } from "../ui/chat-header";
 import { ChatInput } from "../ui/chat-input";
 import { ErrorBox } from "../ui/error-box";
@@ -19,7 +20,15 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
       baseUrl: window.location.origin,
     });
   }
-  const agent = useNcpAgent(sessionId, ncpClientRef.current);
+  const agent = useHydratedNcpAgent({
+    sessionId,
+    client: ncpClientRef.current,
+    loadSeed: loadConversationSeed,
+  });
+
+  useEffect(() => {
+    setDraft("");
+  }, [sessionId]);
 
   const handleSend = async () => {
     const content = draft.trim();
@@ -45,14 +54,23 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
       />
       <MessageList
         messages={agent.visibleMessages}
-        emptyMessage="Send a message to start."
+        emptyMessage={agent.isHydrating ? "Loading session..." : "Send a message to start."}
       />
-      <ErrorBox error={agent.snapshot.error ?? null} />
+      <ErrorBox
+        error={
+          agent.hydrateError
+            ? {
+                code: "runtime-error",
+                message: agent.hydrateError.message,
+              }
+            : (agent.snapshot.error ?? null)
+        }
+      />
       <ChatInput
         value={draft}
         placeholder="Ask anything. Demo will call get_current_time tool first."
         isSending={agent.isSending}
-        sendDisabled={agent.isSending || agent.isRunning}
+        sendDisabled={agent.isSending || agent.isRunning || agent.isHydrating}
         isRunning={agent.isRunning}
         onChange={setDraft}
         onSend={handleSend}

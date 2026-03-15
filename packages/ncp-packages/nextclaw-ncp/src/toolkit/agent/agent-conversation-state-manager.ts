@@ -18,10 +18,17 @@ import type {
   NcpTextStartPayload,
 } from "../../types/events.js";
 import type { NcpError } from "../../types/errors.js";
+import type { NcpMessage } from "../../types/message.js";
 import type {
   NcpAgentConversationSnapshot,
   NcpConversationStateManager,
 } from "../conversation-state.js";
+
+export type NcpAgentConversationHydrationParams = {
+  sessionId: string;
+  messages: ReadonlyArray<NcpMessage>;
+  activeRunId: string | null;
+};
 
 /**
  * Agent-scenario state manager: extends the generic conversation state manager
@@ -32,6 +39,8 @@ import type {
  */
 export interface NcpAgentConversationStateManager extends NcpConversationStateManager {
   getSnapshot(): NcpAgentConversationSnapshot;
+  reset(): void;
+  hydrate(payload: NcpAgentConversationHydrationParams): void;
   /** Local peer sent a message (outbound); typically non-streaming. Add to messages. */
   handleMessageSent(payload: NcpMessageSentPayload): void;
   handleMessageAbort(payload: NcpMessageAbortPayload): void;

@@ -1,1 +1,4 @@
-export type { NcpAgentConversationStateManager } from "./agent-conversation-state-manager.js";
+export type {
+  NcpAgentConversationHydrationParams,
+  NcpAgentConversationStateManager,
+} from "./agent-conversation-state-manager.js";

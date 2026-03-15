@@ -1,6 +1,7 @@
 import {
   type NcpAgentConversationSnapshot,
   type NcpAgentConversationStateManager,
+  type NcpAgentConversationHydrationParams,
   type NcpEndpointEvent,
   type NcpError,
   type NcpMessage,
@@ -63,20 +64,68 @@ export class DefaultNcpAgentConversationStateManager
 
   private readonly toolCallMessageIdByCallId = new Map<string, string>();
   private readonly toolCallArgsRawByCallId = new Map<string, string>();
+  private snapshotCache: NcpAgentConversationSnapshot | null = null;
+  private snapshotVersion = -1;
   private stateVersion = 0;
 
   getSnapshot(): NcpAgentConversationSnapshot {
-    return {
+    if (this.snapshotCache && this.snapshotVersion === this.stateVersion) {
+      return this.snapshotCache;
+    }
+
+    const snapshot: NcpAgentConversationSnapshot = {
       messages: this.messages.map((message) => cloneMessage(message)),
       streamingMessage: this.streamingMessage ? cloneMessage(this.streamingMessage) : null,
       error: this.error ? { ...this.error, details: this.error.details ? { ...this.error.details } : undefined } : null,
       activeRun: this.activeRun ? { ...this.activeRun } : null,
     };
+    this.snapshotCache = snapshot;
+    this.snapshotVersion = this.stateVersion;
+    return snapshot;
   }
 
   subscribe(listener: (snapshot: NcpAgentConversationSnapshot) => void) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  reset(): void {
+    if (
+      this.messages.length === 0 &&
+      !this.streamingMessage &&
+      !this.error &&
+      !this.activeRun &&
+      this.toolCallMessageIdByCallId.size === 0 &&
+      this.toolCallArgsRawByCallId.size === 0
+    ) {
+      return;
+    }
+
+    this.messages = [];
+    this.streamingMessage = null;
+    this.error = null;
+    this.activeRun = null;
+    this.toolCallMessageIdByCallId.clear();
+    this.toolCallArgsRawByCallId.clear();
+    this.stateVersion += 1;
+    this.notifyListeners();
+  }
+
+  hydrate(payload: NcpAgentConversationHydrationParams): void {
+    this.messages = payload.messages.map((message: NcpMessage) => cloneMessage(message));
+    this.streamingMessage = null;
+    this.error = null;
+    this.activeRun = payload.activeRunId
+      ? {
+          runId: payload.activeRunId,
+          sessionId: payload.sessionId,
+          abortDisabledReason: null,
+        }
+      : null;
+    this.toolCallMessageIdByCallId.clear();
+    this.toolCallArgsRawByCallId.clear();
+    this.stateVersion += 1;
+    this.notifyListeners();
   }
 
   async dispatch(event: NcpEndpointEvent): Promise<void> {
@@ -141,10 +190,7 @@ export class DefaultNcpAgentConversationStateManager
     }
 
     if (this.stateVersion !== versionBeforeDispatch) {
-      const snapshot: NcpAgentConversationSnapshot = this.getSnapshot();
-      for (const listener of this.listeners) {
-        listener(snapshot);
-      }
+      this.notifyListeners();
     }
   }
 
@@ -432,6 +478,22 @@ export class DefaultNcpAgentConversationStateManager
       return nextStreamingMessage;
     }
 
+    const messageIndex = this.messages.findIndex((message) => message.id === messageId);
+    if (messageIndex >= 0) {
+      const existingMessage = cloneMessage(this.messages[messageIndex]!);
+      const nextMessages = [...this.messages];
+      nextMessages.splice(messageIndex, 1);
+      this.messages = nextMessages;
+      this.stateVersion += 1;
+      const nextStreamingMessage = {
+        ...existingMessage,
+        sessionId,
+        status,
+      };
+      this.replaceStreamingMessage(nextStreamingMessage);
+      return nextStreamingMessage;
+    }
+
     const nextStreamingMessage: NcpMessage = {
       id: messageId,
       sessionId,
@@ -582,6 +644,13 @@ export class DefaultNcpAgentConversationStateManager
       }
       this.toolCallMessageIdByCallId.delete(toolCallId);
       this.toolCallArgsRawByCallId.delete(toolCallId);
+    }
+  }
+
+  private notifyListeners(): void {
+    const snapshot: NcpAgentConversationSnapshot = this.getSnapshot();
+    for (const listener of this.listeners) {
+      listener(snapshot);
     }
   }
 }

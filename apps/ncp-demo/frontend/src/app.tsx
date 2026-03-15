@@ -21,7 +21,6 @@ export function App() {
         onRefresh={sessions.refresh}
       />
       <ChatPanel
-        key={sessionId}
         sessionId={sessionId}
         onRefresh={sessions.refresh}
       />

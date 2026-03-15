@@ -1,3 +1,5 @@
+import type { NcpConversationSeed } from "@nextclaw/ncp-react";
+
 export type SessionSummary = {
   sessionId: string;
   messageCount: number;
@@ -35,6 +37,21 @@ export async function refreshSessions(
   }
   const payload = (await response.json()) as SessionSummary[];
   setter(Array.isArray(payload) ? payload : []);
+}
+
+export async function loadConversationSeed(
+  sessionId: string,
+  signal: AbortSignal,
+): Promise<NcpConversationSeed> {
+  const response = await fetch(`/demo/sessions/${sessionId}/seed`, { signal });
+  if (!response.ok) {
+    throw new Error(`Failed to load conversation seed for ${sessionId}.`);
+  }
+  const payload = (await response.json()) as Partial<NcpConversationSeed> | null;
+  return {
+    messages: Array.isArray(payload?.messages) ? payload.messages : [],
+    activeRunId: typeof payload?.activeRunId === "string" ? payload.activeRunId : null,
+  };
 }
 
 export async function deleteSession(sessionId: string): Promise<boolean> {
