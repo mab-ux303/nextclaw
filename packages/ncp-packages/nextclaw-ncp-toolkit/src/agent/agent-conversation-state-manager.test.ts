@@ -321,6 +321,42 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     expect(callbackCount).toBe(1);
   });
 
+  it("does not expose abort as error and finalizes partial reply", () => {
+    const manager = new DefaultNcpAgentConversationStateManager();
+
+    manager.dispatch({
+      type: NcpEventType.MessageTextStart,
+      payload: {
+        sessionId: "session-1",
+        messageId: "assistant-5",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageTextDelta,
+      payload: {
+        sessionId: "session-1",
+        messageId: "assistant-5",
+        delta: "partial",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageAbort,
+      payload: {
+        messageId: "assistant-5",
+        runId: "run-5",
+      },
+    });
+
+    const snapshot = manager.getSnapshot();
+    expect(snapshot.error).toBeNull();
+    expect(snapshot.streamingMessage).toBeNull();
+    expect(snapshot.messages.at(-1)).toMatchObject({
+      id: "assistant-5",
+      status: "final",
+      parts: [{ type: "text", text: "partial" }],
+    });
+  });
+
   it("maps run.error to runtime-error and allows endpoint.error override", () => {
     const manager = new DefaultNcpAgentConversationStateManager();
 

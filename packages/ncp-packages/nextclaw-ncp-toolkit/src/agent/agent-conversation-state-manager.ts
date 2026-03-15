@@ -156,23 +156,19 @@ export class DefaultNcpAgentConversationStateManager
   handleMessageAbort(payload: NcpMessageAbortPayload): void {
     const targetMessageId = payload.messageId?.trim();
     this.clearActiveRun();
-    this.setError({
-      code: "abort-error",
-      message: "Message aborted.",
-      details: {
-        messageId: targetMessageId,
-        correlationId: payload.correlationId,
-      },
-    });
+    this.setError(null);
 
     if (this.streamingMessage && (!targetMessageId || this.streamingMessage.id === targetMessageId)) {
+      const streamingMessageId = this.streamingMessage.id;
       this.upsertMessage({
         ...this.streamingMessage,
-        status: "error",
+        status: "final",
       });
       this.replaceStreamingMessage(null);
       if (targetMessageId) {
         this.clearToolCallTrackingByMessageId(targetMessageId);
+      } else {
+        this.clearToolCallTrackingByMessageId(streamingMessageId);
       }
     }
   }
