@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NcpHttpAgentClientEndpoint } from "@nextclaw/ncp-http-agent-client";
 import { DefaultNcpAgentConversationStateManager } from "@nextclaw/ncp-toolkit";
-import { type NcpAgentConversationSnapshot, type NcpMessage, NcpEventType } from "@nextclaw/ncp";
+import { type NcpAgentConversationSnapshot, type NcpMessage } from "@nextclaw/ncp";
 import type { SessionSummary } from "../lib/session";
 import { refreshSessions } from "../lib/session";
 
@@ -13,7 +13,6 @@ export function useNcpAgent(sessionId: string) {
   const [snapshot, setSnapshot] = useState<NcpAgentConversationSnapshot>(
     () => managerRef.current!.getSnapshot(),
   );
-  const [knownRunIds, setKnownRunIds] = useState<string[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [isSending, setIsSending] = useState(false);
 
@@ -26,31 +25,30 @@ export function useNcpAgent(sessionId: string) {
 
   useEffect(() => {
     const manager = managerRef.current;
-    const client = clientRef.current;
-    if (!manager || !client) {
-      return;
-    }
-
-    const unsubscribeManager = manager.subscribe((nextSnapshot) => {
+    if (!manager) return;
+    const unsubscribe = manager.subscribe((nextSnapshot) => {
       setSnapshot(nextSnapshot);
     });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    void refreshSessions(setSessions);
+  }, []);
+
+  useEffect(() => {
+    const manager = managerRef.current;
+    const client = clientRef.current;
+    if (!manager || !client) return;
 
     const unsubscribeClient = client.subscribe((event) => {
-      if (event.type === NcpEventType.RunStarted && event.payload.runId) {
-        setKnownRunIds((previous) => {
-          if (previous.includes(event.payload.runId!)) {
-            return previous;
-          }
-          return [event.payload.runId!, ...previous].slice(0, 20);
-        });
-      }
       void manager.dispatch(event);
     });
 
-    void refreshSessions(setSessions);
     return () => {
       unsubscribeClient();
-      unsubscribeManager();
       void client.stop();
     };
   }, []);
@@ -59,7 +57,7 @@ export function useNcpAgent(sessionId: string) {
     ? [...snapshot.messages, snapshot.streamingMessage]
     : snapshot.messages;
 
-  const lastRunId = snapshot.activeRun?.runId ?? knownRunIds[0] ?? null;
+  const lastRunId = snapshot.activeRun?.runId ?? null;
   const canSend = !isSending && !snapshot.activeRun;
 
   const send = async (content: string) => {
