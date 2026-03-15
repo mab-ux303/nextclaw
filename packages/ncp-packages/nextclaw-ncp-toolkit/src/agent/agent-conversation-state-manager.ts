@@ -329,16 +329,13 @@ export class DefaultNcpAgentConversationStateManager
 
     const targetMessage = this.ensureStreamingMessage(payload.sessionId, payload.messageId, "streaming");
     const nextParts = [...targetMessage.parts];
-    const reasoningPartIndex = this.findLastReasoningPartIndex(nextParts);
+    const lastPart = nextParts[nextParts.length - 1];
 
-    if (reasoningPartIndex >= 0) {
-      const existingPart = nextParts[reasoningPartIndex];
-      if (existingPart?.type === "reasoning") {
-        nextParts[reasoningPartIndex] = {
-          type: "reasoning",
-          text: `${existingPart.text}${payload.delta}`,
-        };
-      }
+    if (lastPart?.type === "reasoning") {
+      nextParts[nextParts.length - 1] = {
+        type: "reasoning",
+        text: `${lastPart.text}${payload.delta}`,
+      };
     } else {
       nextParts.push({ type: "reasoning", text: payload.delta });
     }
@@ -616,15 +613,6 @@ export class DefaultNcpAgentConversationStateManager
     }
     nextParts.push(toolPart);
     return nextParts;
-  }
-
-  private findLastReasoningPartIndex(parts: NcpMessage["parts"]): number {
-    for (let index = parts.length - 1; index >= 0; index -= 1) {
-      if (parts[index]?.type === "reasoning") {
-        return index;
-      }
-    }
-    return -1;
   }
 
   private upsertMessage(message: NcpMessage): void {

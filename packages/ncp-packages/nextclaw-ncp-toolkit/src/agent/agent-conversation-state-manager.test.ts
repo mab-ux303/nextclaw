@@ -158,7 +158,75 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
       result: { ok: true },
     });
   });
+});
 
+describe("DefaultNcpAgentConversationStateManager reasoning boundaries", () => {
+  it("keeps a new reasoning segment after tool invocation as a separate part", () => {
+    const manager = new DefaultNcpAgentConversationStateManager();
+
+    manager.dispatch({
+      type: NcpEventType.MessageReasoningDelta,
+      payload: {
+        sessionId: "session-1",
+        messageId: "assistant-4",
+        delta: "first thinking",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageToolCallStart,
+      payload: {
+        sessionId: "session-1",
+        messageId: "assistant-4",
+        toolCallId: "tool-2",
+        toolName: "search",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageToolCallArgs,
+      payload: {
+        sessionId: "session-1",
+        toolCallId: "tool-2",
+        args: "{\"q\":\"weather\"}",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageToolCallEnd,
+      payload: {
+        sessionId: "session-1",
+        toolCallId: "tool-2",
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageToolCallResult,
+      payload: {
+        sessionId: "session-1",
+        toolCallId: "tool-2",
+        content: { ok: true },
+      },
+    });
+    manager.dispatch({
+      type: NcpEventType.MessageReasoningDelta,
+      payload: {
+        sessionId: "session-1",
+        messageId: "assistant-4",
+        delta: "second thinking",
+      },
+    });
+
+    const streaming = manager.getSnapshot().streamingMessage;
+    expect(streaming?.parts).toEqual([
+      { type: "reasoning", text: "first thinking" },
+      {
+        type: "tool-invocation",
+        toolCallId: "tool-2",
+        toolName: "search",
+        state: "result",
+        args: "{\"q\":\"weather\"}",
+        result: { ok: true },
+      },
+      { type: "reasoning", text: "second thinking" },
+    ]);
+  });
 });
 
 describe("DefaultNcpAgentConversationStateManager error and notify", () => {
