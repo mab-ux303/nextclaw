@@ -109,7 +109,7 @@ function spawnProcess(label, command, args, extraEnv = {}) {
   });
 }
 
-spawnProcess('server', pnpmBin, ['-C', 'backend', 'exec', 'tsx', 'watch', '--tsconfig', 'tsconfig.json', 'server/index.ts'], {
+spawnProcess('server', pnpmBin, ['-C', 'backend', 'exec', 'tsx', 'watch', '--tsconfig', 'tsconfig.json', 'src/index.ts'], {
   NODE_OPTIONS: nodeOptions,
   NCP_DEMO_PORT: String(backendPort)
 });

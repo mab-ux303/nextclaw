@@ -5,27 +5,48 @@ import type {
   OpenAIChatChunk,
 } from "@nextclaw/ncp";
 
+export type ReasoningEffort = "low" | "medium" | "high" | "none";
+
 export type OpenAICompatibleNcpLLMApiConfig = {
   apiKey: string;
   baseUrl: string;
   model: string;
+  reasoningEffort?: ReasoningEffort;
+  enableThinking?: boolean;
 };
 
 export class OpenAICompatibleNcpLLMApi implements NcpLLMApi {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly model: string;
+  private readonly reasoningEffort?: ReasoningEffort;
+  private readonly enableThinking?: boolean;
 
   constructor(config: OpenAICompatibleNcpLLMApiConfig) {
     this.apiKey = config.apiKey;
     this.baseUrl = config.baseUrl.replace(/\/+$/, "");
     this.model = config.model;
+    this.reasoningEffort = config.reasoningEffort;
+    this.enableThinking = config.enableThinking;
   }
 
   async *generate(
     input: NcpLLMApiInput,
     options?: NcpLLMApiOptions,
   ): AsyncGenerator<OpenAIChatChunk> {
+    const body: Record<string, unknown> = {
+      model: input.model ?? this.model,
+      messages: input.messages,
+      tools: input.tools,
+      stream: true,
+    };
+    if (this.reasoningEffort !== undefined) {
+      body.reasoning_effort = this.reasoningEffort;
+    }
+    if (this.enableThinking !== undefined) {
+      body.enable_thinking = this.enableThinking;
+    }
+
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -33,12 +54,7 @@ export class OpenAICompatibleNcpLLMApi implements NcpLLMApi {
         authorization: `Bearer ${this.apiKey}`,
       },
       signal: options?.signal,
-      body: JSON.stringify({
-        model: input.model ?? this.model,
-        messages: input.messages,
-        tools: input.tools,
-        stream: true,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok || !response.body) {

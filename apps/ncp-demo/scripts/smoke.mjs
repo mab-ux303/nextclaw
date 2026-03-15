@@ -11,7 +11,7 @@ const baseUrl = `http://127.0.0.1:${port}`;
 const loadedEnv = loadNcpDemoEnv(rootDir);
 const baseEnv = { ...loadedEnv, ...process.env };
 
-const server = spawn(pnpmBin, ['-C', 'backend', 'exec', 'tsx', '--tsconfig', 'tsconfig.json', 'server/index.ts'], {
+const server = spawn(pnpmBin, ['-C', 'backend', 'exec', 'tsx', '--tsconfig', 'tsconfig.json', 'src/index.ts'], {
   cwd: rootDir,
   stdio: 'inherit',
   env: {
