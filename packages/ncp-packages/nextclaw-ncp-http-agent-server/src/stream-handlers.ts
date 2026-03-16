@@ -84,10 +84,17 @@ async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGe
     }
   });
 
-  void endpoint.emit(requestEvent).catch((error) => {
-    push(toErrorFrame("EMIT_FAILED", errorMessage(error)));
-    stop();
-  });
+  void endpoint
+    .emit(requestEvent)
+    .catch((error) => {
+      push(toErrorFrame("EMIT_FAILED", errorMessage(error)));
+      stop();
+    })
+    .finally(() => {
+      if (!terminalStopScheduled) {
+        queueMicrotask(stop);
+      }
+    });
 
   try {
     for await (const frame of queue.iterable) {
@@ -98,22 +105,22 @@ async function* createForwardSseEvents(options: ForwardResponseOptions): AsyncGe
   }
 }
 
-/** Stored-stream path: stream stored events from streamProvider, no live agent call. */
-export type StoredStreamResponseOptions = {
+/** Live session stream path: read directly from streamProvider, no extra agent call. */
+export type LiveStreamResponseOptions = {
   streamProvider: NcpHttpAgentStreamProvider;
   payload: NcpStreamRequestPayload;
   signal: AbortSignal;
 };
 
-export function createStoredStreamResponse(options: StoredStreamResponseOptions): Response {
+export function createLiveStreamResponse(options: LiveStreamResponseOptions): Response {
   const { signal } = options;
   return buildSseResponse(
-    createSseEventStream(createStoredStreamSseEvents(options), signal),
+    createSseEventStream(createLiveStreamSseEvents(options), signal),
   );
 }
 
-async function* createStoredStreamSseEvents(
-  options: StoredStreamResponseOptions,
+async function* createLiveStreamSseEvents(
+  options: LiveStreamResponseOptions,
 ): AsyncGenerator<SseEventFrame> {
   const { streamProvider, payload, signal } = options;
   try {
@@ -122,9 +129,7 @@ async function* createStoredStreamSseEvents(
         break;
       }
       yield toNcpEventFrame(event);
-      // Stored replay can include both message.completed and run.finished.
-      // Keep streaming past message.completed so clients can see full run lifecycle.
-      if (isTerminalEvent(event) && event.type !== "message.completed") {
+      if (isTerminalEvent(event)) {
         break;
       }
     }

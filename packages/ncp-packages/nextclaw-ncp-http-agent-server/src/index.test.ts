@@ -82,10 +82,28 @@ describe("createNcpHttpAgentRouter", () => {
     const endpoint = new FakeAgentEndpoint();
     const app = createNcpHttpAgentRouter({ agentClientEndpoint: endpoint });
 
-    const response = await app.request("http://localhost/ncp/agent/stream?sessionId=session-1", {
+    const response = await app.request("http://localhost/ncp/agent/stream", {
       method: "GET",
     });
     expect(response.status).toBe(400);
+  });
+
+  it("closes /stream immediately when no live session is available", async () => {
+    const endpoint = new FakeAgentEndpoint();
+    const app = createNcpHttpAgentRouter({ agentClientEndpoint: endpoint });
+
+    const response = await app.request("http://localhost/ncp/agent/stream?sessionId=session-1", {
+      method: "GET",
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("");
+    expect(endpoint.emitted).toEqual([
+      {
+        type: NcpEventType.MessageStreamRequest,
+        payload: { sessionId: "session-1" },
+      },
+    ]);
   });
 
   it("forwards /abort payload to endpoint", async () => {
@@ -95,14 +113,14 @@ describe("createNcpHttpAgentRouter", () => {
     const response = await app.request("http://localhost/ncp/agent/abort", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ runId: "run-1" }),
+      body: JSON.stringify({ sessionId: "session-1" }),
     });
 
     expect(response.status).toBe(200);
     const abortEvent = endpoint.emitted.find((event) => event.type === NcpEventType.MessageAbort);
     expect(abortEvent).toEqual({
       type: NcpEventType.MessageAbort,
-      payload: { runId: "run-1" },
+      payload: { sessionId: "session-1" },
     });
   });
 });
@@ -115,7 +133,7 @@ class FakeAgentEndpoint implements NcpAgentClientEndpoint {
     supportsStreaming: true,
     supportsAbort: true,
     supportsProactiveMessages: false,
-    supportsRunStream: true,
+    supportsLiveSessionStream: true,
     supportedPartTypes: ["text"],
     expectedLatency: "seconds",
   };
@@ -150,8 +168,8 @@ class FakeAgentEndpoint implements NcpAgentClientEndpoint {
     await this.emit({ type: NcpEventType.MessageStreamRequest, payload });
   }
 
-  async abort(payload?: NcpMessageAbortPayload): Promise<void> {
-    await this.emit({ type: NcpEventType.MessageAbort, payload: payload ?? {} });
+  async abort(payload: NcpMessageAbortPayload): Promise<void> {
+    await this.emit({ type: NcpEventType.MessageAbort, payload });
   }
 
   setEmitHandler(handler: (event: NcpEndpointEvent) => void): void {

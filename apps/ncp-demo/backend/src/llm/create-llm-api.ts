@@ -1,8 +1,5 @@
 import type { NcpLLMApi } from "@nextclaw/ncp";
-import { DemoClockNcpLLMApi } from "./demo-llm.js";
 import { OpenAICompatibleNcpLLMApi } from "./openai-compatible-llm.js";
-
-export type DemoLlmMode = "mock" | "openai";
 
 function parseReasoningEffort(
   value: string | undefined,
@@ -21,30 +18,24 @@ function parseEnableThinking(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
-export function createLlmApi(): { api: NcpLLMApi; mode: DemoLlmMode } {
-  const mode = (process.env.NCP_DEMO_LLM_MODE ?? "auto").trim().toLowerCase();
-  if (mode === "mock") {
-    return { api: new DemoClockNcpLLMApi(), mode: "mock" };
-  }
-
+export function createLlmApi(): NcpLLMApi {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   const baseUrl = process.env.OPENAI_BASE_URL?.trim() || process.env.base_url?.trim();
   const model = process.env.OPENAI_MODEL?.trim() || "gpt-5.3-codex";
   const reasoningEffort = parseReasoningEffort(process.env.NCP_DEMO_REASONING_EFFORT?.trim());
   const enableThinking = parseEnableThinking(process.env.NCP_DEMO_ENABLE_THINKING?.trim());
 
-  if (apiKey && baseUrl) {
-    return {
-      api: new OpenAICompatibleNcpLLMApi({
-        apiKey,
-        baseUrl,
-        model,
-        reasoningEffort,
-        enableThinking,
-      }),
-      mode: "openai",
-    };
+  if (!apiKey || !baseUrl) {
+    throw new Error(
+      "ncp-demo backend requires OPENAI_API_KEY and OPENAI_BASE_URL (or base_url). Mock mode has been removed.",
+    );
   }
 
-  return { api: new DemoClockNcpLLMApi(), mode: "mock" };
+  return new OpenAICompatibleNcpLLMApi({
+    apiKey,
+    baseUrl,
+    model,
+    reasoningEffort,
+    enableThinking,
+  });
 }

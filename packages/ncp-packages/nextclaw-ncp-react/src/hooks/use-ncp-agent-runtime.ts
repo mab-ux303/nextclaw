@@ -112,20 +112,19 @@ export function useNcpAgentRuntime({
   };
 
   const abort = async () => {
-    const runId = snapshot.activeRun?.runId;
-    if (!runId) {
+    if (!snapshot.activeRun) {
       return;
     }
 
-    await client.abort({ runId });
+    await client.abort({ sessionId });
   };
 
   const streamRun = async () => {
-    if (!activeRunId) {
+    if (!snapshot.activeRun) {
       return;
     }
 
-    await client.stream({ sessionId, runId: activeRunId });
+    await client.stream({ sessionId });
   };
 
   return {

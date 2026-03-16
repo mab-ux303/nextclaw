@@ -36,7 +36,7 @@ export class ServerAgentEndpoint implements NcpAgentServerEndpoint {
     supportsStreaming: true,
     supportsAbort: true,
     supportsProactiveMessages: false,
-    supportsRunStream: false,
+    supportsLiveSessionStream: true,
     supportedPartTypes: ["text"],
     expectedLatency: "seconds",
   };
@@ -59,10 +59,10 @@ export class ServerAgentEndpoint implements NcpAgentServerEndpoint {
   }
 
   async *stream(_payload: NcpStreamRequestPayload): AsyncIterable<NcpEndpointEvent> {
-    // 示例省略历史回放实现。
+    // 示例省略 live session stream 实现。
   }
 
-  async abort(_payload: NcpMessageAbortPayload = {}): Promise<void> {
+  async abort(_payload: NcpMessageAbortPayload): Promise<void> {
     // 示例省略中止实现。
   }
 

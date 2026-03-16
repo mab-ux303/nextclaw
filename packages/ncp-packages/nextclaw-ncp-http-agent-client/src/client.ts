@@ -72,7 +72,7 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
       supportsStreaming: true,
       supportsAbort: true,
       supportsProactiveMessages: false,
-      supportsRunStream: true,
+      supportsLiveSessionStream: true,
       supportedPartTypes: SUPPORTED_PART_TYPES,
       expectedLatency: "seconds",
       metadata: { transport: "http+sse", scope: "agent" },
@@ -135,18 +135,14 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
     await this.ensureStarted();
     const query = new URLSearchParams({
       sessionId: payload.sessionId,
-      runId: payload.runId,
     });
-    if (typeof payload.fromEventIndex === "number" && Number.isFinite(payload.fromEventIndex)) {
-      query.set("fromEventIndex", String(Math.max(0, Math.trunc(payload.fromEventIndex))));
-    }
     await this.streamRequest({
       path: `/stream?${query.toString()}`,
       method: "GET",
     });
   }
 
-  async abort(payload: NcpMessageAbortPayload = {}): Promise<void> {
+  async abort(payload: NcpMessageAbortPayload): Promise<void> {
     await this.ensureStarted();
     const controller = new AbortController();
     this.activeControllers.add(controller);

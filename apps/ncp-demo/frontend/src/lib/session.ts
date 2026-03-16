@@ -5,7 +5,6 @@ export type SessionSummary = {
   messageCount: number;
   updatedAt: string;
   status?: "idle" | "running";
-  activeRunId?: string;
 };
 
 const SESSION_STORAGE_KEY = "ncp-demo-session-id";
@@ -50,7 +49,7 @@ export async function loadConversationSeed(
   const payload = (await response.json()) as Partial<NcpConversationSeed> | null;
   return {
     messages: Array.isArray(payload?.messages) ? payload.messages : [],
-    activeRunId: typeof payload?.activeRunId === "string" ? payload.activeRunId : null,
+    status: payload?.status === "running" ? "running" : "idle",
   };
 }
 

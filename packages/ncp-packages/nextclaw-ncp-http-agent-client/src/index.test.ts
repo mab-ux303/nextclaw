@@ -161,8 +161,6 @@ describe("createNcpHttpAgentClient stream and abort", () => {
     await expect(
       client.stream({
         sessionId: "session-1",
-        runId: "run-1",
-        fromEventIndex: 7,
       }),
     ).rejects.toThrow("stream timeout");
 
@@ -170,8 +168,6 @@ describe("createNcpHttpAgentClient stream and abort", () => {
     const requestUrl = calls[0]?.input instanceof URL ? calls[0].input : new URL(String(calls[0]?.input));
     expect(requestUrl.pathname).toBe("/ncp/agent/stream");
     expect(requestUrl.searchParams.get("sessionId")).toBe("session-1");
-    expect(requestUrl.searchParams.get("runId")).toBe("run-1");
-    expect(requestUrl.searchParams.get("fromEventIndex")).toBe("7");
     expect(calls[0]?.init?.method).toBe("GET");
 
     const endpointErrors = received.filter((event) => event.type === "endpoint.error");
@@ -199,13 +195,13 @@ describe("createNcpHttpAgentClient stream and abort", () => {
       fetchImpl,
     });
 
-    await client.abort({ runId: "run-9" });
+    await client.abort({ sessionId: "session-9" });
 
     expect(calls).toHaveLength(1);
     const requestUrl = calls[0]?.input instanceof URL ? calls[0].input : new URL(String(calls[0]?.input));
     expect(requestUrl.pathname).toBe("/ncp/agent/abort");
     expect(calls[0]?.init?.method).toBe("POST");
-    expect(calls[0]?.init?.body).toBe(JSON.stringify({ runId: "run-9" }));
+    expect(calls[0]?.init?.body).toBe(JSON.stringify({ sessionId: "session-9" }));
   });
 
 });
@@ -247,7 +243,7 @@ describe("createNcpHttpAgentClient edge cases", () => {
       received.push(event);
     });
 
-    const abortPromise = client.abort({ runId: "run-11" });
+    const abortPromise = client.abort({ sessionId: "session-11" });
     await Promise.resolve();
     await Promise.resolve();
     await client.stop();

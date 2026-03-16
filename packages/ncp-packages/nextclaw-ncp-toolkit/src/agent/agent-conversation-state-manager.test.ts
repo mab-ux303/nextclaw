@@ -342,8 +342,8 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     manager.dispatch({
       type: NcpEventType.MessageAbort,
       payload: {
+        sessionId: "session-1",
         messageId: "assistant-5",
-        runId: "run-5",
       },
     });
 
@@ -452,8 +452,8 @@ describe("DefaultNcpAgentConversationStateManager hydration", () => {
   });
 });
 
-describe("DefaultNcpAgentConversationStateManager hydrated replay", () => {
-  it("hydrate restores history and active run", () => {
+describe("DefaultNcpAgentConversationStateManager hydration", () => {
+  it("hydrate restores history and resets live run state", () => {
     const manager = new DefaultNcpAgentConversationStateManager();
 
     manager.hydrate({
@@ -472,7 +472,6 @@ describe("DefaultNcpAgentConversationStateManager hydrated replay", () => {
           status: "streaming",
         }),
       ],
-      activeRunId: "run-2",
     });
 
     expect(manager.getSnapshot()).toEqual({
@@ -492,15 +491,48 @@ describe("DefaultNcpAgentConversationStateManager hydrated replay", () => {
       ],
       streamingMessage: null,
       error: null,
+      activeRun: null,
+    });
+  });
+
+  it("hydrate restores a provided live run state", () => {
+    const manager = new DefaultNcpAgentConversationStateManager();
+
+    manager.hydrate({
+      sessionId: "session-2",
+      messages: [
+        createMessage({
+          id: "assistant-2",
+          sessionId: "session-2",
+          parts: [{ type: "text", text: "still running" }],
+          status: "streaming",
+        }),
+      ],
       activeRun: {
-        runId: "run-2",
+        runId: null,
+      },
+    });
+
+    expect(manager.getSnapshot()).toEqual({
+      messages: [
+        createMessage({
+          id: "assistant-2",
+          sessionId: "session-2",
+          parts: [{ type: "text", text: "still running" }],
+          status: "streaming",
+        }),
+      ],
+      streamingMessage: null,
+      error: null,
+      activeRun: {
+        runId: null,
         sessionId: "session-2",
         abortDisabledReason: null,
       },
     });
   });
 
-  it("promotes hydrated message into streaming state when replay continues with the same message id", () => {
+  it("promotes hydrated message into streaming state when a new live stream continues with the same message id", () => {
     const manager = new DefaultNcpAgentConversationStateManager();
 
     manager.hydrate({
@@ -513,7 +545,6 @@ describe("DefaultNcpAgentConversationStateManager hydrated replay", () => {
           status: "streaming",
         }),
       ],
-      activeRunId: "run-3",
     });
 
     manager.dispatch({

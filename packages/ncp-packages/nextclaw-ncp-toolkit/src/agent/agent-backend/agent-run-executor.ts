@@ -1,16 +1,9 @@
 import type { NcpEndpointEvent, NcpRequestEnvelope } from "@nextclaw/ncp";
 import { NcpEventType } from "@nextclaw/ncp";
-import type {
-  AgentRunStore,
-  LiveSessionState,
-  RunControllerRegistry,
-  RunRecord,
-} from "./agent-backend-types.js";
+import type { LiveSessionState } from "./agent-backend-types.js";
 
 export class AgentRunExecutor {
   constructor(
-    private readonly runStore: AgentRunStore,
-    private readonly controllerRegistry: RunControllerRegistry,
     private readonly persistSession: (sessionId: string) => Promise<void>,
   ) {}
 
@@ -19,20 +12,15 @@ export class AgentRunExecutor {
     envelope: NcpRequestEnvelope,
     controller: AbortController,
   ): AsyncGenerator<NcpEndpointEvent> {
-    const pendingEvents: NcpEndpointEvent[] = [
-      {
-        type: NcpEventType.MessageSent,
-        payload: {
-          sessionId: envelope.sessionId,
-          message: structuredClone(envelope.message),
-          metadata: envelope.metadata,
-        },
+    const messageSent: NcpEndpointEvent = {
+      type: NcpEventType.MessageSent,
+      payload: {
+        sessionId: envelope.sessionId,
+        message: structuredClone(envelope.message),
+        metadata: envelope.metadata,
       },
-    ];
-    let pendingEventsStored = false;
-    let runRecord: RunRecord | null = null;
-
-    yield structuredClone(pendingEvents[0]);
+    };
+    let messageSentPublished = false;
 
     try {
       for await (const event of session.runtime.run(
@@ -43,21 +31,10 @@ export class AgentRunExecutor {
         },
         { signal: controller.signal },
       )) {
-        if (event.type === NcpEventType.RunStarted) {
-          runRecord = await this.runStore.createRunRecord(
-            event as Extract<NcpEndpointEvent, { type: typeof NcpEventType.RunStarted }>,
-            envelope,
-          );
-          this.controllerRegistry.register(runRecord.runId, controller);
-        }
-
-        if (runRecord && !pendingEventsStored) {
-          pendingEventsStored = true;
-          await this.runStore.appendEvents(runRecord.runId, pendingEvents);
-        }
-
-        if (runRecord) {
-          await this.runStore.appendEvents(runRecord.runId, [event]);
+        if (!messageSentPublished) {
+          messageSentPublished = true;
+          await this.persistSession(envelope.sessionId);
+          yield structuredClone(messageSent);
         }
 
         await this.persistSession(envelope.sessionId);
@@ -65,19 +42,10 @@ export class AgentRunExecutor {
       }
     } catch (error) {
       if (!controller.signal.aborted) {
-        await this.publishFailure(error, envelope, session, runRecord);
-        if (runRecord) {
-          const failedEvent = await this.readLastRunEvent(runRecord.runId);
-          if (failedEvent) {
-            yield structuredClone(failedEvent);
-          }
-        }
+        const runErrorEvent = await this.publishFailure(error, envelope, session);
+        yield structuredClone(runErrorEvent);
       }
     } finally {
-      if (runRecord?.runId) {
-        this.controllerRegistry.delete(runRecord.runId);
-      }
-
       await this.persistSession(envelope.sessionId);
     }
   }
@@ -86,29 +54,18 @@ export class AgentRunExecutor {
     error: unknown,
     envelope: NcpRequestEnvelope,
     session: LiveSessionState,
-    runRecord: RunRecord | null,
-  ): Promise<void> {
+  ): Promise<NcpEndpointEvent> {
     const message = error instanceof Error ? error.message : String(error);
     const runErrorEvent: NcpEndpointEvent = {
       type: NcpEventType.RunError,
       payload: {
         sessionId: envelope.sessionId,
-        messageId: runRecord?.responseMessageId,
-        runId: runRecord?.runId,
         error: message,
       },
     };
 
     await session.stateManager.dispatch(runErrorEvent);
-    if (runRecord) {
-      await this.runStore.appendEvents(runRecord.runId, [runErrorEvent]);
-    }
-
     await this.persistSession(envelope.sessionId);
-  }
-
-  private async readLastRunEvent(runId: string): Promise<NcpEndpointEvent | null> {
-    const record = await this.runStore.getRunRecord(runId);
-    return record?.events.at(-1) ?? null;
+    return runErrorEvent;
   }
 }

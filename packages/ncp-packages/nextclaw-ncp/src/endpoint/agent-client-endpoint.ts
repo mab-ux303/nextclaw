@@ -15,9 +15,9 @@ export interface NcpAgentClientEndpoint extends NcpEndpoint {
   /** Sends a new message request to the agent. Emits `message.request`. */
   send(envelope: NcpRequestEnvelope): Promise<void>;
 
-  /** Reads the event stream of an existing run. Emits `message.stream-request`. */
+  /** Attaches to the live event stream of a session. Emits `message.stream-request`. */
   stream(payload: NcpStreamRequestPayload): Promise<void>;
 
-  /** Aborts the current or specified run. Emits `message.abort`. */
-  abort(payload?: NcpMessageAbortPayload): Promise<void>;
+  /** Aborts the active execution of a session. Emits `message.abort`. */
+  abort(payload: NcpMessageAbortPayload): Promise<void>;
 }

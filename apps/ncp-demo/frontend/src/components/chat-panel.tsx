@@ -47,7 +47,7 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
     <main className="panel chat-panel">
       <ChatHeader
         title="NCP Agent Demo"
-        streamRunDisabled={!agent.activeRunId}
+        streamRunDisabled={!agent.isRunning}
         abortDisabled={!agent.isRunning}
         onStreamRun={agent.streamRun}
         onAbort={handleAbort}
@@ -68,7 +68,7 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
       />
       <ChatInput
         value={draft}
-        placeholder="Ask anything. Demo will call get_current_time tool first."
+        placeholder="Ask for the time, or ask the agent to sleep for 2 seconds."
         isSending={agent.isSending}
         sendDisabled={agent.isSending || agent.isRunning || agent.isHydrating}
         isRunning={agent.isRunning}

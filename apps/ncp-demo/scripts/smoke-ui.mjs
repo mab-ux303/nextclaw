@@ -17,6 +17,7 @@ const backendBaseUrl = `http://127.0.0.1:${backendPort}`;
 const frontendBaseUrl = `http://127.0.0.1:${frontendPort}`;
 const loadedEnv = loadNcpDemoEnv(rootDir);
 const baseEnv = { ...loadedEnv, ...process.env };
+assertRequiredLlmEnv(baseEnv);
 const browser = await chromium.launch({ headless: true });
 
 function shouldUseShell(command) {
@@ -92,6 +93,22 @@ async function waitForUrl(url) {
   throw new Error(`Service did not become ready in time: ${url}`);
 }
 
+async function waitForSessionStatus(sessionId, expectedStatus) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const response = await fetch(`${backendBaseUrl}/demo/sessions/${sessionId}/seed`);
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload?.status === expectedStatus) {
+          return;
+        }
+      }
+    } catch {}
+    await sleep(250);
+  }
+  throw new Error(`Session ${sessionId} did not reach status ${expectedStatus} in time.`);
+}
+
 const nodeOptions = [baseEnv.NODE_OPTIONS, "--conditions=development"]
   .filter((value) => typeof value === "string" && value.trim().length > 0)
   .join(" ");
@@ -106,7 +123,6 @@ const backend = spawn(
       ...baseEnv,
       NODE_OPTIONS: nodeOptions,
       NCP_DEMO_PORT: String(backendPort),
-      NCP_DEMO_LLM_MODE: "mock",
     },
     shell: shouldUseShell(pnpmBin),
   },
@@ -143,6 +159,8 @@ async function main() {
   const context = await browser.newContext();
   const page = await context.newPage();
   const firstPrompt = "remember-alpha";
+  const longRunningPrompt = "Call the sleep tool with durationMs 10000 right now, then reply only with done.";
+  const placeholder = "Ask for the time, or ask the agent to sleep for 2 seconds.";
 
   try {
     page.on("console", (message) => {
@@ -158,9 +176,9 @@ async function main() {
     await waitForUrl(frontendBaseUrl);
 
     await page.goto(frontendBaseUrl, { waitUntil: "domcontentloaded" });
-    await page.getByPlaceholder("Ask anything. Demo will call get_current_time tool first.").waitFor();
+    await page.getByPlaceholder(placeholder).waitFor();
 
-    await page.getByPlaceholder("Ask anything. Demo will call get_current_time tool first.").fill(firstPrompt);
+    await page.getByPlaceholder(placeholder).fill(firstPrompt);
     await page.getByRole("button", { name: "send" }).click();
 
     await page.locator(".message.user", { hasText: firstPrompt }).waitFor();
@@ -177,9 +195,38 @@ async function main() {
     await page.locator(".session-card", { hasText: sessionId }).click();
     await page.locator(".message.user", { hasText: firstPrompt }).waitFor();
 
+    await page.getByPlaceholder(placeholder).fill(longRunningPrompt);
+    await page.getByRole("button", { name: "send" }).click();
+    await page.locator(".message.user", { hasText: longRunningPrompt }).waitFor();
+    await page.getByRole("button", { name: "stop" }).waitFor();
+    await waitForSessionStatus(sessionId, "running");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByPlaceholder(placeholder).waitFor();
+    await page.getByRole("button", { name: "stop" }).waitFor();
+
+    await page.getByRole("button", { name: "stop" }).click();
+    await waitForSessionStatus(sessionId, "idle");
+
     console.log("[smoke-ui] ncp demo session hydration passed");
   } finally {
     await context.close();
+  }
+}
+
+function assertRequiredLlmEnv(env) {
+  const apiKey = typeof env.OPENAI_API_KEY === "string" ? env.OPENAI_API_KEY.trim() : "";
+  const baseUrl =
+    typeof env.OPENAI_BASE_URL === "string" && env.OPENAI_BASE_URL.trim()
+      ? env.OPENAI_BASE_URL.trim()
+      : typeof env.base_url === "string"
+        ? env.base_url.trim()
+        : "";
+
+  if (!apiKey || !baseUrl) {
+    throw new Error(
+      "ncp-demo smoke-ui requires OPENAI_API_KEY and OPENAI_BASE_URL (or base_url). Mock mode has been removed.",
+    );
   }
 }
 

@@ -40,8 +40,8 @@ export type NcpEndpointManifest = {
   supportsAbort: boolean;
   /** Whether this endpoint can push messages without a prior user request. */
   supportsProactiveMessages: boolean;
-  /** Whether this endpoint can stream the events of an existing run by `runId`. */
-  supportsRunStream: boolean;
+  /** Whether this endpoint can stream the live events of an active session by `sessionId`. */
+  supportsLiveSessionStream: boolean;
   /**
    * The subset of `NcpMessagePart` types this endpoint can send or receive.
    * Using the literal union from `NcpMessagePart["type"]` prevents typos

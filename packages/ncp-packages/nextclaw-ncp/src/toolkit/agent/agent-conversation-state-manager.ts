@@ -19,6 +19,7 @@ import type {
 } from "../../types/events.js";
 import type { NcpError } from "../../types/errors.js";
 import type { NcpMessage } from "../../types/message.js";
+import type { NcpRunContext } from "../../types/run.js";
 import type {
   NcpAgentConversationSnapshot,
   NcpConversationStateManager,
@@ -27,7 +28,7 @@ import type {
 export type NcpAgentConversationHydrationParams = {
   sessionId: string;
   messages: ReadonlyArray<NcpMessage>;
-  activeRunId: string | null;
+  activeRun?: NcpRunContext | null;
 };
 
 /**

@@ -49,21 +49,18 @@ export type NcpMessageAcceptedPayload = {
   transportId?: string;
 };
 
-/** Payload for message.abort: identifies which request or run to cancel. */
+/** Payload for message.abort: identifies which session's active execution to cancel. */
 export type NcpMessageAbortPayload = {
+  sessionId: string;
   messageId?: string;
-  correlationId?: string;
-  runId?: string;
 };
 
 /**
- * Payload for message.stream-request: read the event stream of an existing run.
- * Used when reconnecting after page refresh or attaching a second reader.
+ * Payload for message.stream-request: attach to the live event stream of a session.
+ * Used when reconnecting during an active response or attaching another live reader.
  */
 export type NcpStreamRequestPayload = {
   sessionId: string;
-  runId: string;
-  fromEventIndex?: number;
   metadata?: Record<string, unknown>;
 };
 

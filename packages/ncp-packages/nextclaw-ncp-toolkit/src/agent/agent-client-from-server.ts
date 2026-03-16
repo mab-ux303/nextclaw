@@ -35,7 +35,7 @@ export function createAgentClientFromServer(
           await consume(server.stream(event.payload));
           return;
         case NcpEventType.MessageAbort:
-          await server.abort(event.payload ?? {});
+          await server.abort(event.payload);
           return;
         default:
           await server.emit(event);
@@ -50,8 +50,8 @@ export function createAgentClientFromServer(
     async stream(payload: NcpStreamRequestPayload): Promise<void> {
       await consume(server.stream(payload));
     },
-    async abort(payload?: NcpMessageAbortPayload): Promise<void> {
-      await server.abort(payload ?? {});
+    async abort(payload: NcpMessageAbortPayload): Promise<void> {
+      await server.abort(payload);
     },
   };
 }

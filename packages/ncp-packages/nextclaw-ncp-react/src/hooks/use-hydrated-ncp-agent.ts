@@ -4,7 +4,7 @@ import { useNcpAgentRuntime, useScopedAgentManager, type UseNcpAgentResult } fro
 
 export type NcpConversationSeed = {
   messages: readonly NcpMessage[];
-  activeRunId: string | null;
+  status: "idle" | "running";
 };
 
 export type NcpConversationSeedLoader = (
@@ -70,13 +70,20 @@ export function useHydratedNcpAgent({
       manager.hydrate({
         sessionId,
         messages: seed.messages,
-        activeRunId: seed.activeRunId,
+        activeRun:
+          seed.status === "running"
+            ? {
+                runId: null,
+                sessionId,
+                abortDisabledReason: null,
+              }
+            : null,
       });
       setHydrateError(null);
       setIsHydrating(false);
 
-      if (seed.activeRunId && autoResumeRunningSession) {
-        void client.stream({ sessionId, runId: seed.activeRunId }).catch((error) => {
+      if (seed.status === "running" && autoResumeRunningSession) {
+        void client.stream({ sessionId }).catch((error) => {
           if (loadStateRef.current.requestId !== requestId) {
             return;
           }

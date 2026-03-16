@@ -4,7 +4,7 @@ import {
   parseRequestEnvelope,
   parseStreamPayloadFromUrl,
 } from "./parsers.js";
-import { createForwardResponse, createStoredStreamResponse } from "./stream-handlers.js";
+import { createForwardResponse, createLiveStreamResponse } from "./stream-handlers.js";
 import { jsonResponse } from "./utils.js";
 import type { NcpHttpAgentHandler, NcpHttpAgentHandlerOptions } from "./handler-interface.js";
 
@@ -42,13 +42,13 @@ export class NcpHttpAgentController implements NcpHttpAgentHandler {
     const streamPayload = parseStreamPayloadFromUrl(request.url);
     if (!streamPayload) {
       return jsonResponse(
-        { ok: false, error: { code: "INVALID_QUERY", message: "sessionId and runId are required." } },
+        { ok: false, error: { code: "INVALID_QUERY", message: "sessionId is required." } },
         400,
       );
     }
 
     if (streamProvider) {
-      return createStoredStreamResponse({
+      return createLiveStreamResponse({
         streamProvider,
         payload: streamPayload,
         signal: request.signal,
@@ -62,7 +62,6 @@ export class NcpHttpAgentController implements NcpHttpAgentHandler {
       timeoutMs,
       scope: {
         sessionId: streamPayload.sessionId,
-        runId: streamPayload.runId,
       },
     });
   }
@@ -70,6 +69,12 @@ export class NcpHttpAgentController implements NcpHttpAgentHandler {
   async handleAbort(request: Request): Promise<Response> {
     const { agentClientEndpoint } = this.options;
     const payload = await parseAbortPayload(request);
+    if (!payload) {
+      return jsonResponse(
+        { ok: false, error: { code: "INVALID_BODY", message: "sessionId is required." } },
+        400,
+      );
+    }
     await agentClientEndpoint.abort(payload);
     return jsonResponse({ ok: true });
   }

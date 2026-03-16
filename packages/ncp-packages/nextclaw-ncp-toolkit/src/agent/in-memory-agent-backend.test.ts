@@ -16,9 +16,7 @@ import {
 } from "@nextclaw/ncp-agent-runtime";
 import {
   DefaultNcpAgentBackend,
-  InMemoryAgentRunStore,
   InMemoryAgentSessionStore,
-  InMemoryRunControllerRegistry,
 } from "./index.js";
 
 const now = "2026-03-15T00:00:00.000Z";
@@ -39,8 +37,6 @@ const createEnvelope = (text: string): NcpRequestEnvelope => ({
 function createBackend(llmApi: NcpLLMApi) {
   return new DefaultNcpAgentBackend({
     sessionStore: new InMemoryAgentSessionStore(),
-    runStore: new InMemoryAgentRunStore(),
-    controllerRegistry: new InMemoryRunControllerRegistry(),
     createRuntime: ({ stateManager }: { stateManager: NcpAgentConversationStateManager }) => {
       const toolRegistry = new DefaultNcpToolRegistry();
       return new DefaultNcpAgentRuntime({
@@ -53,8 +49,8 @@ function createBackend(llmApi: NcpLLMApi) {
   });
 }
 
-describe("DefaultNcpAgentBackend with in-memory stores", () => {
-  it("stores finalized assistant message and replays run events", async () => {
+describe("DefaultNcpAgentBackend with in-memory session store", () => {
+  it("stores finalized assistant message and exposes session status", async () => {
     const backend = createBackend(new EchoNcpLLMApi());
     const events: string[] = [];
     backend.subscribe((event) => {
@@ -83,28 +79,54 @@ describe("DefaultNcpAgentBackend with in-memory stores", () => {
       status: "final",
       parts: [{ type: "text", text: "hello" }],
     });
-
-    const runStarted = await findRunId(backend, createEnvelope("hello"));
-    const replayed: string[] = [];
-    const signal = new AbortController().signal;
-    for await (const event of backend.stream({
-      payload: { sessionId: "session-1", runId: runStarted },
-      signal,
-    })) {
-      replayed.push(event.type);
-    }
-
-    expect(replayed).toContain(NcpEventType.MessageSent);
-    expect(replayed).not.toContain(NcpEventType.MessageCompleted);
-    expect(replayed.at(-1)).toBe(NcpEventType.RunFinished);
   });
 
-  it("aborts a slow run and clears session status", async () => {
+  it("streams live session events for an active session", async () => {
     const backend = createBackend(new SlowEchoNcpLLMApi());
-    const runIds: string[] = [];
+    const requestPromise = backend.emit({
+      type: NcpEventType.MessageRequest,
+      payload: createEnvelope("slow"),
+    });
+
+    await waitFor(async () => (await backend.getSession("session-1"))?.status === "running");
+
+    const streamed: string[] = [];
+    for await (const event of backend.stream({
+      payload: { sessionId: "session-1" },
+      signal: new AbortController().signal,
+    })) {
+      streamed.push(event.type);
+    }
+
+    await requestPromise;
+
+    expect(streamed).toContain(NcpEventType.MessageTextDelta);
+    expect(streamed.at(-1)).toBe(NcpEventType.RunFinished);
+  });
+
+  it("aborts a slow run by session id and clears session status", async () => {
+    const backend = createBackend(new SlowEchoNcpLLMApi());
+    const requestPromise = backend.emit({
+      type: NcpEventType.MessageRequest,
+      payload: createEnvelope("slow"),
+    });
+
+    await waitFor(async () => (await backend.getSession("session-1"))?.status === "running");
+    await backend.abort({ sessionId: "session-1" });
+    await requestPromise;
+
+    const session = await backend.getSession("session-1");
+    expect(session?.status).toBe("idle");
+  });
+
+  it("does not duplicate live events when attaching a session stream", async () => {
+    const llmApi = new GatedEchoNcpLLMApi();
+    const backend = createBackend(llmApi);
+    const textDeltas: string[] = [];
+
     backend.subscribe((event) => {
-      if (event.type === NcpEventType.RunStarted && event.payload.runId) {
-        runIds.push(event.payload.runId);
+      if (event.type === NcpEventType.MessageTextDelta) {
+        textDeltas.push(event.payload.delta);
       }
     });
 
@@ -113,28 +135,21 @@ describe("DefaultNcpAgentBackend with in-memory stores", () => {
       payload: createEnvelope("slow"),
     });
 
-    await waitFor(() => runIds.length > 0);
-    await backend.emit({
-      type: NcpEventType.MessageAbort,
-      payload: { runId: runIds[0] },
+    await llmApi.started;
+    const streamPromise = backend.emit({
+      type: NcpEventType.MessageStreamRequest,
+      payload: { sessionId: "session-1" },
     });
-    await requestPromise;
 
-    const session = await backend.getSession("session-1");
-    expect(session?.status).toBe("idle");
-    const replayed: string[] = [];
-    for await (const event of backend.stream({
-      payload: { sessionId: "session-1", runId: runIds[0] },
-      signal: new AbortController().signal,
-    })) {
-      replayed.push(event.type);
-    }
-    expect(replayed).toContain(NcpEventType.MessageAbort);
+    llmApi.release();
+    await Promise.all([requestPromise, streamPromise]);
+
+    expect(textDeltas).toEqual(["s", "l", "o", "w"]);
   });
 });
 
 describe("DefaultNcpAgentBackend", () => {
-  it("accepts injected stores through the generic core", async () => {
+  it("accepts an injected session store through the generic core", async () => {
     const sessionStore = new RecordingSessionStore();
     const backend = new DefaultNcpAgentBackend({
       createRuntime: ({ stateManager }: { stateManager: NcpAgentConversationStateManager }) => {
@@ -147,8 +162,6 @@ describe("DefaultNcpAgentBackend", () => {
         });
       },
       sessionStore,
-      runStore: new InMemoryAgentRunStore(),
-      controllerRegistry: new InMemoryRunControllerRegistry(),
     });
 
     await backend.emit({
@@ -164,27 +177,6 @@ describe("DefaultNcpAgentBackend", () => {
     });
   });
 });
-
-async function findRunId(
-  backend: DefaultNcpAgentBackend,
-  envelope: NcpRequestEnvelope,
-): Promise<string> {
-  const runIds: string[] = [];
-  const unsubscribe = backend.subscribe((event) => {
-    if (event.type === NcpEventType.RunStarted && event.payload.runId) {
-      runIds.push(event.payload.runId);
-    }
-  });
-  try {
-    await backend.emit({ type: NcpEventType.MessageRequest, payload: envelope });
-  } finally {
-    unsubscribe();
-  }
-  if (!runIds[0]) {
-    throw new Error("Missing run.started event.");
-  }
-  return runIds[0];
-}
 
 class SlowEchoNcpLLMApi implements NcpLLMApi {
   async *generate(
@@ -207,6 +199,41 @@ class SlowEchoNcpLLMApi implements NcpLLMApi {
   }
 }
 
+class GatedEchoNcpLLMApi implements NcpLLMApi {
+  private readonly startedDeferred = createDeferred<void>();
+  private readonly releaseDeferred = createDeferred<void>();
+
+  get started(): Promise<void> {
+    return this.startedDeferred.promise;
+  }
+
+  release(): void {
+    this.releaseDeferred.resolve();
+  }
+
+  async *generate(
+    input: NcpLLMApiInput,
+    options?: NcpLLMApiOptions,
+  ): AsyncGenerator<OpenAIChatChunk> {
+    const text = getLastUserText(input);
+    this.startedDeferred.resolve();
+    await this.releaseDeferred.promise;
+
+    for (const char of text) {
+      if (options?.signal?.aborted) {
+        break;
+      }
+      yield {
+        choices: [{ index: 0, delta: { content: char } }],
+      };
+    }
+
+    yield {
+      choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+    };
+  }
+}
+
 function getLastUserText(input: NcpLLMApiInput): string {
   for (let index = input.messages.length - 1; index >= 0; index -= 1) {
     const message = input.messages[index];
@@ -217,9 +244,9 @@ function getLastUserText(input: NcpLLMApiInput): string {
   return "";
 }
 
-async function waitFor(assertion: () => boolean): Promise<void> {
+async function waitFor(assertion: () => boolean | Promise<boolean>): Promise<void> {
   for (let index = 0; index < 100; index += 1) {
-    if (assertion()) {
+    if (await assertion()) {
       return;
     }
     await sleep(10);
@@ -229,6 +256,14 @@ async function waitFor(assertion: () => boolean): Promise<void> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((innerResolve) => {
+    resolve = innerResolve;
+  });
+  return { promise, resolve };
 }
 
 class RecordingSessionStore extends InMemoryAgentSessionStore {

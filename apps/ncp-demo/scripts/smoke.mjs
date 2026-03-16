@@ -13,6 +13,7 @@ const port = await resolveFreePort(DEFAULT_PORT, '127.0.0.1');
 const baseUrl = `http://127.0.0.1:${port}`;
 const loadedEnv = loadNcpDemoEnv(rootDir);
 const baseEnv = { ...loadedEnv, ...process.env };
+assertRequiredLlmEnv(baseEnv);
 
 function isPortAvailable(portToCheck, host) {
   return new Promise((resolveAvailable) => {
@@ -72,8 +73,7 @@ const server = spawn(pnpmBin, ['-C', 'backend', 'exec', 'tsx', '--tsconfig', 'ts
   env: {
     ...baseEnv,
     NODE_OPTIONS: [baseEnv.NODE_OPTIONS, '--conditions=development'].filter(Boolean).join(' '),
-    NCP_DEMO_PORT: String(port),
-    NCP_DEMO_LLM_MODE: 'mock'
+    NCP_DEMO_PORT: String(port)
   },
   shell: process.platform === 'win32'
 });
@@ -121,7 +121,7 @@ async function main() {
         sessionId,
         role: 'user',
         status: 'final',
-        parts: [{ type: 'text', text: '现在几点？' }],
+        parts: [{ type: 'text', text: 'Use the get_current_time tool for Asia/Shanghai, then tell me the current time.' }],
         timestamp: new Date().toISOString()
       }
     };
@@ -141,26 +141,35 @@ async function main() {
       throw new Error('Smoke send flow did not produce run.started/tool result/run.finished.');
     }
 
-    const runId = runStarted.payload.runId;
-
     const sessions = await fetch(`${baseUrl}/demo/sessions`).then((res) => res.json());
     if (!Array.isArray(sessions) || sessions.length === 0) {
       throw new Error('Smoke sessions endpoint returned no sessions.');
     }
 
-    const streamResponse = await fetch(`${baseUrl}/ncp/agent/stream?sessionId=${sessionId}&runId=${runId}`, {
-      headers: { accept: 'text/event-stream' }
-    });
-    const streamFrames = parseSseFrames(await streamResponse.text());
-    const streamEvents = streamFrames.filter((frame) => frame.event === 'ncp-event').map((frame) => frame.data);
-    const replayFinished = streamEvents.find((event) => event.type === 'run.finished');
-    if (!replayFinished) {
-      throw new Error('Smoke stream flow did not finish.');
+    const seed = await fetch(`${baseUrl}/demo/sessions/${sessionId}/seed`).then((res) => res.json());
+    if (seed?.status !== 'idle' || !Array.isArray(seed?.messages) || seed.messages.length === 0) {
+      throw new Error('Smoke seed endpoint did not return persisted session history.');
     }
 
     console.log('[smoke] ncp demo passed');
   } finally {
     server.kill('SIGTERM');
+  }
+}
+
+function assertRequiredLlmEnv(env) {
+  const apiKey = typeof env.OPENAI_API_KEY === 'string' ? env.OPENAI_API_KEY.trim() : '';
+  const baseUrl =
+    typeof env.OPENAI_BASE_URL === 'string' && env.OPENAI_BASE_URL.trim()
+      ? env.OPENAI_BASE_URL.trim()
+      : typeof env.base_url === 'string'
+        ? env.base_url.trim()
+        : '';
+
+  if (!apiKey || !baseUrl) {
+    throw new Error(
+      'ncp-demo smoke requires OPENAI_API_KEY and OPENAI_BASE_URL (or base_url). Mock mode has been removed.',
+    );
   }
 }
 

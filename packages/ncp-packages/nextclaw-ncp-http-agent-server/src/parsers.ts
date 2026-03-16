@@ -45,41 +45,33 @@ export async function parseRequestEnvelope(request: Request): Promise<NcpRequest
 export function parseStreamPayloadFromUrl(url: string): NcpStreamRequestPayload | null {
   const query = new URL(url).searchParams;
   const sessionId = query.get("sessionId")?.trim();
-  const runId = query.get("runId")?.trim();
-  if (!sessionId || !runId) {
+  if (!sessionId) {
     return null;
   }
 
-  const fromEventIndexRaw = query.get("fromEventIndex");
-  const fromEventIndex =
-    typeof fromEventIndexRaw === "string" && Number.isFinite(Number.parseInt(fromEventIndexRaw, 10))
-      ? Math.max(0, Number.parseInt(fromEventIndexRaw, 10))
-      : undefined;
-
   return {
     sessionId,
-    runId,
-    ...(typeof fromEventIndex === "number" ? { fromEventIndex } : {}),
   };
 }
 
-export async function parseAbortPayload(request: Request): Promise<NcpMessageAbortPayload> {
+export async function parseAbortPayload(request: Request): Promise<NcpMessageAbortPayload | null> {
   try {
     const payload = (await request.json()) as unknown;
     if (!isRecord(payload)) {
-      return {};
+      return null;
+    }
+    const sessionId = readTrimmedString(payload.sessionId);
+    if (!sessionId) {
+      return null;
     }
     const messageId = readTrimmedString(payload.messageId);
-    const correlationId = readTrimmedString(payload.correlationId);
-    const runId = readTrimmedString(payload.runId);
 
     return {
+      sessionId,
       ...(messageId ? { messageId } : {}),
-      ...(correlationId ? { correlationId } : {}),
-      ...(runId ? { runId } : {}),
     };
   } catch {
-    return {};
+    return null;
   }
 }
 

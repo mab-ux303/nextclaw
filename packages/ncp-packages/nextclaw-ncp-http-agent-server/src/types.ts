@@ -15,22 +15,20 @@ export type EventScope = {
 };
 
 /**
- * Streams stored session events for `/stream`.
+ * Streams live session events for `/stream`.
  *
  * **Scenario**: User sends a message, agent streams SSE back. Network drops mid-stream.
- * User reconnects and requests `GET /stream?sessionId=xxx&runId=yyy` to
- * "continue watching the previous reply".
+ * User reconnects and requests `GET /stream?sessionId=xxx` to continue following
+ * the current live response for that session.
  *
  * **Two paths**:
- * - **Stored stream** (with streamProvider): Do not call agent. Fetch that run's events
- *   (message.accepted, message.text-delta, message.completed, etc.) from persistence
- *   and stream them in order. Use when you have session/event storage and want to
- *   avoid re-running the agent.
+ * - **Session stream** (with streamProvider): Do not call agent again. Attach to the
+ *   active session's live event stream.
  * - **Forward** (no streamProvider): Forward `message.stream-request` to the agent
- *   and let it recover or re-run.
+ *   and let the upstream endpoint provide the live stream.
  *
- * **Implementation**: `stream` fetches events by payload.sessionId and payload.runId
- * from your storage and yields them in order.
+ * **Implementation**: `stream` attaches by payload.sessionId and yields live events
+ * for that active session.
  */
 export type NcpHttpAgentStreamProvider = {
   stream(params: {
@@ -45,7 +43,8 @@ export type NcpHttpAgentServerOptions = {
   basePath?: string;
   requestTimeoutMs?: number;
   /**
-   * Optional. When set, `/stream` serves stored events instead of forwarding to the agent.
+   * Optional. When set, `/stream` serves live session events from streamProvider instead of
+   * forwarding to the agent.
    * When not set, forwards `message.stream-request` to the agent.
    */
   streamProvider?: NcpHttpAgentStreamProvider;

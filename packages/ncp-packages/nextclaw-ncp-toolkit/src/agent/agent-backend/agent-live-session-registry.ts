@@ -25,13 +25,13 @@ export class AgentLiveSessionRegistry {
     stateManager.hydrate({
       sessionId,
       messages: cloneMessages(storedSession?.messages ?? []),
-      activeRunId: storedSession?.activeRunId ?? null,
     });
 
     const session: LiveSessionState = {
       sessionId,
       stateManager,
       runtime: this.createRuntime({ sessionId, stateManager }),
+      activeExecution: null,
     };
     this.sessions.set(sessionId, session);
     return session;
@@ -51,6 +51,10 @@ export class AgentLiveSessionRegistry {
 
   clear(): void {
     this.sessions.clear();
+  }
+
+  listSessions(): LiveSessionState[] {
+    return [...this.sessions.values()];
   }
 }
 

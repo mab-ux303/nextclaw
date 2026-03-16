@@ -23,14 +23,14 @@ export interface NcpAgentServerEndpoint extends NcpEndpoint {
     options?: { signal?: AbortSignal },
   ): AsyncIterable<NcpEndpointEvent>;
 
-  /** Replays/streams events for an existing run and yields produced events. */
+  /** Streams live events for an active session and yields produced events. */
   stream(
     payload: NcpStreamRequestPayload,
     options?: { signal?: AbortSignal },
   ): AsyncIterable<NcpEndpointEvent>;
 
-  /** Aborts the current or specified run on server side. */
-  abort(payload?: NcpMessageAbortPayload): Promise<void>;
+  /** Aborts the active execution of a session on server side. */
+  abort(payload: NcpMessageAbortPayload): Promise<void>;
 
   /**
    * Publishes server-downstream events (typically sent to frontend subscribers/transports).

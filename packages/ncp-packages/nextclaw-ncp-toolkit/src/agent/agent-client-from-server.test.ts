@@ -19,12 +19,12 @@ describe("createAgentClientFromServer", () => {
     const client = createAgentClientFromServer(server);
 
     await client.send(createEnvelope("hello"));
-    await client.stream({ sessionId: "session-1", runId: "run-1" });
-    await client.abort({ runId: "run-1" });
+    await client.stream({ sessionId: "session-1" });
+    await client.abort({ sessionId: "session-1" });
 
     expect(server.sendCalls).toHaveLength(1);
     expect(server.streamCalls).toHaveLength(1);
-    expect(server.abortCalls).toEqual([{ runId: "run-1" }]);
+    expect(server.abortCalls).toEqual([{ sessionId: "session-1" }]);
     expect(server.sendIteratorConsumed).toBe(1);
     expect(server.streamIteratorConsumed).toBe(1);
   });
@@ -37,13 +37,13 @@ describe("createAgentClientFromServer", () => {
     await client.emit({ type: NcpEventType.MessageRequest, payload: envelope });
     await client.emit({
       type: NcpEventType.MessageStreamRequest,
-      payload: { sessionId: "session-1", runId: "run-2" },
+      payload: { sessionId: "session-1" },
     });
-    await client.emit({ type: NcpEventType.MessageAbort, payload: { runId: "run-2" } });
+    await client.emit({ type: NcpEventType.MessageAbort, payload: { sessionId: "session-1" } });
 
     expect(server.sendCalls).toEqual([envelope]);
-    expect(server.streamCalls).toEqual([{ sessionId: "session-1", runId: "run-2" }]);
-    expect(server.abortCalls).toEqual([{ runId: "run-2" }]);
+    expect(server.streamCalls).toEqual([{ sessionId: "session-1" }]);
+    expect(server.abortCalls).toEqual([{ sessionId: "session-1" }]);
     expect(server.emitCalls).toHaveLength(0);
   });
 
@@ -70,14 +70,6 @@ describe("createAgentClientFromServer", () => {
     expect(server.emitCalls).toEqual([event]);
   });
 
-  it("uses empty payload when abort is called without params", async () => {
-    const server = new FakeServerEndpoint();
-    const client = createAgentClientFromServer(server);
-
-    await client.abort();
-
-    expect(server.abortCalls).toEqual([{}]);
-  });
 });
 
 class FakeServerEndpoint implements NcpAgentServerEndpoint {
@@ -88,7 +80,7 @@ class FakeServerEndpoint implements NcpAgentServerEndpoint {
     supportsStreaming: true,
     supportsAbort: true,
     supportsProactiveMessages: false,
-    supportsRunStream: true,
+    supportsLiveSessionStream: true,
     supportedPartTypes: ["text"],
     expectedLatency: "seconds",
   };
@@ -123,11 +115,11 @@ class FakeServerEndpoint implements NcpAgentServerEndpoint {
     this.streamIteratorConsumed += 1;
     yield {
       type: NcpEventType.RunFinished,
-      payload: { sessionId: payload.sessionId, runId: payload.runId },
+      payload: { sessionId: payload.sessionId, runId: "run-from-stream" },
     };
   }
 
-  async abort(payload: NcpMessageAbortPayload = {}): Promise<void> {
+  async abort(payload: NcpMessageAbortPayload): Promise<void> {
     this.abortCalls.push(payload);
   }
 

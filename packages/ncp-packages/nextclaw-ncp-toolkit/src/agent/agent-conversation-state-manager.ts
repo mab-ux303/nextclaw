@@ -115,11 +115,11 @@ export class DefaultNcpAgentConversationStateManager
     this.messages = payload.messages.map((message: NcpMessage) => cloneMessage(message));
     this.streamingMessage = null;
     this.error = null;
-    this.activeRun = payload.activeRunId
+    this.activeRun = payload.activeRun
       ? {
-          runId: payload.activeRunId,
-          sessionId: payload.sessionId,
-          abortDisabledReason: null,
+          ...payload.activeRun,
+          sessionId: payload.activeRun.sessionId ?? payload.sessionId,
+          abortDisabledReason: payload.activeRun.abortDisabledReason ?? null,
         }
       : null;
     this.toolCallMessageIdByCallId.clear();

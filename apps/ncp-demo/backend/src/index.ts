@@ -8,14 +8,14 @@ import { createDemoBackend } from "./backend.js";
 const port = parsePort(process.env.NCP_DEMO_PORT, 3197);
 const host = "127.0.0.1";
 
-const { backend, llmMode } = createDemoBackend();
+const { backend } = createDemoBackend();
 const agentClient = createAgentClientFromServer(backend);
 
 const app = new Hono();
 app.use("*", cors());
 
 app.get("/health", (c) => {
-  return c.json({ ok: true, llmMode });
+  return c.json({ ok: true });
 });
 
 app.get("/demo/sessions", async (c) => {
@@ -37,7 +37,7 @@ app.get("/demo/sessions/:sessionId/seed", async (c) => {
   ]);
   return c.json({
     messages,
-    activeRunId: session?.activeRunId ?? null,
+    status: session?.status ?? "idle",
   });
 });
 
@@ -61,7 +61,7 @@ serve(
     hostname: host,
   },
   (info) => {
-    console.log(`[ncp-demo] server listening at http://${info.address}:${info.port} (llm=${llmMode})`);
+    console.log(`[ncp-demo] server listening at http://${info.address}:${info.port}`);
   },
 );
 
