@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChatThread } from '@/components/chat/ChatThread';
 import { ChatWelcome } from '@/components/chat/ChatWelcome';
@@ -60,7 +60,14 @@ export function ChatConversationPanel() {
     !snapshot.isSending &&
     !snapshot.isAwaitingAssistantOutput;
 
-  const handleScroll = () => {
+  const scrollToBottom = useCallback(() => {
+    const el = threadRef.current;
+    if (!el) return;
+    isProgrammaticScrollRef.current = true;
+    el.scrollTop = el.scrollHeight;
+  }, [threadRef]);
+
+  const handleScroll = useCallback(() => {
     // Skip sticky check for programmatic scrolls
     if (isProgrammaticScrollRef.current) {
       isProgrammaticScrollRef.current = false;
@@ -70,7 +77,7 @@ export function ChatConversationPanel() {
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     isStickyRef.current = distanceFromBottom <= STICKY_BOTTOM_THRESHOLD_PX;
-  };
+  }, [threadRef]);
 
   // Session change → force sticky + schedule initial scroll
   useEffect(() => {
@@ -85,21 +92,15 @@ export function ChatConversationPanel() {
     if (!pendingInitialScrollRef.current) return;
     if (snapshot.isHistoryLoading || snapshot.uiMessages.length === 0) return;
     pendingInitialScrollRef.current = false;
-    const el = threadRef.current;
-    if (!el) return;
-    isProgrammaticScrollRef.current = true;
-    el.scrollTop = el.scrollHeight;
-  }, [snapshot.isHistoryLoading, snapshot.uiMessages, threadRef]);
+    scrollToBottom();
+  }, [scrollToBottom, snapshot.isHistoryLoading, snapshot.uiMessages]);
 
   // Streaming updates: keep bottom visible while still sticky.
   useLayoutEffect(() => {
     if (!isStickyRef.current) return;
     if (snapshot.uiMessages.length === 0) return;
-    const el = threadRef.current;
-    if (!el) return;
-    isProgrammaticScrollRef.current = true;
-    el.scrollTop = el.scrollHeight;
-  }, [snapshot.uiMessages, threadRef]);
+    scrollToBottom();
+  }, [scrollToBottom, snapshot.uiMessages]);
 
   if (!snapshot.isProviderStateResolved) {
     return <ChatConversationSkeleton />;

@@ -1,5 +1,5 @@
 import type { ThinkingLevel } from '@/api/types';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { Brain } from 'lucide-react';
 

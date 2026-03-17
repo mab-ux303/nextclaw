@@ -596,21 +596,12 @@ importers:
       '@nextclaw/ncp':
         specifier: workspace:*
         version: link:../nextclaw-ncp
-      lucide-react:
-        specifier: ^0.462.0
-        version: 0.462.0(react@18.3.1)
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 18.3.1
       react-dom:
         specifier: ^18.0.0 || ^19.0.0
         version: 18.3.1(react@18.3.1)
-      react-markdown:
-        specifier: ^10.1.0
-        version: 10.1.0(@types/react@18.3.28)(react@18.3.1)
-      remark-gfm:
-        specifier: ^4.0.1
-        version: 4.0.1
     devDependencies:
       '@types/react':
         specifier: ^18.3.12
@@ -913,12 +904,6 @@ importers:
       '@nextclaw/agent-chat':
         specifier: workspace:*
         version: link:../nextclaw-agent-chat
-      '@nextclaw/ncp':
-        specifier: workspace:*
-        version: link:../ncp-packages/nextclaw-ncp
-      '@nextclaw/ncp-react-ui':
-        specifier: workspace:*
-        version: link:../ncp-packages/nextclaw-ncp-react-ui
       '@radix-ui/react-dialog':
         specifier: ^1.1.2
         version: 1.1.15(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -964,12 +949,18 @@ importers:
       react-hook-form:
         specifier: ^7.53.2
         version: 7.71.1(react@18.3.1)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@18.3.28)(react@18.3.1)
       react-router-dom:
         specifier: ^7.13.0
         version: 7.13.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       rehype-sanitize:
         specifier: ^6.0.0
         version: 6.0.0
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2

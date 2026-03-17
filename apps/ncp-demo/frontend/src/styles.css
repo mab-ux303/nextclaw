@@ -72,7 +72,9 @@ body {
   overflow: auto;
 }
 
-.chat-panel-shell {
+.chat-panel {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
   min-height: 0;
 }
 

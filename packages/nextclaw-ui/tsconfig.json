@@ -12,8 +12,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@nextclaw/agent-chat": ["../nextclaw-agent-chat/src/index.ts"],
-      "@nextclaw/ncp": ["../ncp-packages/nextclaw-ncp/src/index.ts"]
+      "@nextclaw/agent-chat": ["../nextclaw-agent-chat/src/index.ts"]
     }
   },
   "include": ["src"]

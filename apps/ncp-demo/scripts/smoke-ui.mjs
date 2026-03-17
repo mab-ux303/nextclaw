@@ -161,7 +161,6 @@ async function main() {
   const firstPrompt = "remember-alpha";
   const longRunningPrompt = "Call the sleep tool with durationMs 10000 right now, then reply only with done.";
   const placeholder = "Ask for the time, or ask the agent to sleep for 2 seconds.";
-  const welcomeTitle = "Build agent interfaces from reusable blocks";
 
   try {
     page.on("console", (message) => {
@@ -182,7 +181,7 @@ async function main() {
     await page.getByPlaceholder(placeholder).fill(firstPrompt);
     await page.getByRole("button", { name: "send" }).click();
 
-    await page.locator('[data-agent-chat-message-role="user"]', { hasText: firstPrompt }).waitFor();
+    await page.locator(".message.user", { hasText: firstPrompt }).waitFor();
     await page.locator(".session-card.active .session-card-id").waitFor();
     const sessionId = (await page.locator(".session-card.active .session-card-id").textContent())?.trim();
     if (!sessionId) {
@@ -190,15 +189,15 @@ async function main() {
     }
 
     await page.getByRole("button", { name: "new" }).click();
-    await page.getByText(welcomeTitle).waitFor();
+    await page.getByText("Send a message to start.").waitFor();
     await page.waitForFunction((text) => !document.body.innerText.includes(text), firstPrompt);
 
     await page.locator(".session-card", { hasText: sessionId }).click();
-    await page.locator('[data-agent-chat-message-role="user"]', { hasText: firstPrompt }).waitFor();
+    await page.locator(".message.user", { hasText: firstPrompt }).waitFor();
 
     await page.getByPlaceholder(placeholder).fill(longRunningPrompt);
     await page.getByRole("button", { name: "send" }).click();
-    await page.locator('[data-agent-chat-message-role="user"]', { hasText: longRunningPrompt }).waitFor();
+    await page.locator(".message.user", { hasText: longRunningPrompt }).waitFor();
     await page.getByRole("button", { name: "stop" }).waitFor();
     await waitForSessionStatus(sessionId, "running");
 
