@@ -1,14 +1,13 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChatInputBarContainer, ChatMessageListContainer } from '@/components/chat';
+import { useStickyBottomScroll } from '@/components/chat/hooks/use-sticky-bottom-scroll';
 import { ChatWelcome } from '@/components/chat/ChatWelcome';
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
 import { useChatThreadStore } from '@/components/chat/stores/chat-thread.store';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
-
-const STICKY_BOTTOM_THRESHOLD_PX = 10;
 
 function ChatConversationSkeleton() {
   return (
@@ -44,12 +43,6 @@ export function ChatConversationPanel() {
   const fallbackThreadRef = useRef<HTMLDivElement | null>(null);
   const threadRef = snapshot.threadRef ?? fallbackThreadRef;
 
-  // --- Sticky-to-bottom scroll state ---
-  const isStickyRef = useRef(true);
-  const isProgrammaticScrollRef = useRef(false);
-  const previousSessionKeyRef = useRef<string | null>(null);
-  const pendingInitialScrollRef = useRef(false);
-
   const showWelcome = !snapshot.selectedSessionKey && snapshot.uiMessages.length === 0 && !snapshot.isSending;
   const hasConfiguredModel = snapshot.modelOptions.length > 0;
   const shouldShowProviderHint = snapshot.isProviderStateResolved && !hasConfiguredModel;
@@ -59,46 +52,13 @@ export function ChatConversationPanel() {
     !snapshot.isSending &&
     !snapshot.isAwaitingAssistantOutput;
 
-  const handleScroll = () => {
-    // Skip sticky check for programmatic scrolls
-    if (isProgrammaticScrollRef.current) {
-      isProgrammaticScrollRef.current = false;
-      return;
-    }
-    const el = threadRef.current;
-    if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    isStickyRef.current = distanceFromBottom <= STICKY_BOTTOM_THRESHOLD_PX;
-  };
-
-  // Session change → force sticky + schedule initial scroll
-  useEffect(() => {
-    if (previousSessionKeyRef.current === snapshot.selectedSessionKey) return;
-    previousSessionKeyRef.current = snapshot.selectedSessionKey;
-    isStickyRef.current = true;
-    pendingInitialScrollRef.current = true;
-  }, [snapshot.selectedSessionKey]);
-
-  // Initial scroll after history loads for a new session
-  useLayoutEffect(() => {
-    if (!pendingInitialScrollRef.current) return;
-    if (snapshot.isHistoryLoading || snapshot.uiMessages.length === 0) return;
-    const el = threadRef.current;
-    if (!el) return;
-    pendingInitialScrollRef.current = false;
-    isProgrammaticScrollRef.current = true;
-    el.scrollTop = el.scrollHeight;
-  }, [snapshot.isHistoryLoading, snapshot.uiMessages, threadRef]);
-
-  // Streaming updates: keep bottom visible while still sticky.
-  useLayoutEffect(() => {
-    if (!isStickyRef.current) return;
-    if (snapshot.uiMessages.length === 0) return;
-    const el = threadRef.current;
-    if (!el) return;
-    isProgrammaticScrollRef.current = true;
-    el.scrollTop = el.scrollHeight;
-  }, [snapshot.uiMessages, threadRef]);
+  const { onScroll: handleScroll } = useStickyBottomScroll({
+    scrollRef: threadRef,
+    resetKey: snapshot.selectedSessionKey,
+    isLoading: snapshot.isHistoryLoading,
+    hasContent: snapshot.uiMessages.length > 0,
+    contentVersion: snapshot.uiMessages
+  });
 
   if (!snapshot.isProviderStateResolved) {
     return <ChatConversationSkeleton />;

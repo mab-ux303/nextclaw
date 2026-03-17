@@ -4,6 +4,12 @@ export { ChatMessageListContainer } from '@/components/chat/containers/chat-mess
 export { ChatInputBar } from '@/components/chat/ui/chat-input-bar/chat-input-bar';
 export { ChatMessageList } from '@/components/chat/ui/chat-message-list/chat-message-list';
 
+export { useActiveItemScroll } from '@/components/chat/hooks/use-active-item-scroll';
+export { useCopyFeedback } from '@/components/chat/hooks/use-copy-feedback';
+export { useElementWidth } from '@/components/chat/hooks/use-element-width';
+export { useStickyBottomScroll } from '@/components/chat/hooks/use-sticky-bottom-scroll';
+export { copyText } from '@/components/chat/utils/copy-text';
+
 export {
   adaptChatMessages,
   type ChatMessageAdapterTexts,

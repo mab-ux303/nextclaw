@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { useCopyFeedback } from '@/components/chat/hooks/use-copy-feedback';
 import type { ChatMessageTexts } from '@/components/chat/view-models/chat-ui.types';
 import { Check, Copy } from 'lucide-react';
 
@@ -31,29 +32,9 @@ type ChatCodeBlockProps = {
 };
 
 export function ChatCodeBlock(props: ChatCodeBlockProps) {
-  const [copied, setCopied] = useState(false);
   const language = useMemo(() => resolveCodeLanguage(props.className), [props.className]);
   const codeText = useMemo(() => normalizeCodeText(props.children), [props.children]);
-
-  const handleCopy = useCallback(async () => {
-    if (!codeText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(codeText);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  }, [codeText]);
-
-  useEffect(() => {
-    if (!copied || typeof window === 'undefined') {
-      return;
-    }
-    const timer = window.setTimeout(() => setCopied(false), 1300);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
+  const { copied, copy } = useCopyFeedback({ text: codeText });
 
   return (
     <div className="chat-codeblock">
@@ -62,7 +43,7 @@ export function ChatCodeBlock(props: ChatCodeBlockProps) {
         <button
           type="button"
           className="chat-codeblock-copy"
-          onClick={handleCopy}
+          onClick={() => void copy()}
           aria-label={copied ? props.texts.copiedCodeLabel : props.texts.copyCodeLabel}
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}

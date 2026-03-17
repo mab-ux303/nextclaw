@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
+import { useActiveItemScroll } from '@/components/chat/hooks/use-active-item-scroll';
+import { useElementWidth } from '@/components/chat/hooks/use-element-width';
 import { ChatUiPrimitives } from '@/components/chat/ui/primitives/chat-ui-primitives';
 import type { ChatSlashMenuProps } from '@/components/chat/view-models/chat-ui.types';
 
@@ -8,8 +10,7 @@ const SLASH_PANEL_DESKTOP_MIN_WIDTH = 560;
 
 export function ChatSlashMenu(props: ChatSlashMenuProps) {
   const { Popover, PopoverAnchor, PopoverContent } = ChatUiPrimitives;
-  const [panelWidth, setPanelWidth] = useState<number | null>(null);
-  const anchorRef = useRef<HTMLDivElement | null>(null);
+  const { elementRef: anchorRef, width: panelWidth } = useElementWidth<HTMLDivElement>();
   const listRef = useRef<HTMLDivElement | null>(null);
   const {
     isOpen,
@@ -33,31 +34,13 @@ export function ChatSlashMenu(props: ChatSlashMenuProps) {
     );
   }, [panelWidth]);
 
-  useEffect(() => {
-    const anchor = anchorRef.current;
-    if (!anchor || typeof ResizeObserver === 'undefined') {
-      return;
-    }
-    const update = () => {
-      setPanelWidth(anchor.getBoundingClientRect().width);
-    };
-    update();
-    const observer = new ResizeObserver(() => update());
-    observer.observe(anchor);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen || isLoading || items.length === 0) {
-      return;
-    }
-    const container = listRef.current;
-    if (!container) {
-      return;
-    }
-    const active = container.querySelector<HTMLElement>(`[data-slash-index="${activeIndex}"]`);
-    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [activeIndex, isLoading, isOpen, items.length]);
+  useActiveItemScroll({
+    containerRef: listRef,
+    activeIndex,
+    itemCount: items.length,
+    isEnabled: isOpen && !isLoading,
+    getItemSelector: (index) => `[data-slash-index="${index}"]`
+  });
 
   return (
     <Popover open={isOpen} onOpenChange={onOpenChange}>
