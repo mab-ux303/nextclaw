@@ -188,6 +188,7 @@ jobs:
           if ($LASTEXITCODE -gt 7) {
             throw "robocopy failed with exit code $LASTEXITCODE"
           }
+          $global:LASTEXITCODE = 0
           $zipPath = "apps/desktop/release/NextClaw Desktop-win32-x64-unpacked.zip"
           if (Test-Path $zipPath) {
             Remove-Item -Force $zipPath
