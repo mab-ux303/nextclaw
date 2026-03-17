@@ -1019,18 +1019,12 @@ importers:
       react-hook-form:
         specifier: ^7.53.2
         version: 7.71.1(react@18.3.1)
-      react-markdown:
-        specifier: ^10.1.0
-        version: 10.1.0(@types/react@18.3.28)(react@18.3.1)
       react-router-dom:
         specifier: ^7.13.0
         version: 7.13.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       rehype-sanitize:
         specifier: ^6.0.0
         version: 6.0.0
-      remark-gfm:
-        specifier: ^4.0.1
-        version: 4.0.1
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2

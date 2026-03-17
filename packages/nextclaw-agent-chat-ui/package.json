@@ -5,8 +5,22 @@
   "description": "Reusable Nextclaw agent chat UI primitives and default skin.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Peiiii/nextclaw.git",
+    "directory": "packages/nextclaw-agent-chat-ui"
+  },
+  "homepage": "https://github.com/Peiiii/nextclaw/tree/master/packages/nextclaw-agent-chat-ui",
+  "keywords": [
+    "nextclaw",
+    "chat-ui",
+    "agent-ui",
+    "react",
+    "components"
+  ],
   "exports": {
     ".": {
+      "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
