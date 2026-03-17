@@ -60,7 +60,9 @@ export class ChatThreadManager {
   };
 
   private deleteCurrentSession = async () => {
-    const selectedSessionKey = useChatSessionListStore.getState().snapshot.selectedSessionKey;
+    const {
+      snapshot: { selectedSessionKey }
+    } = useChatSessionListStore.getState();
     if (!selectedSessionKey) {
       return;
     }
