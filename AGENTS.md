@@ -266,3 +266,9 @@
   - 反例：将 `@nextclaw/core` 写成 `^0.7.1` 导致 desktop 打包混入旧版依赖，运行时出现导出不匹配并启动失败。
   - 执行方式：改动内部依赖后必须执行 `pnpm install` 更新锁文件；验证按影响范围最小化选择，至少覆盖受影响包的 `build`、`lint`、`tsc`。仅当改动触达 desktop 打包链路时，才要求执行 `pnpm desktop:package` 与 `pnpm desktop:package:verify`（或等效三平台验证）。
   - 维护责任人：当前助手。
+- **post-edit-maintainability-guard-required**：
+  - 约束/适用范围：凡本次任务触达项目代码、脚本、测试或影响运行链路的配置，收尾前必须执行项目内 skill `post-edit-maintainability-guard` 的自检；纯文档、措辞或元信息微调不适用，但必须明确说明“不适用”。
+  - 示例：修改 `packages/nextclaw/src/cli/commands/service.ts` 后，在最终回复前运行 `python3 .codex/skills/post-edit-maintainability-guard/scripts/check_maintainability.py`，并说明是否存在“新文件超预算 / 超限文件继续增长 / 穿越预算线”。
+  - 反例：代码改完只跑功能验证，不做任何可维护性自检；或发现超长文件继续增长却不提示风险和拆分缝。
+  - 执行方式：默认在收尾阶段运行 `python3 .codex/skills/post-edit-maintainability-guard/scripts/check_maintainability.py`；如只需检查特定文件，可加 `--paths <file...>`；若出现阻塞项，优先继续拆分，否则需在结果中明确债务、原因与下一步拆分位点。
+  - 维护责任人：当前助手。
