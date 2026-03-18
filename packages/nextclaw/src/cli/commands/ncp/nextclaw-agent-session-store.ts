@@ -432,7 +432,12 @@ function resolveLegacyEventType(message: SessionMessage): string {
 }
 
 export class NextclawAgentSessionStore implements AgentSessionStore {
-  constructor(private readonly sessionManager: SessionManager) {}
+  constructor(
+    private readonly sessionManager: SessionManager,
+    private readonly options: {
+      writeMode?: "ncp-state" | "runtime-owned";
+    } = {},
+  ) {}
 
   async getSession(sessionId: string): Promise<AgentSessionRecord | null> {
     const session = this.sessionManager.getIfExists(sessionId);
@@ -472,6 +477,9 @@ export class NextclawAgentSessionStore implements AgentSessionStore {
   }
 
   async saveSession(sessionRecord: AgentSessionRecord): Promise<void> {
+    if (this.options.writeMode === "runtime-owned") {
+      return;
+    }
     const session =
       this.sessionManager.getIfExists(sessionRecord.sessionId) ?? this.sessionManager.getOrCreate(sessionRecord.sessionId);
     const legacyMessages = toLegacyMessages(sessionRecord.messages);

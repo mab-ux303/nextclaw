@@ -1,6 +1,6 @@
 export type ChatChain = 'legacy' | 'ncp';
 
-const DEFAULT_CHAT_CHAIN: ChatChain = 'legacy';
+const DEFAULT_CHAT_CHAIN: ChatChain = 'ncp';
 
 function normalizeChatChain(value: string | null | undefined): ChatChain | null {
   if (typeof value !== 'string') {

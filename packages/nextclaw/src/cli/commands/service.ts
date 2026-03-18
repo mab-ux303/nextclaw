@@ -1270,8 +1270,8 @@ export class ServiceCommands {
       }
     });
     const ncpAgent = await createUiNcpAgent({
-      providerManager,
-      sessionManager
+      sessionManager,
+      runtimePool
     });
 
     const uiServer = startUiServer({

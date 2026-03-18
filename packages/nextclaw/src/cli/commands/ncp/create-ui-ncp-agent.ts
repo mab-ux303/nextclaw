@@ -1,28 +1,21 @@
-import type { ProviderManager, SessionManager } from "@nextclaw/core";
-import { DefaultNcpAgentRuntime, DefaultNcpContextBuilder, DefaultNcpToolRegistry } from "@nextclaw/ncp-agent-runtime";
+import type { SessionManager } from "@nextclaw/core";
 import { createAgentClientFromServer, DefaultNcpAgentBackend } from "@nextclaw/ncp-toolkit";
 import type { UiNcpAgent } from "@nextclaw/server";
+import type { GatewayAgentRuntimePool } from "../agent-runtime-pool.js";
 import { NextclawAgentSessionStore } from "./nextclaw-agent-session-store.js";
-import { ProviderManagerNcpLLMApi } from "./provider-manager-ncp-llm-api.js";
+import { NextclawUiNcpRuntime } from "./nextclaw-ui-ncp-runtime.js";
 
 export async function createUiNcpAgent(params: {
-  providerManager: ProviderManager;
   sessionManager: SessionManager;
+  runtimePool: GatewayAgentRuntimePool;
 }): Promise<UiNcpAgent> {
-  const llmApi = new ProviderManagerNcpLLMApi(params.providerManager);
-  const sessionStore = new NextclawAgentSessionStore(params.sessionManager);
+  const sessionStore = new NextclawAgentSessionStore(params.sessionManager, {
+    writeMode: "runtime-owned",
+  });
   const backend = new DefaultNcpAgentBackend({
     endpointId: "nextclaw-ui-agent",
     sessionStore,
-    createRuntime: ({ stateManager }) => {
-      const toolRegistry = new DefaultNcpToolRegistry();
-      return new DefaultNcpAgentRuntime({
-        contextBuilder: new DefaultNcpContextBuilder(toolRegistry),
-        llmApi,
-        toolRegistry,
-        stateManager
-      });
-    }
+    createRuntime: () => new NextclawUiNcpRuntime(params.runtimePool),
   });
 
   await backend.start();
