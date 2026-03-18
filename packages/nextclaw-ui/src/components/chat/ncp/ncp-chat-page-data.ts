@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SessionEntryView } from '@/api/types';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
@@ -13,7 +13,9 @@ import {
   useConfigMeta,
   useNcpSessions
 } from '@/hooks/useConfig';
+import { useNcpChatSessionTypes } from '@/hooks/use-ncp-chat-session-types';
 import { useMarketplaceInstalled } from '@/hooks/useMarketplace';
+import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { buildProviderModelCatalog, composeProviderModel, resolveModelThinkingCapability } from '@/lib/provider-models';
 
 type UseNcpChatPageDataParams = {
@@ -36,6 +38,7 @@ export function useNcpChatPageData(params: UseNcpChatPageDataParams) {
   const configQuery = useConfig();
   const configMetaQuery = useConfigMeta();
   const sessionsQuery = useNcpSessions({ limit: 200 });
+  const sessionTypesQuery = useNcpChatSessionTypes();
   const installedSkillsQuery = useMarketplaceInstalled('skill');
   const isProviderStateResolved =
     (configQuery.isFetched || configQuery.isSuccess) &&
@@ -72,6 +75,8 @@ export function useNcpChatPageData(params: UseNcpChatPageDataParams) {
       return left.modelLabel.localeCompare(right.modelLabel);
     });
   }, [configMetaQuery.data, configQuery.data]);
+  const selectedModel = useChatInputStore((state) => state.snapshot.selectedModel);
+  const lastAutoSelectedSessionTypeRef = useRef<string | null>(null);
 
   const sessionSummaries = useMemo(
     () => sessionsQuery.data?.sessions ?? [],
@@ -107,7 +112,7 @@ export function useNcpChatPageData(params: UseNcpChatPageDataParams) {
     selectedSessionKey: params.selectedSessionKey,
     pendingSessionType: params.pendingSessionType,
     setPendingSessionType: params.setPendingSessionType,
-    sessionTypesData: null
+    sessionTypesData: sessionTypesQuery.data
   });
 
   useSyncSelectedModel({
@@ -117,10 +122,42 @@ export function useNcpChatPageData(params: UseNcpChatPageDataParams) {
     setSelectedModel: params.setSelectedModel
   });
 
+  const codexDefaultModel = useMemo(
+    () => modelOptions.find((option) => option.value.startsWith('openai/'))?.value ?? modelOptions[0]?.value ?? '',
+    [modelOptions]
+  );
+
+  useEffect(() => {
+    const currentSessionType = sessionTypeState.selectedSessionType;
+    const previousSessionType = lastAutoSelectedSessionTypeRef.current;
+    lastAutoSelectedSessionTypeRef.current = currentSessionType;
+
+    if (currentSessionType !== 'codex') {
+      return;
+    }
+    if (previousSessionType === 'codex') {
+      return;
+    }
+    if (selectedSession?.preferredModel?.trim()) {
+      return;
+    }
+    if (!codexDefaultModel || codexDefaultModel === selectedModel) {
+      return;
+    }
+    params.setSelectedModel(codexDefaultModel);
+  }, [
+    codexDefaultModel,
+    params.setSelectedModel,
+    selectedModel,
+    selectedSession?.preferredModel,
+    sessionTypeState.selectedSessionType
+  ]);
+
   return {
     configQuery,
     configMetaQuery,
     sessionsQuery,
+    sessionTypesQuery,
     installedSkillsQuery,
     isProviderStateResolved,
     modelOptions,

@@ -26,7 +26,7 @@ export function normalizePluginNpmSpec(rawSpec: string): string {
 
 export function isSupportedMarketplacePluginSpec(rawSpec: string): boolean {
   const spec = normalizePluginNpmSpec(rawSpec);
-  return spec.startsWith(NEXTCLAW_PLUGIN_NPM_PREFIX) || spec === CLAWBAY_CHANNEL_PLUGIN_NPM_SPEC;
+  return spec.length > 0;
 }
 
 export function resolvePluginCanonicalSpec(params: {

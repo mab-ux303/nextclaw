@@ -14,6 +14,7 @@ import { adaptNcpMessagesToUiMessages, createNcpSessionId } from '@/components/c
 import { ChatPresenterProvider } from '@/components/chat/presenter/chat-presenter-context';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
+import { resolveSessionTypeLabel } from '@/components/chat/useChatSessionTypeState';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { normalizeRequestedSkills } from '@/lib/chat-runtime-utils';
 
@@ -248,6 +249,9 @@ export function NcpChatPage({ view }: ChatPageProps) {
   }, [confirm, location.pathname, navigate, presenter]);
 
   const currentSessionDisplayName = selectedSession ? sessionDisplayName(selectedSession) : undefined;
+  const currentSessionTypeLabel =
+    sessionTypeOptions.find((option) => option.value === selectedSessionType)?.label ??
+    resolveSessionTypeLabel(selectedSessionType);
 
   useEffect(() => {
     presenter.chatThreadManager.bindActions({
@@ -301,6 +305,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
       modelOptions,
       sessionTypeUnavailable,
       sessionTypeUnavailableMessage,
+      sessionTypeLabel: currentSessionTypeLabel,
       selectedSessionKey,
       sessionDisplayName: currentSessionDisplayName,
       canDeleteSession: Boolean(selectedSession),
@@ -316,6 +321,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
     canEditSessionType,
     canStopCurrentRun,
     currentSessionDisplayName,
+    currentSessionTypeLabel,
     defaultSessionType,
     installedSkillsQuery.isLoading,
     isAwaitingAssistantOutput,

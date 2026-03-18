@@ -33,6 +33,8 @@
     "@nextclaw/channel-plugin-whatsapp": "workspace:*",
     "@nextclaw/channel-runtime": "workspace:*",
     "@nextclaw/core": "workspace:*",
+    "@nextclaw/ncp": "workspace:*",
+    "@nextclaw/ncp-toolkit": "workspace:*",
     "ajv": "^8.17.1",
     "jiti": "^1.21.7",
     "jszip": "^3.10.1",

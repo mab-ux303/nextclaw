@@ -1,0 +1,32 @@
+{
+  "name": "@nextclaw/nextclaw-ncp-runtime-codex-sdk",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Optional NCP runtime adapter backed by OpenAI Codex SDK.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "lint": "eslint .",
+    "tsc": "tsc -p tsconfig.json"
+  },
+  "files": [
+    "dist",
+    "codex-sdk-loader.cjs",
+    "README.md"
+  ],
+  "dependencies": {
+    "@nextclaw/ncp": "workspace:*",
+    "@openai/codex-sdk": "^0.107.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3"
+  }
+}

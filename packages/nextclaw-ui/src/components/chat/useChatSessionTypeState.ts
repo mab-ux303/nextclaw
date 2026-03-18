@@ -33,6 +33,9 @@ export function resolveSessionTypeLabel(sessionType: string, fallbackLabel?: str
   if (sessionType === 'native') {
     return t('chatSessionTypeNative');
   }
+  if (sessionType === 'codex') {
+    return t('chatSessionTypeCodex');
+  }
   if (sessionType === 'codex-sdk') {
     return t('chatSessionTypeCodex');
   }

@@ -53,11 +53,17 @@ export class ChatSessionListManager {
     useChatSessionListStore.getState().setSnapshot({ selectedSessionKey: value });
   };
 
-  createSession = () => {
-    const defaultSessionType = useChatInputStore.getState().snapshot.defaultSessionType || 'native';
+  createSession = (sessionType?: string) => {
+    const { snapshot } = useChatInputStore.getState();
+    const { defaultSessionType: configuredDefaultSessionType } = snapshot;
+    const defaultSessionType = configuredDefaultSessionType || 'native';
+    const nextSessionType =
+      typeof sessionType === 'string' && sessionType.trim().length > 0
+        ? sessionType.trim()
+        : defaultSessionType;
     this.streamActionsManager.resetStreamState();
     this.setSelectedSessionKey(null);
-    useChatInputStore.getState().setSnapshot({ pendingSessionType: defaultSessionType });
+    useChatInputStore.getState().setSnapshot({ pendingSessionType: nextSessionType });
     this.uiManager.goToChatRoot();
   };
 

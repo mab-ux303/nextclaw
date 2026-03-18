@@ -42,6 +42,8 @@ export function ChatConversationPanel() {
   const snapshot = useChatThreadStore((state) => state.snapshot);
   const fallbackThreadRef = useRef<HTMLDivElement | null>(null);
   const threadRef = snapshot.threadRef ?? fallbackThreadRef;
+  const shouldShowSessionHeader = Boolean(snapshot.selectedSessionKey || snapshot.sessionTypeLabel);
+  const sessionHeaderTitle = snapshot.sessionDisplayName || snapshot.selectedSessionKey || t('chatSidebarNewTask');
 
   const showWelcome = !snapshot.selectedSessionKey && snapshot.uiMessages.length === 0 && !snapshot.isSending;
   const hasConfiguredModel = snapshot.modelOptions.length > 0;
@@ -68,22 +70,29 @@ export function ChatConversationPanel() {
     <section className="flex-1 min-h-0 flex flex-col overflow-hidden bg-gradient-to-b from-gray-50/60 to-white">
       <div className={cn(
         "px-5 border-b border-gray-200/60 bg-white/80 backdrop-blur-sm flex items-center justify-between shrink-0 overflow-hidden transition-all duration-200",
-        snapshot.selectedSessionKey ? "py-3 opacity-100" : "h-0 py-0 opacity-0 border-b-0"
+        shouldShowSessionHeader ? "py-3 opacity-100" : "h-0 py-0 opacity-0 border-b-0"
       )}>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 flex items-center gap-2">
           <span className="text-sm font-medium text-gray-700 truncate">
-            {snapshot.sessionDisplayName || snapshot.selectedSessionKey}
+            {sessionHeaderTitle}
           </span>
+          {snapshot.sessionTypeLabel ? (
+            <span className="shrink-0 rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+              {snapshot.sessionTypeLabel}
+            </span>
+          ) : null}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-lg shrink-0 text-gray-400 hover:text-destructive"
-          onClick={presenter.chatThreadManager.deleteSession}
-          disabled={!snapshot.canDeleteSession || snapshot.isDeletePending}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {snapshot.selectedSessionKey ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-lg shrink-0 text-gray-400 hover:text-destructive"
+            onClick={presenter.chatThreadManager.deleteSession}
+            disabled={!snapshot.canDeleteSession || snapshot.isDeletePending}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : null}
       </div>
 
       {shouldShowProviderHint && (

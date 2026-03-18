@@ -167,6 +167,7 @@ export function adaptNcpMessageToUiMessage(message: NcpMessageView): UIMessage {
 }
 
 export function adaptNcpMessagesToUiMessages(messages: readonly NcpMessageView[]): UIMessage[] {
+  console.log('[adaptNcpMessagesToUiMessages]', { messages });
   return messages.map(adaptNcpMessageToUiMessage);
 }
 

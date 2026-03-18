@@ -10,6 +10,7 @@ import {
   type ProviderManager,
 } from "@nextclaw/core";
 import { NcpEventType, type NcpEndpointEvent, type NcpRequestEnvelope } from "@nextclaw/ncp";
+import { loadPluginRegistry, toExtensionRegistry } from "../plugins.js";
 import { createUiNcpAgent } from "./create-ui-ncp-agent.js";
 
 const tempDirs: string[] = [];
@@ -125,6 +126,108 @@ describe("createUiNcpAgent", () => {
         message.reasoning_content === "need a tool first"
       )),
     ).toBe(true);
+  });
+
+  it("lists codex as an available session type when the runtime is enabled", async () => {
+    const workspace = createTempWorkspace();
+    const config = ConfigSchema.parse({
+      agents: {
+        defaults: {
+          workspace,
+          model: "openai/gpt-5.3-codex",
+          contextTokens: 200000,
+          maxToolIterations: 8,
+        },
+      },
+      plugins: {
+        load: {
+          paths: ["../extensions/nextclaw-ncp-runtime-plugin-codex-sdk"],
+        },
+        entries: {
+          "nextclaw-ncp-runtime-plugin-codex-sdk": {
+            enabled: true,
+            config: {
+              apiKey: "test-codex-api-key",
+            },
+          },
+        },
+      },
+    });
+    const extensionRegistry = toExtensionRegistry(loadPluginRegistry(config, workspace));
+
+    const ncpAgent = await createUiNcpAgent({
+      bus: new MessageBus(),
+      providerManager: new RecordingProviderManager() as unknown as ProviderManager,
+      sessionManager: new SessionManager(workspace),
+      getConfig: () => config,
+      getExtensionRegistry: () => extensionRegistry,
+    });
+
+    const sessionTypes = await ncpAgent.listSessionTypes?.();
+    expect(sessionTypes).toEqual({
+      defaultType: "native",
+      options: [
+        { value: "native", label: "Native" },
+        { value: "codex", label: "Codex" },
+      ],
+    });
+  });
+
+  it("refreshes available session types when the extension registry changes after startup", async () => {
+    const workspace = createTempWorkspace();
+    const config = ConfigSchema.parse({
+      agents: {
+        defaults: {
+          workspace,
+          model: "openai/gpt-5.3-codex",
+          contextTokens: 200000,
+          maxToolIterations: 8,
+        },
+      },
+      plugins: {
+        entries: {},
+      },
+    });
+    let extensionRegistry = toExtensionRegistry(loadPluginRegistry(config, workspace));
+
+    const ncpAgent = await createUiNcpAgent({
+      bus: new MessageBus(),
+      providerManager: new RecordingProviderManager() as unknown as ProviderManager,
+      sessionManager: new SessionManager(workspace),
+      getConfig: () => config,
+      getExtensionRegistry: () => extensionRegistry,
+    });
+
+    expect(await ncpAgent.listSessionTypes?.()).toEqual({
+      defaultType: "native",
+      options: [{ value: "native", label: "Native" }],
+    });
+
+    const enabledConfig = ConfigSchema.parse({
+      ...config,
+      plugins: {
+        load: {
+          paths: ["../extensions/nextclaw-ncp-runtime-plugin-codex-sdk"],
+        },
+        entries: {
+          "nextclaw-ncp-runtime-plugin-codex-sdk": {
+            enabled: true,
+            config: {
+              apiKey: "test-codex-api-key",
+            },
+          },
+        },
+      },
+    });
+    extensionRegistry = toExtensionRegistry(loadPluginRegistry(enabledConfig, workspace));
+
+    expect(await ncpAgent.listSessionTypes?.()).toEqual({
+      defaultType: "native",
+      options: [
+        { value: "native", label: "Native" },
+        { value: "codex", label: "Codex" },
+      ],
+    });
   });
 });
 

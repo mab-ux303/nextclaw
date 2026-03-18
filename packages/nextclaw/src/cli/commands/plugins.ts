@@ -10,8 +10,14 @@ import {
   resolveUninstallDirectoryTarget,
   uninstallPlugin,
   type PluginChannelBinding,
+  type PluginNcpAgentRuntimeRegistration,
   type PluginRegistry
 } from "@nextclaw/openclaw-compat";
+import {
+  appendPluginCapabilityLines,
+  buildReservedPluginLoadOptions,
+  RESERVED_PROVIDER_IDS,
+} from "./plugin-command-utils.js";
 import {
   loadConfig,
   saveConfig,
@@ -20,7 +26,6 @@ import {
   getWorkspacePath,
   expandHome
 } from "@nextclaw/core";
-import { builtinProviderIds } from "@nextclaw/runtime";
 import { createInterface } from "node:readline";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -31,34 +36,15 @@ import type {
   PluginsUninstallOptions
 } from "../types.js";
 
-const RESERVED_PROVIDER_IDS = builtinProviderIds();
+export type NextclawExtensionRegistry = ExtensionRegistry & {
+  ncpAgentRuntimes: PluginNcpAgentRuntimeRegistration[];
+};
 
 export function loadPluginRegistry(config: Config, workspaceDir: string): PluginRegistry {
   return loadOpenClawPlugins({
     config,
     workspaceDir,
-    reservedToolNames: [
-      "read_file",
-      "write_file",
-      "edit_file",
-      "list_dir",
-      "exec",
-      "web_search",
-      "web_fetch",
-      "message",
-      "spawn",
-      "sessions_list",
-      "sessions_history",
-      "sessions_send",
-      "memory_search",
-      "memory_get",
-      "subagents",
-      "gateway",
-      "cron"
-    ],
-    reservedChannelIds: [],
-    reservedProviderIds: RESERVED_PROVIDER_IDS,
-    reservedEngineKinds: ["native"],
+    ...buildReservedPluginLoadOptions(),
     logger: {
       info: (message) => console.log(message),
       warn: (message) => console.warn(message),
@@ -68,7 +54,7 @@ export function loadPluginRegistry(config: Config, workspaceDir: string): Plugin
   });
 }
 
-export function toExtensionRegistry(pluginRegistry: PluginRegistry): ExtensionRegistry {
+export function toExtensionRegistry(pluginRegistry: PluginRegistry): NextclawExtensionRegistry {
   return {
     tools: pluginRegistry.tools.map((tool) => ({
       extensionId: tool.pluginId,
@@ -87,6 +73,13 @@ export function toExtensionRegistry(pluginRegistry: PluginRegistry): ExtensionRe
       kind: engine.kind,
       factory: engine.factory,
       source: engine.source
+    })),
+    ncpAgentRuntimes: pluginRegistry.ncpAgentRuntimes.map((runtime) => ({
+      pluginId: runtime.pluginId,
+      kind: runtime.kind,
+      label: runtime.label,
+      createRuntime: runtime.createRuntime,
+      source: runtime.source
     })),
     diagnostics: pluginRegistry.diagnostics.map((diag) => ({
       level: diag.level,
@@ -174,9 +167,7 @@ export class PluginCommands {
     const report = buildPluginStatusReport({
       config,
       workspaceDir,
-      reservedChannelIds: [],
-      reservedProviderIds: RESERVED_PROVIDER_IDS,
-      reservedEngineKinds: ["native"]
+      ...buildReservedPluginLoadOptions()
     });
 
     const list = opts.enabled ? report.plugins.filter((plugin) => plugin.status === "loaded") : report.plugins;
@@ -220,17 +211,10 @@ export class PluginCommands {
       if (plugin.version) {
         console.log(`  version: ${plugin.version}`);
       }
-      if (plugin.toolNames.length > 0) {
-        console.log(`  tools: ${plugin.toolNames.join(", ")}`);
-      }
-      if (plugin.channelIds.length > 0) {
-        console.log(`  channels: ${plugin.channelIds.join(", ")}`);
-      }
-      if (plugin.providerIds.length > 0) {
-        console.log(`  providers: ${plugin.providerIds.join(", ")}`);
-      }
-      if (plugin.engineKinds.length > 0) {
-        console.log(`  engines: ${plugin.engineKinds.join(", ")}`);
+      const capabilityLines: string[] = [];
+      appendPluginCapabilityLines(capabilityLines, plugin);
+      for (const line of capabilityLines) {
+        console.log(`  ${line.toLowerCase()}`);
       }
       if (plugin.error) {
         console.log(`  error: ${plugin.error}`);
@@ -245,9 +229,7 @@ export class PluginCommands {
     const report = buildPluginStatusReport({
       config,
       workspaceDir,
-      reservedChannelIds: [],
-      reservedProviderIds: RESERVED_PROVIDER_IDS,
-      reservedEngineKinds: ["native"]
+      ...buildReservedPluginLoadOptions()
     });
 
     const plugin = report.plugins.find((entry) => entry.id === id || entry.name === id);
@@ -277,18 +259,7 @@ export class PluginCommands {
     if (plugin.version) {
       lines.push(`Version: ${plugin.version}`);
     }
-    if (plugin.toolNames.length > 0) {
-      lines.push(`Tools: ${plugin.toolNames.join(", ")}`);
-    }
-    if (plugin.channelIds.length > 0) {
-      lines.push(`Channels: ${plugin.channelIds.join(", ")}`);
-    }
-    if (plugin.providerIds.length > 0) {
-      lines.push(`Providers: ${plugin.providerIds.join(", ")}`);
-    }
-    if (plugin.engineKinds.length > 0) {
-      lines.push(`Engines: ${plugin.engineKinds.join(", ")}`);
-    }
+    appendPluginCapabilityLines(lines, plugin);
     if (plugin.error) {
       lines.push(`Error: ${plugin.error}`);
     }
@@ -338,9 +309,7 @@ export class PluginCommands {
     const report = buildPluginStatusReport({
       config,
       workspaceDir,
-      reservedChannelIds: [],
-      reservedProviderIds: RESERVED_PROVIDER_IDS,
-      reservedEngineKinds: ["native"]
+      ...buildReservedPluginLoadOptions()
     });
 
     const keepFiles = Boolean(opts.keepFiles || opts.keepConfig);
@@ -555,9 +524,7 @@ export class PluginCommands {
     const report = buildPluginStatusReport({
       config,
       workspaceDir,
-      reservedChannelIds: [],
-      reservedProviderIds: RESERVED_PROVIDER_IDS,
-      reservedEngineKinds: ["native"]
+      ...buildReservedPluginLoadOptions()
     });
 
     const pluginErrors = report.plugins.filter((plugin) => plugin.status === "error");

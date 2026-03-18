@@ -447,7 +447,7 @@ importers:
         specifier: ^0.2.63
         version: 0.2.63(zod@4.3.6)
       '@nextclaw/core':
-        specifier: ^0.8.0
+        specifier: ^0.9.0
         version: link:../../nextclaw-core
       zod:
         specifier: ^4.0.0
@@ -466,11 +466,55 @@ importers:
   packages/extensions/nextclaw-engine-plugin-codex-sdk:
     dependencies:
       '@nextclaw/core':
-        specifier: ^0.8.0
+        specifier: ^0.9.0
         version: link:../../nextclaw-core
       '@openai/codex-sdk':
         specifier: ^0.107.0
         version: 0.107.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.17.6
+        version: 20.19.33
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/extensions/nextclaw-ncp-runtime-codex-sdk:
+    dependencies:
+      '@nextclaw/ncp':
+        specifier: workspace:*
+        version: link:../../ncp-packages/nextclaw-ncp
+      '@openai/codex-sdk':
+        specifier: ^0.107.0
+        version: 0.107.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.17.6
+        version: 20.19.33
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/extensions/nextclaw-ncp-runtime-plugin-codex-sdk:
+    dependencies:
+      '@nextclaw/core':
+        specifier: workspace:*
+        version: link:../../nextclaw-core
+      '@nextclaw/ncp':
+        specifier: workspace:*
+        version: link:../../ncp-packages/nextclaw-ncp
+      '@nextclaw/ncp-toolkit':
+        specifier: workspace:*
+        version: link:../../ncp-packages/nextclaw-ncp-toolkit
+      '@nextclaw/nextclaw-ncp-runtime-codex-sdk':
+        specifier: workspace:*
+        version: link:../nextclaw-ncp-runtime-codex-sdk
     devDependencies:
       '@types/node':
         specifier: ^20.17.6
@@ -884,6 +928,12 @@ importers:
       '@nextclaw/core':
         specifier: workspace:*
         version: link:../nextclaw-core
+      '@nextclaw/ncp':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp
+      '@nextclaw/ncp-toolkit':
+        specifier: workspace:*
+        version: link:../ncp-packages/nextclaw-ncp-toolkit
       ajv:
         specifier: ^8.17.1
         version: 8.18.0

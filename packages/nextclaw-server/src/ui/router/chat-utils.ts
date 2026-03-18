@@ -17,6 +17,9 @@ function resolveSessionTypeLabel(sessionType: string): string {
   if (sessionType === "native") {
     return "Native";
   }
+  if (sessionType === "codex") {
+    return "Codex";
+  }
   if (sessionType === "codex-sdk") {
     return "Codex";
   }

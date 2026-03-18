@@ -1,4 +1,4 @@
-import type { NcpMessage } from "@nextclaw/ncp";
+import type { NcpAgentRuntime, NcpMessage } from "@nextclaw/ncp";
 import { DefaultNcpAgentConversationStateManager } from "../agent-conversation-state-manager.js";
 import type {
   AgentSessionStore,
@@ -14,9 +14,18 @@ export class AgentLiveSessionRegistry {
     private readonly createRuntime: CreateRuntimeFn,
   ) {}
 
-  async ensureSession(sessionId: string): Promise<LiveSessionState> {
+  async ensureSession(
+    sessionId: string,
+    initialMetadata?: Record<string, unknown>,
+  ): Promise<LiveSessionState> {
     const existing = this.sessions.get(sessionId);
     if (existing) {
+      if (initialMetadata && Object.keys(initialMetadata).length > 0) {
+        existing.metadata = {
+          ...existing.metadata,
+          ...structuredClone(initialMetadata),
+        };
+      }
       return existing;
     }
 
@@ -26,13 +35,29 @@ export class AgentLiveSessionRegistry {
       sessionId,
       messages: cloneMessages(storedSession?.messages ?? []),
     });
+    const sessionMetadata = {
+      ...(storedSession?.metadata ? structuredClone(storedSession.metadata) : {}),
+      ...(initialMetadata ? structuredClone(initialMetadata) : {}),
+    };
 
     const session: LiveSessionState = {
       sessionId,
       stateManager,
-      runtime: this.createRuntime({ sessionId, stateManager }),
+      metadata: sessionMetadata,
+      runtime: null as unknown as NcpAgentRuntime,
       activeExecution: null,
     };
+
+    session.runtime = this.createRuntime({
+        sessionId,
+        stateManager,
+        sessionMetadata,
+        setSessionMetadata: (nextMetadata) => {
+          session.metadata = {
+            ...structuredClone(nextMetadata),
+          };
+        },
+      });
     this.sessions.set(sessionId, session);
     return session;
   }

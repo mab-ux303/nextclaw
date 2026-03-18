@@ -8,7 +8,7 @@ import { getWorkspacePathFromConfig } from "@nextclaw/core";
 import { normalizePluginsConfig, resolveEnableState } from "./config-state.js";
 import { discoverOpenClawPlugins } from "./discovery.js";
 import { loadPluginManifestRegistry } from "./manifest-registry.js";
-import { validateJsonSchemaValue } from "./schema-validator.js";
+import { createPluginRecord, validatePluginConfig } from "./plugin-loader-utils.js";
 import { createPluginRegisterRuntime, registerPluginWithApi, type PluginRegisterRuntime } from "./registry.js";
 import type {
   OpenClawPluginDefinition,
@@ -27,6 +27,7 @@ export type PluginLoadOptions = {
   reservedChannelIds?: string[];
   reservedProviderIds?: string[];
   reservedEngineKinds?: string[];
+  reservedNcpAgentRuntimeKinds?: string[];
 };
 
 type JitiFactory = (
@@ -102,6 +103,53 @@ function resolvePluginSdkAlias(): string | null {
   return resolvePluginSdkAliasFile({ srcFile: "index.ts", distFile: "index.js" });
 }
 
+function buildScopedPackageAliases(scope: string): Record<string, string> {
+  const aliases: Record<string, string> = {};
+  const require = createRequire(import.meta.url);
+  let cursor = path.dirname(fileURLToPath(import.meta.url));
+
+  for (let i = 0; i < 8; i += 1) {
+    const scopeDir = path.join(cursor, "node_modules", scope);
+    if (fs.existsSync(scopeDir)) {
+      let entries: fs.Dirent[] = [];
+      try {
+        entries = fs.readdirSync(scopeDir, { withFileTypes: true });
+      } catch {
+        entries = [];
+      }
+
+      for (const entry of entries) {
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) {
+          continue;
+        }
+        const packageName = `${scope}/${entry.name}`;
+        try {
+          aliases[packageName] = require.resolve(packageName);
+        } catch {
+          // Ignore packages that are not resolvable from the current host runtime.
+        }
+      }
+    }
+
+    const parent = path.dirname(cursor);
+    if (parent === cursor) {
+      break;
+    }
+    cursor = parent;
+  }
+
+  return aliases;
+}
+
+export function buildPluginLoaderAliases(): Record<string, string> {
+  const aliases = buildScopedPackageAliases("@nextclaw");
+  const pluginSdkAlias = resolvePluginSdkAlias();
+  if (pluginSdkAlias) {
+    aliases["openclaw/plugin-sdk"] = pluginSdkAlias;
+  }
+  return aliases;
+}
+
 function resolvePluginModuleExport(moduleExport: unknown): {
   definition?: OpenClawPluginDefinition;
   register?: OpenClawPluginDefinition["register"];
@@ -126,80 +174,6 @@ function resolvePluginModuleExport(moduleExport: unknown): {
   }
 
   return {};
-}
-
-function createPluginRecord(params: {
-  id: string;
-  name?: string;
-  description?: string;
-  version?: string;
-  source: string;
-  origin: PluginRecord["origin"];
-  workspaceDir?: string;
-  enabled: boolean;
-  configSchema: boolean;
-  configUiHints?: PluginRecord["configUiHints"];
-  configJsonSchema?: PluginRecord["configJsonSchema"];
-  kind?: PluginRecord["kind"];
-}): PluginRecord {
-  return {
-    id: params.id,
-    name: params.name ?? params.id,
-    description: params.description,
-    version: params.version,
-    kind: params.kind,
-    source: params.source,
-    origin: params.origin,
-    workspaceDir: params.workspaceDir,
-    enabled: params.enabled,
-    status: params.enabled ? "loaded" : "disabled",
-    toolNames: [],
-    channelIds: [],
-    providerIds: [],
-    engineKinds: [],
-    configSchema: params.configSchema,
-    configUiHints: params.configUiHints,
-    configJsonSchema: params.configJsonSchema
-  };
-}
-
-function isPlaceholderConfigSchema(schema: Record<string, unknown> | undefined): boolean {
-  if (!schema || typeof schema !== "object") {
-    return false;
-  }
-  const type = schema.type;
-  const isObjectType = type === "object" || (Array.isArray(type) && type.includes("object"));
-  if (!isObjectType) {
-    return false;
-  }
-  const properties = schema.properties;
-  const noProperties =
-    !properties ||
-    (typeof properties === "object" && !Array.isArray(properties) && Object.keys(properties as Record<string, unknown>).length === 0);
-  return noProperties && schema.additionalProperties === false;
-}
-
-function validatePluginConfig(params: {
-  schema?: Record<string, unknown>;
-  cacheKey?: string;
-  value?: unknown;
-}): { ok: true; value?: Record<string, unknown> } | { ok: false; errors: string[] } {
-  if (!params.schema || isPlaceholderConfigSchema(params.schema)) {
-    return { ok: true, value: params.value as Record<string, unknown> | undefined };
-  }
-
-  const cacheKey = params.cacheKey ?? JSON.stringify(params.schema);
-  const result = validateJsonSchemaValue({
-    schema: params.schema,
-    cacheKey,
-    value: params.value ?? {}
-  });
-
-  if (result.ok) {
-    return { ok: true, value: params.value as Record<string, unknown> | undefined };
-  }
-
-  return { ok: false, errors: result.errors };
 }
 
 function appendBundledChannelPlugins(params: {
@@ -329,6 +303,7 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
     channels: [],
     providers: [],
     engines: [],
+    ncpAgentRuntimes: [],
     diagnostics: [],
     resolvedTools: []
   };
@@ -337,6 +312,9 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
   const reservedChannelIds = new Set(options.reservedChannelIds ?? []);
   const reservedProviderIds = new Set(options.reservedProviderIds ?? []);
   const reservedEngineKinds = new Set((options.reservedEngineKinds ?? ["native"]).map((entry) => entry.toLowerCase()));
+  const reservedNcpAgentRuntimeKinds = new Set(
+    (options.reservedNcpAgentRuntimeKinds ?? ["native"]).map((entry) => entry.toLowerCase())
+  );
 
   const registerRuntime = createPluginRegisterRuntime({
     config: options.config,
@@ -346,20 +324,14 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
     reservedToolNames,
     reservedChannelIds,
     reservedProviderIds,
-    reservedEngineKinds
+    reservedEngineKinds,
+    reservedNcpAgentRuntimeKinds
   });
 
-  const pluginSdkAlias = resolvePluginSdkAlias();
   const jiti = createJiti(import.meta.url, {
     interopDefault: true,
     extensions: [".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".cjs", ".json"],
-    ...(pluginSdkAlias
-      ? {
-          alias: {
-            "openclaw/plugin-sdk": pluginSdkAlias
-          }
-        }
-      : {})
+    alias: buildPluginLoaderAliases()
   });
 
   appendBundledChannelPlugins({

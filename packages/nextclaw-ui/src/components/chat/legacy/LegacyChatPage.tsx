@@ -8,6 +8,7 @@ import { parseSessionKeyFromRoute, resolveAgentIdFromSessionKey } from '@/compon
 import { ChatPresenterProvider } from '@/components/chat/presenter/chat-presenter-context';
 import { ChatPresenter } from '@/components/chat/presenter/chat.presenter';
 import { useChatRuntimeController } from '@/components/chat/useChatRuntimeController';
+import { resolveSessionTypeLabel } from '@/components/chat/useChatSessionTypeState';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 
@@ -125,6 +126,9 @@ export function LegacyChatPage({ view }: ChatPageProps) {
   }, [confirm, location.pathname, navigate, presenter]);
 
   const currentSessionDisplayName = selectedSession ? sessionDisplayName(selectedSession) : undefined;
+  const currentSessionTypeLabel =
+    sessionTypeOptions.find((option) => option.value === selectedSessionType)?.label ??
+    resolveSessionTypeLabel(selectedSessionType);
 
   useEffect(() => {
     presenter.chatThreadManager.bindActions({
@@ -178,6 +182,7 @@ export function LegacyChatPage({ view }: ChatPageProps) {
       modelOptions,
       sessionTypeUnavailable,
       sessionTypeUnavailableMessage,
+      sessionTypeLabel: currentSessionTypeLabel,
       selectedSessionKey,
       sessionDisplayName: currentSessionDisplayName,
       canDeleteSession: Boolean(selectedSession),
@@ -192,6 +197,7 @@ export function LegacyChatPage({ view }: ChatPageProps) {
     canEditSessionType,
     canStopCurrentRun,
     currentSessionDisplayName,
+    currentSessionTypeLabel,
     chatCapabilitiesQuery.data?.stopReason,
     chatCapabilitiesQuery.data?.stopSupported,
     defaultSessionType,

@@ -1,5 +1,10 @@
 import path from "node:path";
 import { expandHome, type Config } from "@nextclaw/core";
+import {
+  ensureUniqueNames,
+  registerPluginEngine,
+  registerPluginNcpAgentRuntime,
+} from "./plugin-capability-registration.js";
 import { createPluginRuntime } from "./runtime.js";
 import type {
   OpenClawPluginApi,
@@ -7,7 +12,6 @@ import type {
   OpenClawPluginTool,
   OpenClawPluginToolContext,
   OpenClawPluginToolFactory,
-  PluginDiagnostic,
   PluginLogger,
   PluginRecord,
   PluginRegistry,
@@ -22,46 +26,6 @@ function buildPluginLogger(base: PluginLogger, pluginId: string): PluginLogger {
     error: (message: string) => base.error(withPrefix(message)),
     debug: base.debug ? (message: string) => base.debug?.(withPrefix(message)) : undefined
   };
-}
-
-function ensureUniqueNames(params: {
-  names: string[];
-  pluginId: string;
-  diagnostics: PluginDiagnostic[];
-  source: string;
-  owners: Map<string, string>;
-  reserved: Set<string>;
-  kind: "tool" | "channel" | "provider" | "engine";
-}): string[] {
-  const accepted: string[] = [];
-  for (const rawName of params.names) {
-    const name = rawName.trim();
-    if (!name) {
-      continue;
-    }
-    if (params.reserved.has(name)) {
-      params.diagnostics.push({
-        level: "error",
-        pluginId: params.pluginId,
-        source: params.source,
-        message: `${params.kind} already registered by core: ${name}`
-      });
-      continue;
-    }
-    const owner = params.owners.get(name);
-    if (owner && owner !== params.pluginId) {
-      params.diagnostics.push({
-        level: "error",
-        pluginId: params.pluginId,
-        source: params.source,
-        message: `${params.kind} already registered: ${name} (${owner})`
-      });
-      continue;
-    }
-    params.owners.set(name, params.pluginId);
-    accepted.push(name);
-  }
-  return accepted;
 }
 
 function normalizeToolList(value: unknown): OpenClawPluginTool[] {
@@ -92,11 +56,13 @@ export type PluginRegisterRuntime = {
   channelIdOwners: Map<string, string>;
   providerIdOwners: Map<string, string>;
   engineKindOwners: Map<string, string>;
+  ncpAgentRuntimeKindOwners: Map<string, string>;
   resolvedToolNames: Set<string>;
   reservedToolNames: Set<string>;
   reservedChannelIds: Set<string>;
   reservedProviderIds: Set<string>;
   reservedEngineKinds: Set<string>;
+  reservedNcpAgentRuntimeKinds: Set<string>;
 };
 
 export function createPluginRegisterRuntime(params: {
@@ -108,6 +74,7 @@ export function createPluginRegisterRuntime(params: {
   reservedChannelIds: Set<string>;
   reservedProviderIds: Set<string>;
   reservedEngineKinds: Set<string>;
+  reservedNcpAgentRuntimeKinds: Set<string>;
 }): PluginRegisterRuntime {
   return {
     config: params.config,
@@ -118,11 +85,13 @@ export function createPluginRegisterRuntime(params: {
     channelIdOwners: new Map<string, string>(),
     providerIdOwners: new Map<string, string>(),
     engineKindOwners: new Map<string, string>(),
+    ncpAgentRuntimeKindOwners: new Map<string, string>(),
     resolvedToolNames: new Set<string>(),
     reservedToolNames: params.reservedToolNames,
     reservedChannelIds: params.reservedChannelIds,
     reservedProviderIds: params.reservedProviderIds,
-    reservedEngineKinds: params.reservedEngineKinds
+    reservedEngineKinds: params.reservedEngineKinds,
+    reservedNcpAgentRuntimeKinds: params.reservedNcpAgentRuntimeKinds
   };
 }
 
@@ -360,35 +329,6 @@ function registerPluginProvider(params: {
   params.record.providerIds.push(accepted[0]);
 }
 
-function registerPluginEngine(params: {
-  runtime: PluginRegisterRuntime;
-  record: PluginRecord;
-  pluginId: string;
-  source: string;
-  kind: string;
-  factory: PluginRegistry["engines"][number]["factory"];
-}): void {
-  const accepted = ensureUniqueNames({
-    names: [params.kind],
-    pluginId: params.pluginId,
-    diagnostics: params.runtime.registry.diagnostics,
-    source: params.source,
-    owners: params.runtime.engineKindOwners,
-    reserved: params.runtime.reservedEngineKinds,
-    kind: "engine"
-  });
-  if (accepted.length === 0) {
-    return;
-  }
-  params.runtime.registry.engines.push({
-    pluginId: params.pluginId,
-    kind: accepted[0],
-    factory: params.factory,
-    source: params.source
-  });
-  params.record.engineKinds.push(accepted[0]);
-}
-
 export function registerPluginWithApi(params: {
   runtime: PluginRegisterRuntime;
   record: PluginRecord;
@@ -467,6 +407,15 @@ export function registerPluginWithApi(params: {
         source: params.source,
         kind,
         factory
+      });
+    },
+    registerNcpAgentRuntime: (registration) => {
+      registerPluginNcpAgentRuntime({
+        runtime: params.runtime,
+        record: params.record,
+        pluginId: params.pluginId,
+        source: params.source,
+        registration
       });
     },
     registerHook: () => pushUnsupported("registerHook"),

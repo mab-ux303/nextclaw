@@ -493,9 +493,7 @@ export type UiChatRuntime = {
     states?: ChatRunState[];
     limit?: number;
   }) => Promise<ChatRunListView> | ChatRunListView;
-  getCapabilities?: (
-    params: Pick<ChatTurnRequest, "sessionKey" | "agentId">
-  ) => Promise<ChatCapabilitiesView> | ChatCapabilitiesView;
+  getCapabilities?: (params: Pick<ChatTurnRequest, "sessionKey" | "agentId">) => Promise<ChatCapabilitiesView> | ChatCapabilitiesView;
   listSessionTypes?: () => Promise<ChatSessionTypesView> | ChatSessionTypesView;
   stopTurn?: (params: ChatTurnStopRequest) => Promise<ChatTurnStopResult> | ChatTurnStopResult;
 };
@@ -515,6 +513,7 @@ export type UiNcpAgent = {
   agentClientEndpoint: NcpAgentClientEndpoint;
   streamProvider?: NcpHttpAgentStreamProvider;
   sessionApi?: NcpSessionApi;
+  listSessionTypes?: () => Promise<ChatSessionTypesView> | ChatSessionTypesView;
   basePath?: string;
 };
 

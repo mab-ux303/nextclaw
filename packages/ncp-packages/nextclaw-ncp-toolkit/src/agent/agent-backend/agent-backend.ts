@@ -19,12 +19,18 @@ import { AgentLiveSessionRegistry } from "./agent-live-session-registry.js";
 import { AgentRunExecutor } from "./agent-run-executor.js";
 import { createAsyncQueue } from "./async-queue.js";
 import type {
-  AgentSessionRecord,
   AgentSessionStore,
   CreateRuntimeFn,
   LiveSessionExecution,
   LiveSessionState,
 } from "./agent-backend-types.js";
+import {
+  isTerminalEvent,
+  now,
+  readMessages,
+  toLiveSessionSummary,
+  toSessionSummary,
+} from "./agent-backend-session-utils.js";
 import { EventPublisher } from "./event-publisher.js";
 
 const DEFAULT_SUPPORTED_PART_TYPES: NcpEndpointManifest["supportedPartTypes"] = [
@@ -142,7 +148,10 @@ export class DefaultNcpAgentBackend
     options?: NcpAgentRunSendOptions,
   ): AsyncIterable<NcpEndpointEvent> {
     await this.ensureStarted();
-    const session = await this.sessionRegistry.ensureSession(envelope.sessionId);
+    const session = await this.sessionRegistry.ensureSession(
+      envelope.sessionId,
+      envelope.metadata,
+    );
     const execution = this.startSessionExecution(session, envelope, options?.signal);
 
     try {
@@ -396,62 +405,12 @@ export class DefaultNcpAgentBackend
       sessionId,
       messages: readMessages(snapshot),
       updatedAt: now(),
-      metadata: session.activeExecution?.requestEnvelope.metadata,
+      metadata: {
+        ...(session.metadata ? structuredClone(session.metadata) : {}),
+        ...(session.activeExecution?.requestEnvelope.metadata
+          ? structuredClone(session.activeExecution.requestEnvelope.metadata)
+          : {}),
+      },
     });
-  }
-}
-
-function readMessages(
-  snapshot: {
-    messages: ReadonlyArray<NcpMessage>;
-    streamingMessage: NcpMessage | null;
-  },
-): NcpMessage[] {
-  const messages = snapshot.messages.map((message) => structuredClone(message));
-  if (snapshot.streamingMessage) {
-    messages.push(structuredClone(snapshot.streamingMessage));
-  }
-
-  return messages;
-}
-
-function toSessionSummary(
-  session: AgentSessionRecord,
-  liveSession: LiveSessionState | null,
-): NcpSessionSummary {
-  return {
-    sessionId: session.sessionId,
-    messageCount: session.messages.length,
-    updatedAt: session.updatedAt,
-    status: liveSession?.activeExecution ? "running" : "idle",
-    ...(session.metadata ? { metadata: structuredClone(session.metadata) } : {}),
-  };
-}
-
-function toLiveSessionSummary(session: LiveSessionState): NcpSessionSummary {
-  const snapshot = session.stateManager.getSnapshot();
-  return {
-    sessionId: session.sessionId,
-    messageCount: readMessages(snapshot).length,
-    updatedAt: now(),
-    status: session.activeExecution ? "running" : "idle",
-    ...(session.activeExecution?.requestEnvelope.metadata
-      ? { metadata: structuredClone(session.activeExecution.requestEnvelope.metadata) }
-      : {}),
-  };
-}
-
-function now(): string {
-  return new Date().toISOString();
-}
-
-function isTerminalEvent(event: NcpEndpointEvent): boolean {
-  switch (event.type) {
-    case NcpEventType.MessageAbort:
-    case NcpEventType.RunFinished:
-    case NcpEventType.RunError:
-      return true;
-    default:
-      return false;
   }
 }

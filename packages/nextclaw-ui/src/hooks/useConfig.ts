@@ -390,7 +390,7 @@ export function useChatRuns(params?: {
       if (params?.isLocallyRunning) {
         return 800;
       }
-      const data = query.state.data;
+      const { data } = query.state;
       const hasActiveRuns = Array.isArray(data?.runs) && data.runs.length > 0;
       return hasActiveRuns ? 800 : false;
     },

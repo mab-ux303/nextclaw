@@ -8,6 +8,7 @@ export type ChatThreadSnapshot = {
   modelOptions: ChatModelOption[];
   sessionTypeUnavailable: boolean;
   sessionTypeUnavailableMessage?: string | null;
+  sessionTypeLabel?: string | null;
   selectedSessionKey: string | null;
   sessionDisplayName?: string;
   canDeleteSession: boolean;
@@ -29,6 +30,7 @@ const initialSnapshot: ChatThreadSnapshot = {
   modelOptions: [],
   sessionTypeUnavailable: false,
   sessionTypeUnavailableMessage: null,
+  sessionTypeLabel: null,
   selectedSessionKey: null,
   sessionDisplayName: undefined,
   canDeleteSession: false,

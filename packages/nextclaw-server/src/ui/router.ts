@@ -94,6 +94,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
       agentClientEndpoint: options.ncpAgent.agentClientEndpoint,
       streamProvider: options.ncpAgent.streamProvider
     });
+    app.get("/api/ncp/session-types", ncpSessionController.getSessionTypes);
     app.get("/api/ncp/sessions", ncpSessionController.listSessions);
     app.get("/api/ncp/sessions/:sessionId", ncpSessionController.getSession);
     app.get("/api/ncp/sessions/:sessionId/messages", ncpSessionController.listSessionMessages);

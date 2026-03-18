@@ -5,7 +5,6 @@ import {
   buildModelStateHint,
   buildModelToolbarSelect,
   buildSelectedSkillItems,
-  buildSessionTypeToolbarSelect,
   buildSkillPickerModel,
   buildThinkingToolbarSelect,
   resolveSlashQuery,
@@ -136,16 +135,6 @@ export function ChatInputBarContainer() {
     canStopGeneration: snapshot.canStopGeneration
   });
 
-  const selectedSessionTypeOption =
-    snapshot.sessionTypeOptions.find((option) => option.value === snapshot.selectedSessionType) ??
-    (snapshot.selectedSessionType
-      ? { value: snapshot.selectedSessionType, label: snapshot.selectedSessionType }
-      : null);
-  const shouldShowSessionTypeSelector =
-    snapshot.canEditSessionType &&
-    (snapshot.sessionTypeOptions.length > 1 ||
-      Boolean(snapshot.selectedSessionType && snapshot.selectedSessionType !== 'native'));
-
   const selectedModelOption = modelRecords.find((option) => option.value === snapshot.selectedModel);
   const selectedModelThinkingCapability = selectedModelOption?.thinkingCapability;
   const thinkingSupportedLevels = selectedModelThinkingCapability?.supported ?? [];
@@ -156,17 +145,6 @@ export function ChatInputBarContainer() {
       : snapshot.stopDisabledReason?.trim() || t('chatStopUnavailable');
 
   const toolbarSelects = [
-    buildSessionTypeToolbarSelect({
-      selectedSessionType: snapshot.selectedSessionType,
-      selectedSessionTypeOption,
-      sessionTypeOptions: snapshot.sessionTypeOptions,
-      onValueChange: presenter.chatInputManager.selectSessionType,
-      canEditSessionType: snapshot.canEditSessionType,
-      shouldShow: shouldShowSessionTypeSelector,
-      texts: {
-        sessionTypePlaceholder: t('chatSessionTypeLabel')
-      }
-    }),
     buildModelToolbarSelect({
       modelOptions: modelRecords,
       selectedModel: snapshot.selectedModel,

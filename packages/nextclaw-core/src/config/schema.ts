@@ -341,6 +341,16 @@ export const GatewayConfigSchema = z.object({
   port: z.number().int().default(18790)
 });
 
+export const UiNcpRuntimeEntrySchema = z
+  .object({
+    enabled: z.boolean().optional()
+  })
+  .catchall(z.unknown());
+
+export const UiNcpConfigSchema = z.object({
+  runtimes: z.record(UiNcpRuntimeEntrySchema).default({})
+});
+
 export const UiConfigSchema = z.object({
   enabled: z.boolean().default(false),
   host: z.string().default("0.0.0.0"),
@@ -351,7 +361,8 @@ export const UiConfigSchema = z.object({
     username: z.string().default(""),
     passwordHash: z.string().default(""),
     passwordSalt: z.string().default("")
-  }).default({})
+  }).default({}),
+  ncp: UiNcpConfigSchema.default({})
 });
 
 export const WebSearchConfigSchema = z.object({

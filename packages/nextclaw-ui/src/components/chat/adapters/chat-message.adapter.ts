@@ -61,6 +61,8 @@ export type ChatMessageAdapterTexts = {
   unknownPartLabel: string;
 };
 
+const INVISIBLE_ONLY_TEXT_PATTERN = /\u200B|\u200C|\u200D|\u2060|\uFEFF/g;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -95,7 +97,10 @@ function resolveMessageTimestamp(message: ChatMessageSource): string {
   return new Date().toISOString();
 }
 
-function resolveRoleLabel(role: string, texts: ChatMessageAdapterTexts['roleLabels']): string {
+function resolveRoleLabel(
+  role: string,
+  texts: ChatMessageAdapterTexts['roleLabels']
+): string {
   if (role === 'user') {
     return texts.user;
   }
@@ -118,7 +123,10 @@ function resolveUiRole(role: string): ChatMessageRole {
   return 'message';
 }
 
-function buildToolCard(toolCard: ToolCard, texts: ChatMessageAdapterTexts): ChatToolPartViewModel {
+function buildToolCard(
+  toolCard: ToolCard,
+  texts: ChatMessageAdapterTexts
+): ChatToolPartViewModel {
   return {
     kind: toolCard.kind,
     toolName: toolCard.name,
@@ -129,6 +137,15 @@ function buildToolCard(toolCard: ToolCard, texts: ChatMessageAdapterTexts): Chat
     outputLabel: texts.toolOutputLabel,
     emptyLabel: texts.toolNoOutputLabel
   };
+}
+
+function toRenderableText(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const visible = trimmed.replace(INVISIBLE_ONLY_TEXT_PATTERN, "").trim();
+  return visible ? trimmed : null;
 }
 
 export function adaptChatMessages(params: {
@@ -145,7 +162,7 @@ export function adaptChatMessages(params: {
     parts: message.parts
       .map((part) => {
         if (isTextPart(part)) {
-          const text = part.text.trim();
+          const text = toRenderableText(part.text);
           if (!text) {
             return null;
           }
@@ -155,7 +172,7 @@ export function adaptChatMessages(params: {
           };
         }
         if (isReasoningPart(part)) {
-          const text = part.reasoning.trim();
+          const text = toRenderableText(part.reasoning);
           if (!text) {
             return null;
           }
@@ -168,11 +185,12 @@ export function adaptChatMessages(params: {
         if (isToolInvocationPart(part)) {
           const invocation = part.toolInvocation;
           const detail = summarizeToolArgs(invocation.parsedArgs ?? invocation.args);
-          const rawResult = typeof invocation.error === 'string' && invocation.error.trim()
-            ? invocation.error.trim()
-            : invocation.result != null
-              ? stringifyUnknown(invocation.result).trim()
-              : '';
+          const rawResult =
+            typeof invocation.error === 'string' && invocation.error.trim()
+              ? invocation.error.trim()
+              : invocation.result != null
+                ? stringifyUnknown(invocation.result).trim()
+                : '';
           const hasResult =
             invocation.status === 'result' || invocation.status === 'error' || invocation.status === 'cancelled';
           const card: ToolCard = {

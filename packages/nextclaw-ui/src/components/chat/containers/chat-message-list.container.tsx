@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
-import { type UiMessage } from '@nextclaw/agent-chat';
-import { ChatMessageList } from '@nextclaw/agent-chat-ui';
-import { adaptChatMessages, type ChatMessageSource } from '@/components/chat/adapters/chat-message.adapter';
-import { useI18n } from '@/components/providers/I18nProvider';
-import { formatDateTime, t } from '@/lib/i18n';
+import { useMemo } from "react";
+import { type UiMessage } from "@nextclaw/agent-chat";
+import { ChatMessageList } from "@nextclaw/agent-chat-ui";
+import {
+  adaptChatMessages,
+  type ChatMessageSource,
+} from "@/components/chat/adapters/chat-message.adapter";
+import { useI18n } from "@/components/providers/I18nProvider";
+import { formatDateTime, t } from "@/lib/i18n";
 
 type ChatMessageListContainerProps = {
   uiMessages: UiMessage[];
@@ -20,11 +23,11 @@ export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
         role: message.role,
         meta: {
           timestamp: message.meta?.timestamp,
-          status: message.meta?.status
+          status: message.meta?.status,
         },
-        parts: message.parts as unknown as ChatMessageSource['parts']
+        parts: message.parts as unknown as ChatMessageSource["parts"],
       })),
-    [props.uiMessages]
+    [props.uiMessages],
   );
 
   const messages = useMemo(
@@ -34,21 +37,21 @@ export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
         formatTimestamp: (value) => formatDateTime(value, language),
         texts: {
           roleLabels: {
-            user: t('chatRoleUser'),
-            assistant: t('chatRoleAssistant'),
-            tool: t('chatRoleTool'),
-            system: t('chatRoleSystem'),
-            fallback: t('chatRoleMessage')
+            user: t("chatRoleUser"),
+            assistant: t("chatRoleAssistant"),
+            tool: t("chatRoleTool"),
+            system: t("chatRoleSystem"),
+            fallback: t("chatRoleMessage"),
           },
-          reasoningLabel: t('chatReasoning'),
-          toolCallLabel: t('chatToolCall'),
-          toolResultLabel: t('chatToolResult'),
-          toolNoOutputLabel: t('chatToolNoOutput'),
-          toolOutputLabel: t('chatToolOutput'),
-          unknownPartLabel: t('chatUnknownPart')
-        }
+          reasoningLabel: t("chatReasoning"),
+          toolCallLabel: t("chatToolCall"),
+          toolResultLabel: t("chatToolResult"),
+          toolNoOutputLabel: t("chatToolNoOutput"),
+          toolOutputLabel: t("chatToolOutput"),
+          unknownPartLabel: t("chatUnknownPart"),
+        },
       }),
-    [language, sourceMessages]
+    [language, sourceMessages],
   );
 
   return (
@@ -57,14 +60,15 @@ export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
       isSending={props.isSending}
       hasAssistantDraft={props.uiMessages.some(
         (message) =>
-          message.role === 'assistant' &&
-          (message.meta?.status === 'streaming' || message.meta?.status === 'pending')
+          message.role === "assistant" &&
+          (message.meta?.status === "streaming" ||
+            message.meta?.status === "pending"),
       )}
       className={props.className}
       texts={{
-        copyCodeLabel: t('chatCodeCopy'),
-        copiedCodeLabel: t('chatCodeCopied'),
-        typingLabel: t('chatTyping')
+        copyCodeLabel: t("chatCodeCopy"),
+        copiedCodeLabel: t("chatCodeCopied"),
+        typingLabel: t("chatTyping"),
       }}
     />
   );

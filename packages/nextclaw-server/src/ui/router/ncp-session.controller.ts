@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import type { UiNcpSessionListView, UiNcpSessionMessagesView } from "../types.js";
+import type { ChatSessionTypesView, UiNcpSessionListView, UiNcpSessionMessagesView } from "../types.js";
 import { err, ok } from "./response.js";
 import type { UiRouterOptions } from "./types.js";
 
@@ -16,6 +16,17 @@ function readPositiveInt(value: string | undefined): number | undefined {
 
 export class NcpSessionRoutesController {
   constructor(private readonly options: UiRouterOptions) {}
+
+  readonly getSessionTypes = async (c: Context) => {
+    const listSessionTypes = this.options.ncpAgent?.listSessionTypes;
+    const payload: ChatSessionTypesView = listSessionTypes
+      ? await listSessionTypes()
+      : {
+          defaultType: "native",
+          options: [{ value: "native", label: "Native" }],
+        };
+    return c.json(ok(payload));
+  };
 
   readonly listSessions = async (c: Context) => {
     const sessionApi = this.options.ncpAgent?.sessionApi;

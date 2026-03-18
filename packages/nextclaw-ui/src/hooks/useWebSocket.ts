@@ -105,6 +105,11 @@ export function useWebSocket(queryClient?: QueryClient) {
       if (event.type === 'config.updated' && event.payload.path.startsWith('session')) {
         invalidateSessionQueries();
       }
+      if (event.type === 'config.updated' && event.payload.path.startsWith('plugins')) {
+        queryClient?.invalidateQueries({ queryKey: ['ncp-session-types'] });
+        queryClient?.invalidateQueries({ queryKey: ['marketplace-installed', 'plugin'] });
+        queryClient?.invalidateQueries({ queryKey: ['marketplace-items'] });
+      }
     });
 
     client.on('run.updated', (event) => {

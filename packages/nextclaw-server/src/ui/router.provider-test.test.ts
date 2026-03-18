@@ -401,7 +401,7 @@ describe("provider connection test route", () => {
     expect(minimaxPortal?.auth?.methods?.map((method) => method.id)).toEqual(["global", "cn"]);
   });
 
-  it("exposes minimax coding plan defaults in provider meta", async () => {
+  it("exposes minimax model defaults in provider meta", async () => {
     const configPath = createTempConfigPath();
     saveConfig(ConfigSchema.parse({}), configPath);
 
@@ -425,7 +425,12 @@ describe("provider connection test route", () => {
     };
     const minimax = metaPayload.data.providers.find((provider) => provider.name === "minimax");
     expect(minimax).toBeDefined();
-    expect(minimax?.defaultModels).toContain("minimax/codex-MiniMax-M2.7");
+    expect(minimax?.defaultModels).toEqual([
+      "minimax/MiniMax-M2.7",
+      "minimax/MiniMax-M2.7-highspeed",
+      "minimax/MiniMax-M2.5",
+      "minimax/MiniMax-M2.5-highspeed"
+    ]);
     expect(minimax?.supportsWireApi).toBe(true);
     expect(minimax?.defaultWireApi).toBe("chat");
   });

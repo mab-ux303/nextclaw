@@ -140,6 +140,16 @@ class StubNcpAgent implements NcpAgentClientEndpoint, NcpSessionApi {
 
   async deleteSession(): Promise<void> {}
 
+  async listSessionTypes() {
+    return {
+      defaultType: "native",
+      options: [
+        { value: "native", label: "Native" },
+        { value: "codex", label: "Codex" },
+      ],
+    };
+  }
+
   private publish(event: NcpEndpointEvent): void {
     for (const listener of this.listeners) {
       listener(event);
@@ -171,7 +181,8 @@ describe("ncp ui routes", () => {
       ncpAgent: {
         agentClientEndpoint: agent,
         streamProvider,
-        sessionApi: agent
+        sessionApi: agent,
+        listSessionTypes: () => agent.listSessionTypes(),
       }
     });
 
@@ -200,6 +211,24 @@ describe("ncp ui routes", () => {
     expect(messagesPayload.ok).toBe(true);
     expect(messagesPayload.data.total).toBe(1);
     expect(messagesPayload.data.messages[0]?.id).toBe("msg-1");
+
+    const sessionTypesResponse = await app.request("http://localhost/api/ncp/session-types");
+    expect(sessionTypesResponse.status).toBe(200);
+    const sessionTypesPayload = await sessionTypesResponse.json() as {
+      ok: boolean;
+      data: {
+        defaultType: string;
+        options: Array<{ value: string; label: string }>;
+      };
+    };
+    expect(sessionTypesPayload.ok).toBe(true);
+    expect(sessionTypesPayload.data).toEqual({
+      defaultType: "native",
+      options: [
+        { value: "native", label: "Native" },
+        { value: "codex", label: "Codex" },
+      ],
+    });
 
     const sendResponse = await app.request("http://localhost/api/ncp/agent/send", {
       method: "POST",

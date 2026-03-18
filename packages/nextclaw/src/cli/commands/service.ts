@@ -40,6 +40,7 @@ import {
   loadPluginRegistry,
   logPluginDiagnostics,
   mergePluginConfigView,
+  type NextclawExtensionRegistry,
   toExtensionRegistry,
   toPluginConfigView
 } from "./plugins.js";
@@ -75,7 +76,6 @@ const {
 } = NextclawCore;
 
 type Config = NextclawCore.Config;
-type ExtensionRegistry = NextclawCore.ExtensionRegistry;
 type LLMProvider = NextclawCore.LLMProvider;
 type MessageBus = NextclawCore.MessageBus;
 type SessionManager = NextclawCore.SessionManager;
@@ -1186,7 +1186,7 @@ export class ServiceCommands {
     bus: MessageBus,
     gatewayController: GatewayControllerImpl,
     getConfig: () => Config,
-    getExtensionRegistry: () => ExtensionRegistry | undefined,
+    getExtensionRegistry: () => NextclawExtensionRegistry | undefined,
     resolveMessageToolHints: (params: { channel: string; accountId?: string | null }) => string[],
   ): Promise<void> {
     if (!uiConfig.enabled) {

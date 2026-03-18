@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { SessionEntryView } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { BrandHeader } from '@/components/common/BrandHeader';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { SessionRunBadge } from '@/components/common/SessionRunBadge';
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
+import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatRunStatusStore } from '@/components/chat/stores/chat-run-status.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 import { cn } from '@/lib/utils';
@@ -17,7 +19,7 @@ import { useTheme } from '@/components/providers/ThemeProvider';
 import { useDocBrowser } from '@/components/doc-browser';
 import { useUiStore } from '@/stores/ui.store';
 import { NavLink } from 'react-router-dom';
-import { AlarmClock, BookOpen, BrainCircuit, Languages, MessageSquareText, Palette, Plus, Search, Settings } from 'lucide-react';
+import { AlarmClock, BookOpen, BrainCircuit, ChevronDown, Languages, MessageSquareText, Palette, Plus, Search, Settings } from 'lucide-react';
 
 type DateGroup = {
   label: string;
@@ -72,6 +74,8 @@ const navItems = [
 export function ChatSidebar() {
   const presenter = usePresenter();
   const docBrowser = useDocBrowser();
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  const inputSnapshot = useChatInputStore((state) => state.snapshot);
   const listSnapshot = useChatSessionListStore((state) => state.snapshot);
   const runSnapshot = useChatRunStatusStore((state) => state.snapshot);
   const connectionStatus = useUiStore((state) => state.connectionStatus);
@@ -81,6 +85,11 @@ export function ChatSidebar() {
   const currentLanguageLabel = LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? language;
 
   const groups = useMemo(() => groupSessionsByDate(listSnapshot.sessions), [listSnapshot.sessions]);
+  const defaultSessionType = inputSnapshot.defaultSessionType || 'native';
+  const nonDefaultSessionTypeOptions = useMemo(
+    () => inputSnapshot.sessionTypeOptions.filter((option) => option.value !== defaultSessionType),
+    [defaultSessionType, inputSnapshot.sessionTypeOptions]
+  );
 
   const handleLanguageSwitch = (nextLang: I18nLanguage) => {
     if (language === nextLang) return;
@@ -98,10 +107,57 @@ export function ChatSidebar() {
       </div>
 
       <div className="px-4 pb-3">
-        <Button variant="primary" className="w-full rounded-xl" onClick={presenter.chatSessionListManager.createSession}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t('chatSidebarNewTask')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            className={cn(
+              'min-w-0 rounded-xl',
+              nonDefaultSessionTypeOptions.length > 0 ? 'flex-1 rounded-r-md' : 'w-full'
+            )}
+            onClick={() => {
+              setIsCreateMenuOpen(false);
+              presenter.chatSessionListManager.createSession(defaultSessionType);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t('chatSidebarNewTask')}
+          </Button>
+          {nonDefaultSessionTypeOptions.length > 0 ? (
+            <Popover open={isCreateMenuOpen} onOpenChange={setIsCreateMenuOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="primary"
+                  size="icon"
+                  className="h-9 w-10 shrink-0 rounded-xl rounded-l-md"
+                  aria-label={t('chatSessionTypeLabel')}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-2">
+                <div className="px-2 py-1 text-[11px] font-medium uppercase tracking-wider text-gray-400">
+                  {t('chatSessionTypeLabel')}
+                </div>
+                <div className="mt-1 space-y-1">
+                  {nonDefaultSessionTypeOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        presenter.chatSessionListManager.createSession(option.value);
+                        setIsCreateMenuOpen(false);
+                      }}
+                      className="w-full rounded-xl px-3 py-2 text-left transition-colors hover:bg-gray-100"
+                    >
+                      <div className="text-[13px] font-medium text-gray-900">{option.label}</div>
+                      <div className="mt-0.5 text-[11px] text-gray-500">{t('chatSidebarNewTask')}</div>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          ) : null}
+        </div>
       </div>
 
       <div className="px-4 pb-3">

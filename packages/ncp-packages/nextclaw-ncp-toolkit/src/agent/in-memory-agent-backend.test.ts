@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   type NcpAgentConversationStateManager,
+  type NcpAgentRuntime,
   type NcpLLMApi,
   type NcpLLMApiInput,
   type NcpLLMApiOptions,
+  type NcpEndpointEvent,
   type NcpRequestEnvelope,
   type NcpTool,
   type NcpToolDefinition,
@@ -81,6 +83,38 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
       role: "assistant",
       status: "final",
       parts: [{ type: "text", text: "hello" }],
+    });
+  });
+
+  it("persists runtime-owned session metadata alongside request metadata", async () => {
+    const backend = new DefaultNcpAgentBackend({
+      sessionStore: new InMemoryAgentSessionStore(),
+      createRuntime: ({ sessionId, sessionMetadata, setSessionMetadata }) => {
+        setSessionMetadata({
+          ...sessionMetadata,
+          session_type: "codex",
+          codex_thread_id: `thread:${sessionId}`,
+        });
+        return new EchoNcpLLMApiRuntime();
+      },
+    });
+
+    await backend.emit({
+      type: NcpEventType.MessageRequest,
+      payload: {
+        ...createEnvelope("hello"),
+        metadata: {
+          session_type: "codex",
+          preferred_model: "openai/gpt-5.3-codex",
+        },
+      },
+    });
+
+    const session = await backend.getSession("session-1");
+    expect(session?.metadata).toMatchObject({
+      session_type: "codex",
+      preferred_model: "openai/gpt-5.3-codex",
+      codex_thread_id: "thread:session-1",
     });
   });
 
@@ -269,6 +303,19 @@ class SlowEchoNcpLLMApi implements NcpLLMApi {
     }
     yield {
       choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+    };
+  }
+}
+
+class EchoNcpLLMApiRuntime implements NcpAgentRuntime {
+  async *run(): AsyncGenerator<NcpEndpointEvent> {
+    yield {
+      type: NcpEventType.RunFinished,
+      payload: {
+        sessionId: "session-1",
+        messageId: "assistant-1",
+        runId: "run-1",
+      },
     };
   }
 }

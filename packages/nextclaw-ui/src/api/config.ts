@@ -639,6 +639,15 @@ export async function fetchChatSessionTypes(): Promise<ChatSessionTypesView> {
   return response.data;
 }
 
+// GET /api/ncp/session-types
+export async function fetchNcpChatSessionTypes(): Promise<ChatSessionTypesView> {
+  const response = await api.get<ChatSessionTypesView>('/api/ncp/session-types');
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
 // POST /api/chat/turn/stop
 export async function stopChatTurn(data: ChatTurnStopRequest): Promise<ChatTurnStopResult> {
   const response = await api.post<ChatTurnStopResult>('/api/chat/turn/stop', data);

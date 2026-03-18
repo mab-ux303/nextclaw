@@ -1,0 +1,98 @@
+{
+  "id": "nextclaw-ncp-runtime-plugin-codex-sdk",
+  "kind": "agent-runtime",
+  "name": "NextClaw Codex NCP Runtime",
+  "description": "Registers NCP session type `codex` backed by OpenAI Codex SDK.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+      "apiKey": {
+        "type": "string"
+      },
+      "apiBase": {
+        "type": "string"
+      },
+      "model": {
+        "type": "string"
+      },
+      "workingDirectory": {
+        "type": "string"
+      },
+      "sandboxMode": {
+        "type": "string",
+        "enum": ["read-only", "workspace-write", "danger-full-access"]
+      },
+      "skipGitRepoCheck": {
+        "type": "boolean"
+      },
+      "networkAccessEnabled": {
+        "type": "boolean"
+      },
+      "webSearchMode": {
+        "type": "string",
+        "enum": ["disabled", "cached", "live"]
+      },
+      "webSearchEnabled": {
+        "type": "boolean"
+      },
+      "approvalPolicy": {
+        "type": "string",
+        "enum": ["never", "on-request", "on-failure", "untrusted"]
+      },
+      "codexPathOverride": {
+        "type": "string"
+      },
+      "additionalDirectories": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "env": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "config": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  },
+  "uiHints": {
+    "apiKey": {
+      "label": "Codex API Key",
+      "help": "Optional. Falls back to the selected provider API key when omitted.",
+      "sensitive": true
+    },
+    "apiBase": {
+      "label": "Codex API Base"
+    },
+    "model": {
+      "label": "Default Model"
+    },
+    "workingDirectory": {
+      "label": "Working Directory",
+      "advanced": true
+    },
+    "sandboxMode": {
+      "label": "Sandbox Mode",
+      "advanced": true
+    },
+    "approvalPolicy": {
+      "label": "Approval Policy",
+      "advanced": true
+    },
+    "networkAccessEnabled": {
+      "label": "Enable Network",
+      "advanced": true
+    },
+    "webSearchEnabled": {
+      "label": "Enable Web Search",
+      "advanced": true
+    }
+  }
+}
