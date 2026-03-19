@@ -316,7 +316,6 @@ function MarketplaceListCard(props: {
 }) {
   const { item, record, localeFallbacks, installState, manageState, onOpen, onInstall, onManage } = props;
   const pluginRecord = record?.type === 'plugin' ? record : undefined;
-  const type = item?.type ?? record?.type;
   const title = item?.name ?? record?.label ?? record?.id ?? record?.spec ?? t('marketplaceUnknownItem');
   const summary = pickLocalizedText(item?.summaryI18n, item?.summary, localeFallbacks)
     || (record ? t('marketplaceInstalledLocalSummary') : '');
@@ -333,8 +332,6 @@ function MarketplaceListCard(props: {
   const isDisabled = record ? (record.enabled === false || record.runtimeStatus === 'disabled') : false;
   const installSpec = item?.install.spec;
   const isInstalling = typeof installSpec === 'string' && installState.installingSpecs.has(installSpec);
-
-  const displayType = type === 'plugin' ? t('marketplaceTypePlugin') : type === 'skill' ? t('marketplaceTypeSkill') : t('marketplaceTypeExtension');
 
   return (
     <article
@@ -355,19 +352,15 @@ function MarketplaceListCard(props: {
             </Tooltip>
 
             <div className="flex items-center gap-1.5 mt-0.5 mb-1.5">
-              <span className="text-[11px] text-gray-500 font-medium">{displayType}</span>
               {spec && (
-                <>
-                  <span className="text-[10px] text-gray-300">•</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-[11px] text-gray-400 truncate max-w-full font-mono">{spec}</span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[300px] text-xs font-mono break-all">
-                      {spec}
-                    </TooltipContent>
-                  </Tooltip>
-                </>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[11px] text-gray-400 truncate max-w-full font-mono">{spec}</span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[300px] text-xs font-mono break-all">
+                    {spec}
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
 

@@ -167,4 +167,37 @@ describe('MarketplacePage', () => {
     expect(screen.queryByTestId('marketplace-list-skeleton')).toBeNull();
     expect(screen.getByText('Web Search')).toBeTruthy();
   });
+
+  it('does not render the redundant plugin type label in plugin cards', () => {
+    mocks.itemsQuery = createItemsQuery({
+      data: {
+        total: 1,
+        page: 1,
+        pageSize: 12,
+        totalPages: 1,
+        sort: 'relevance',
+        items: [
+          createMarketplaceItem({
+            id: 'plugin-codex-runtime',
+            slug: 'codex-runtime',
+            type: 'plugin',
+            name: 'Codex SDK NCP Runtime',
+            summary: 'Optional Codex runtime for NextClaw',
+            summaryI18n: { en: 'Optional Codex runtime for NextClaw' },
+            install: {
+              kind: 'npm',
+              spec: '@nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk',
+              command: 'npm install @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk'
+            }
+          })
+        ]
+      } satisfies MarketplaceListView
+    });
+
+    const { container } = render(<MarketplacePage forcedType="plugins" />);
+    const card = container.querySelector('article');
+
+    expect(card?.textContent).toContain('@nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk');
+    expect(card?.textContent).not.toContain('Plugin');
+  });
 });
