@@ -5,6 +5,7 @@
 ## 指标定义
 
 - 默认口径：源码 LOC（不是仓库总体积）
+- 文档站不算代码：`apps/docs` 默认不纳入任何 code metrics profile
 - 统计范围：
   - workspace 内的 `src/`
   - workspace 内的 `bridge/src/`
@@ -89,3 +90,4 @@ pnpm metrics:repo:local
 - 更关注“增速”和“突增来源（byScope）”，避免长期复杂度无感上升。
 - `byScope` 应反映真实子项目边界；若某个多层工作区被错误合并成父目录（例如 `packages/extensions`），需要优先修正统计口径，再解释数据。
 - 当默认口径从一种 profile 切到另一种 profile 时，delta 会自动视为“无可比基线”，避免把不同统计语义硬算成涨跌。
+- 若某个工作区本质上是文档产品而非代码产品，应直接从 metrics profile 中排除，而不是继续占用 LOC 配额。

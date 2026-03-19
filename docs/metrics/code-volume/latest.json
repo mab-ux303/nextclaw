@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-19T14:57:10.815Z",
+  "generatedAt": "2026-03-19T15:02:27.714Z",
   "projectRoot": "/Users/peiwang/Projects/nextbot",
   "git": {
     "sha": "",
@@ -9,7 +9,6 @@
     "profile": "source",
     "includePaths": [
       "apps/desktop/src",
-      "apps/docs/.vitepress",
       "apps/landing/src",
       "apps/ncp-demo/backend/src",
       "apps/ncp-demo/frontend/src",
@@ -79,28 +78,20 @@
     ]
   },
   "totals": {
-    "files": 685,
-    "totalLines": 137461,
-    "blankLines": 10472,
-    "commentLines": 2734,
-    "codeLines": 124255
+    "files": 675,
+    "totalLines": 104033,
+    "blankLines": 10411,
+    "commentLines": 666,
+    "codeLines": 92956
   },
   "byLanguage": [
     {
       "name": "TypeScript",
-      "files": 539,
-      "totalLines": 87220,
-      "blankLines": 8925,
+      "files": 538,
+      "totalLines": 86925,
+      "blankLines": 8910,
       "commentLines": 601,
-      "codeLines": 77694
-    },
-    {
-      "name": "JavaScript",
-      "files": 19,
-      "totalLines": 33413,
-      "blankLines": 86,
-      "commentLines": 2068,
-      "codeLines": 31259
+      "codeLines": 77414
     },
     {
       "name": "TSX",
@@ -109,17 +100,17 @@
       "blankLines": 1461,
       "commentLines": 65,
       "codeLines": 15302
+    },
+    {
+      "name": "JavaScript",
+      "files": 10,
+      "totalLines": 280,
+      "blankLines": 40,
+      "commentLines": 0,
+      "codeLines": 240
     }
   ],
   "byScope": [
-    {
-      "name": "apps/docs",
-      "files": 10,
-      "totalLines": 33428,
-      "blankLines": 61,
-      "commentLines": 2068,
-      "codeLines": 31299
-    },
     {
       "name": "packages/nextclaw-ui",
       "files": 149,

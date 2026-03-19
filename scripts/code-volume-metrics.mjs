@@ -97,6 +97,13 @@ const parseCsv = (value) =>
     .split(",")
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+const toScopeSignature = (scope) =>
+  JSON.stringify({
+    profile: scope?.profile ?? null,
+    includePaths: scope?.includePaths ?? [],
+    includeExtensions: scope?.includeExtensions ?? [],
+    excludeDirs: scope?.excludeDirs ?? []
+  });
 
 const generatedAt = new Date().toISOString();
 const gitSha = process.env.GITHUB_SHA ?? "";
@@ -127,7 +134,9 @@ const snapshot = collectSnapshot({
 const totals = snapshot.totals;
 const currentCodeLines = totals.codeLines;
 const previousCodeLines = previousSnapshot?.totals?.codeLines;
-const hasPrevious = typeof previousCodeLines === "number" && previousSnapshot?.scope?.profile === scopeProfile;
+const currentScopeSignature = toScopeSignature(snapshot.scope);
+const previousScopeSignature = toScopeSignature(previousSnapshot?.scope);
+const hasPrevious = typeof previousCodeLines === "number" && currentScopeSignature === previousScopeSignature;
 const deltaCodeLines = hasPrevious ? currentCodeLines - previousCodeLines : null;
 const deltaPercent = hasPrevious && previousCodeLines !== 0 ? Number(((deltaCodeLines / previousCodeLines) * 100).toFixed(2)) : null;
 

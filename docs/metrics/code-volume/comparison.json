@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-19T14:57:10.815Z",
+  "generatedAt": "2026-03-19T15:02:27.714Z",
   "base": {
     "name": "nextclaw",
     "projectRoot": "/Users/peiwang/Projects/nextbot",
@@ -8,7 +8,6 @@
       "title": "Source LOC",
       "includePaths": [
         "apps/desktop/src",
-        "apps/docs/.vitepress",
         "apps/landing/src",
         "apps/ncp-demo/backend/src",
         "apps/ncp-demo/frontend/src",
@@ -78,11 +77,11 @@
       ]
     },
     "totals": {
-      "files": 685,
-      "totalLines": 137461,
-      "blankLines": 10472,
-      "commentLines": 2734,
-      "codeLines": 124255
+      "files": 675,
+      "totalLines": 104033,
+      "blankLines": 10411,
+      "commentLines": 666,
+      "codeLines": 92956
     }
   },
   "benchmark": {
@@ -127,9 +126,9 @@
     }
   },
   "comparison": {
-    "baseMinusBenchmarkLines": -945822,
-    "basePercentOfBenchmark": 11.61,
-    "benchmarkMultipleOfBase": 8.61,
-    "baseIsLighterByPercent": 88.39
+    "baseMinusBenchmarkLines": -977121,
+    "basePercentOfBenchmark": 8.69,
+    "benchmarkMultipleOfBase": 11.51,
+    "baseIsLighterByPercent": 91.31
   }
 }

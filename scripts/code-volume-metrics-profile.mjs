@@ -6,6 +6,7 @@ export const SUPPORTED_SCOPE_PROFILES = new Set(["source", "repo-volume"]);
 
 const SOURCE_INCLUDE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const REPO_VOLUME_INCLUDE_EXTENSIONS = [...SOURCE_INCLUDE_EXTENSIONS, ".sh", ".yml", ".yaml"];
+const EXCLUDED_WORKSPACE_ROOTS = new Set(["apps/docs"]);
 const COMMON_EXCLUDE_DIRS = [
   ".git",
   ".changeset",
@@ -21,7 +22,7 @@ const COMMON_EXCLUDE_DIRS = [
   ".wrangler",
   ".temp"
 ];
-const REPO_VOLUME_INCLUDE_PATHS = ["apps", "packages", "workers", "bridge", "scripts"];
+const REPO_VOLUME_EXTRA_INCLUDE_PATHS = ["bridge", "scripts"];
 const DEFAULT_BENCHMARK_INCLUDE_PATHS = ["src", "extensions"];
 const SOURCE_ROOT_DIR_CANDIDATES = ["src", "bridge/src", ".vitepress"];
 const SOURCE_ROOT_FILE_CANDIDATES = ["index.ts", "index.tsx", "index.js", "index.jsx", "index.mjs", "index.cjs"];
@@ -74,7 +75,10 @@ const listWorkspaceRoots = (repoRoot) => {
     for (const absolutePath of expandWorkspacePattern(repoRoot, pattern)) {
       const packageJsonPath = resolve(absolutePath, "package.json");
       if (existsSync(packageJsonPath) && statSync(packageJsonPath).isFile()) {
-        roots.add(absolutePath);
+        const relativePath = relative(repoRoot, absolutePath).split("\\").join("/");
+        if (!EXCLUDED_WORKSPACE_ROOTS.has(relativePath)) {
+          roots.add(absolutePath);
+        }
       }
     }
   }
@@ -112,7 +116,11 @@ export const createBaseScanConfig = ({ repoRoot, scopeProfile }) => {
   if (scopeProfile === "repo-volume") {
     return {
       title: "Repo Code Volume",
-      includePaths: REPO_VOLUME_INCLUDE_PATHS,
+      includePaths: [
+        ...listWorkspaceRoots(repoRoot).map((workspaceRoot) => relative(repoRoot, workspaceRoot)),
+        ...REPO_VOLUME_EXTRA_INCLUDE_PATHS
+      ]
+        .filter((value, index, array) => array.indexOf(value) === index),
       includeExtensions: REPO_VOLUME_INCLUDE_EXTENSIONS,
       excludeDirs: COMMON_EXCLUDE_DIRS
     };
