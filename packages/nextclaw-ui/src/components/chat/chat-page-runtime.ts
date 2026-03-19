@@ -1,39 +1,125 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { ChatRunView } from '@/api/types';
+import type { ChatRunView, SessionEntryView } from '@/api/types';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
 import { useChatRuns } from '@/hooks/useConfig';
 import { buildActiveRunBySessionKey, buildSessionRunStatusByKey } from '@/lib/session-run-status';
 
 export type ChatMainPanelView = 'chat' | 'cron' | 'skills';
 
-export function useSyncSelectedModel(params: {
+function normalizeSessionType(value: string | null | undefined): string {
+  const normalized = value?.trim().toLowerCase();
+  return normalized || 'native';
+}
+
+function hasModelOption(modelOptions: ChatModelOption[], value: string | null | undefined): value is string {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return false;
+  }
+  return modelOptions.some((option) => option.value === normalized);
+}
+
+export function resolveSelectedModelValue(params: {
+  currentSelectedModel?: string;
   modelOptions: ChatModelOption[];
   selectedSessionPreferredModel?: string;
+  fallbackPreferredModel?: string;
+  defaultModel?: string;
+  preferSessionPreferredModel?: boolean;
+}): string {
+  const {
+    currentSelectedModel,
+    modelOptions,
+    selectedSessionPreferredModel,
+    fallbackPreferredModel,
+    defaultModel,
+    preferSessionPreferredModel = false
+  } = params;
+  if (modelOptions.length === 0) {
+    return '';
+  }
+  if (!preferSessionPreferredModel && hasModelOption(modelOptions, currentSelectedModel)) {
+    return currentSelectedModel.trim();
+  }
+  if (hasModelOption(modelOptions, selectedSessionPreferredModel)) {
+    return selectedSessionPreferredModel.trim();
+  }
+  if (hasModelOption(modelOptions, fallbackPreferredModel)) {
+    return fallbackPreferredModel.trim();
+  }
+  if (hasModelOption(modelOptions, defaultModel)) {
+    return defaultModel.trim();
+  }
+  return modelOptions[0]?.value ?? '';
+}
+
+export function resolveRecentSessionPreferredModel(params: {
+  sessions: readonly SessionEntryView[];
+  selectedSessionKey?: string | null;
+  sessionType?: string | null;
+}): string | undefined {
+  const targetSessionType = normalizeSessionType(params.sessionType);
+  let bestSession: SessionEntryView | null = null;
+  let bestTimestamp = Number.NEGATIVE_INFINITY;
+  for (const session of params.sessions) {
+    if (session.key === params.selectedSessionKey) {
+      continue;
+    }
+    if (normalizeSessionType(session.sessionType) !== targetSessionType) {
+      continue;
+    }
+    const preferredModel = session.preferredModel?.trim();
+    if (!preferredModel) {
+      continue;
+    }
+    const updatedAtTimestamp = Date.parse(session.updatedAt);
+    const comparableTimestamp = Number.isFinite(updatedAtTimestamp) ? updatedAtTimestamp : Number.NEGATIVE_INFINITY;
+    if (!bestSession || comparableTimestamp > bestTimestamp) {
+      bestSession = session;
+      bestTimestamp = comparableTimestamp;
+    }
+  }
+  return bestSession?.preferredModel?.trim();
+}
+
+export function useSyncSelectedModel(params: {
+  modelOptions: ChatModelOption[];
+  selectedSessionKey?: string | null;
+  selectedSessionPreferredModel?: string;
+  fallbackPreferredModel?: string;
   defaultModel?: string;
   setSelectedModel: Dispatch<SetStateAction<string>>;
 }) {
-  const { modelOptions, selectedSessionPreferredModel, defaultModel, setSelectedModel } = params;
+  const {
+    modelOptions,
+    selectedSessionKey,
+    selectedSessionPreferredModel,
+    fallbackPreferredModel,
+    defaultModel,
+    setSelectedModel
+  } = params;
+  const previousSessionKeyRef = useRef<string | null | undefined>(undefined);
+
   useEffect(() => {
+    const sessionChanged = previousSessionKeyRef.current !== selectedSessionKey;
     if (modelOptions.length === 0) {
       setSelectedModel('');
+      previousSessionKeyRef.current = selectedSessionKey;
       return;
     }
     setSelectedModel((prev) => {
-      if (modelOptions.some((option) => option.value === prev)) {
-        return prev;
-      }
-      const sessionPreferred = selectedSessionPreferredModel?.trim();
-      if (sessionPreferred && modelOptions.some((option) => option.value === sessionPreferred)) {
-        return sessionPreferred;
-      }
-      const fallback = defaultModel?.trim();
-      if (fallback && modelOptions.some((option) => option.value === fallback)) {
-        return fallback;
-      }
-      return modelOptions[0]?.value ?? '';
+      return resolveSelectedModelValue({
+        currentSelectedModel: prev,
+        modelOptions,
+        selectedSessionPreferredModel,
+        fallbackPreferredModel,
+        defaultModel,
+        preferSessionPreferredModel: sessionChanged
+      });
     });
-  }, [defaultModel, modelOptions, selectedSessionPreferredModel, setSelectedModel]);
+    previousSessionKeyRef.current = selectedSessionKey;
+  }, [defaultModel, fallbackPreferredModel, modelOptions, selectedSessionKey, selectedSessionPreferredModel, setSelectedModel]);
 }
 
 export function useSessionRunStatus(params: {

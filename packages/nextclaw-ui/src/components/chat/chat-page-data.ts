@@ -3,7 +3,10 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { SessionEntryView, ThinkingLevel } from '@/api/types';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
 import { useChatSessionTypeState } from '@/components/chat/useChatSessionTypeState';
-import { useSyncSelectedModel } from '@/components/chat/chat-page-runtime';
+import {
+  resolveRecentSessionPreferredModel,
+  useSyncSelectedModel
+} from '@/components/chat/chat-page-runtime';
 import {
   useChatCapabilities,
   useChatSessionTypes,
@@ -98,10 +101,21 @@ export function useChatPageData(params: UseChatPageDataParams) {
     setPendingSessionType: params.setPendingSessionType,
     sessionTypesData: sessionTypesQuery.data
   });
+  const recentSessionPreferredModel = useMemo(
+    () =>
+      resolveRecentSessionPreferredModel({
+        sessions,
+        selectedSessionKey: params.selectedSessionKey,
+        sessionType: sessionTypeState.selectedSessionType
+      }),
+    [params.selectedSessionKey, sessionTypeState.selectedSessionType, sessions]
+  );
 
   useSyncSelectedModel({
     modelOptions,
+    selectedSessionKey: params.selectedSessionKey,
     selectedSessionPreferredModel: selectedSession?.preferredModel,
+    fallbackPreferredModel: recentSessionPreferredModel,
     defaultModel: configQuery.data?.agents.defaults.model,
     setSelectedModel: params.setSelectedModel
   });

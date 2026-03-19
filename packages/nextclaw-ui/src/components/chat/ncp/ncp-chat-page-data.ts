@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SessionEntryView } from '@/api/types';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
@@ -7,7 +7,10 @@ import {
   readNcpSessionPreferredThinking
 } from '@/components/chat/ncp/ncp-session-adapter';
 import { useChatSessionTypeState } from '@/components/chat/useChatSessionTypeState';
-import { useSyncSelectedModel } from '@/components/chat/chat-page-runtime';
+import {
+  resolveRecentSessionPreferredModel,
+  useSyncSelectedModel
+} from '@/components/chat/chat-page-runtime';
 import {
   useConfig,
   useConfigMeta,
@@ -15,7 +18,6 @@ import {
 } from '@/hooks/useConfig';
 import { useNcpChatSessionTypes } from '@/hooks/use-ncp-chat-session-types';
 import { useMarketplaceInstalled } from '@/hooks/useMarketplace';
-import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { buildProviderModelCatalog, composeProviderModel, resolveModelThinkingCapability } from '@/lib/provider-models';
 
 type UseNcpChatPageDataParams = {
@@ -75,8 +77,6 @@ export function useNcpChatPageData(params: UseNcpChatPageDataParams) {
       return left.modelLabel.localeCompare(right.modelLabel);
     });
   }, [configMetaQuery.data, configQuery.data]);
-  const selectedModel = useChatInputStore((state) => state.snapshot.selectedModel);
-  const lastAutoSelectedSessionTypeRef = useRef<string | null>(null);
 
   const sessionSummaries = useMemo(
     () => sessionsQuery.data?.sessions ?? [],
@@ -114,44 +114,24 @@ export function useNcpChatPageData(params: UseNcpChatPageDataParams) {
     setPendingSessionType: params.setPendingSessionType,
     sessionTypesData: sessionTypesQuery.data
   });
+  const recentSessionPreferredModel = useMemo(
+    () =>
+      resolveRecentSessionPreferredModel({
+        sessions: allSessions,
+        selectedSessionKey: params.selectedSessionKey,
+        sessionType: sessionTypeState.selectedSessionType
+      }),
+    [allSessions, params.selectedSessionKey, sessionTypeState.selectedSessionType]
+  );
 
   useSyncSelectedModel({
     modelOptions,
+    selectedSessionKey: params.selectedSessionKey,
     selectedSessionPreferredModel: selectedSession?.preferredModel,
+    fallbackPreferredModel: recentSessionPreferredModel,
     defaultModel: configQuery.data?.agents.defaults.model,
     setSelectedModel: params.setSelectedModel
   });
-
-  const codexDefaultModel = useMemo(
-    () => modelOptions.find((option) => option.value.startsWith('openai/'))?.value ?? modelOptions[0]?.value ?? '',
-    [modelOptions]
-  );
-
-  useEffect(() => {
-    const currentSessionType = sessionTypeState.selectedSessionType;
-    const previousSessionType = lastAutoSelectedSessionTypeRef.current;
-    lastAutoSelectedSessionTypeRef.current = currentSessionType;
-
-    if (currentSessionType !== 'codex') {
-      return;
-    }
-    if (previousSessionType === 'codex') {
-      return;
-    }
-    if (selectedSession?.preferredModel?.trim()) {
-      return;
-    }
-    if (!codexDefaultModel || codexDefaultModel === selectedModel) {
-      return;
-    }
-    params.setSelectedModel(codexDefaultModel);
-  }, [
-    codexDefaultModel,
-    params.setSelectedModel,
-    selectedModel,
-    selectedSession?.preferredModel,
-    sessionTypeState.selectedSessionType
-  ]);
 
   return {
     configQuery,

@@ -3,14 +3,14 @@ import { NcpHttpAgentClientEndpoint } from '@nextclaw/ncp-http-agent-client';
 import { useHydratedNcpAgent, type NcpConversationSeed } from '@nextclaw/ncp-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { API_BASE } from '@/api/client';
-import { fetchNcpSessionMessages } from '@/api/config';
+import { fetchNcpSessionMessages } from '@/api/ncp-session';
 import type { ChatRunView } from '@/api/types';
 import { sessionDisplayName } from '@/components/chat/chat-page-data';
 import { ChatPageLayout, type ChatPageProps, useChatSessionSync } from '@/components/chat/chat-page-shell';
 import { parseSessionKeyFromRoute, resolveAgentIdFromSessionKey } from '@/components/chat/chat-session-route';
 import { useNcpChatPageData } from '@/components/chat/ncp/ncp-chat-page-data';
 import { NcpChatPresenter } from '@/components/chat/ncp/ncp-chat.presenter';
-import { adaptNcpMessagesToUiMessages, createNcpSessionId } from '@/components/chat/ncp/ncp-session-adapter';
+import { adaptNcpMessagesToUiMessages, buildNcpSessionRunStatusByKey, createNcpSessionId } from '@/components/chat/ncp/ncp-session-adapter';
 import { ChatPresenterProvider } from '@/components/chat/presenter/chat-presenter-context';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
@@ -99,6 +99,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
     setPendingSessionType: presenter.chatInputManager.setPendingSessionType,
     setSelectedModel: presenter.chatInputManager.setSelectedModel
   });
+  const refetchSessions = sessionsQuery.refetch;
 
   const activeSessionId = selectedSessionKey ?? draftSessionId;
   const sessionSummariesRef = useRef(sessionSummaries);
@@ -162,15 +163,22 @@ export function NcpChatPage({ view }: ChatPageProps) {
   const stopDisabledReason = agent.isRunning ? null : '__preparing__';
   const lastSendError = agent.hydrateError?.message ?? agent.snapshot.error?.message ?? null;
   const activeBackendRunId = agent.activeRunId;
-  const sessionRunStatusByKey = useMemo(() => {
-    const map = new Map<string, 'running'>();
-    for (const sessionSummary of sessionSummaries) {
-      if (sessionSummary.status === 'running') {
-        map.set(sessionSummary.sessionId, 'running');
-      }
+  const sessionRunStatusByKey = useMemo(
+    () =>
+      buildNcpSessionRunStatusByKey({
+        summaries: sessionSummaries,
+        activeSessionId,
+        isLocallyRunning: isSending || Boolean(activeBackendRunId)
+      }),
+    [activeBackendRunId, activeSessionId, isSending, sessionSummaries]
+  );
+
+  useEffect(() => {
+    if (!isSending && !activeBackendRunId) {
+      return;
     }
-    return map;
-  }, [sessionSummaries]);
+    void refetchSessions();
+  }, [activeBackendRunId, isSending, refetchSessions]);
 
   useEffect(() => {
     presenter.chatStreamActionsManager.bind({
@@ -264,6 +272,8 @@ export function NcpChatPage({ view }: ChatPageProps) {
       !isSending &&
       !isAwaitingAssistantOutput &&
       !agent.isHydrating &&
+      isProviderStateResolved &&
+      modelOptions.length > 0 &&
       selectedSessionKey !== thinkingHydratedSessionKeyRef.current;
 
     presenter.chatInputManager.syncSnapshot({
@@ -328,6 +338,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
     isProviderStateResolved,
     isSending,
     lastSendError,
+    modelOptions.length,
     modelOptions,
     presenter,
     query,

@@ -141,6 +141,8 @@ export function LegacyChatPage({ view }: ChatPageProps) {
       !isSending &&
       !isAwaitingAssistantOutput &&
       !historyQuery.isLoading &&
+      isProviderStateResolved &&
+      modelOptions.length > 0 &&
       selectedSessionKey !== thinkingHydratedSessionKeyRef.current;
 
     presenter.chatInputManager.syncSnapshot({
@@ -207,6 +209,7 @@ export function LegacyChatPage({ view }: ChatPageProps) {
     isProviderStateResolved,
     isSending,
     lastSendError,
+    modelOptions.length,
     modelOptions,
     presenter,
     query,
