@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import type { UiAuthService } from "../auth.service.js";
+import { ensureUiBridgeSecret } from "../auth-bridge.js";
 import type {
   AuthEnabledUpdateRequest,
   AuthLoginRequest,
@@ -116,5 +117,16 @@ export class AuthRoutesController {
       const code = isAuthenticationRequiredError(message) ? "UNAUTHORIZED" : "INVALID_BODY";
       return c.json(err(code, message), status);
     }
+  };
+
+  readonly issueBridgeSession = (c: Context) => {
+    const providedSecret = c.req.header("x-nextclaw-ui-bridge-secret")?.trim();
+    const expectedSecret = ensureUiBridgeSecret();
+    if (!providedSecret || providedSecret !== expectedSecret) {
+      return c.json(err("FORBIDDEN", "Invalid bridge secret."), 403);
+    }
+    return c.json(ok({
+      cookie: this.authService.buildTrustedRequestCookieHeader()
+    }));
   };
 }

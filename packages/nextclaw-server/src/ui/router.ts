@@ -18,6 +18,16 @@ import { err } from "./router/response.js";
 import { SessionRoutesController } from "./router/session.controller.js";
 import type { UiRouterOptions } from "./router/types.js";
 
+function registerAuthRoutes(app: Hono, authController: AuthRoutesController): void {
+  app.get("/api/auth/status", authController.getStatus);
+  app.post("/api/auth/setup", authController.setup);
+  app.post("/api/auth/login", authController.login);
+  app.post("/api/auth/logout", authController.logout);
+  app.put("/api/auth/password", authController.updatePassword);
+  app.put("/api/auth/enabled", authController.updateEnabled);
+  app.post("/api/auth/bridge", authController.issueBridgeSession);
+}
+
 export function createUiRouter(options: UiRouterOptions): Hono {
   const app = new Hono();
   const marketplaceBaseUrl = normalizeMarketplaceBaseUrl(options);
@@ -52,12 +62,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
 
   app.get("/api/health", appController.health);
   app.get("/api/app/meta", appController.appMeta);
-  app.get("/api/auth/status", authController.getStatus);
-  app.post("/api/auth/setup", authController.setup);
-  app.post("/api/auth/login", authController.login);
-  app.post("/api/auth/logout", authController.logout);
-  app.put("/api/auth/password", authController.updatePassword);
-  app.put("/api/auth/enabled", authController.updateEnabled);
+  registerAuthRoutes(app, authController);
 
   app.get("/api/config", configController.getConfig);
   app.get("/api/config/meta", configController.getConfigMeta);

@@ -7,6 +7,8 @@ import type {
   CursorPage,
   LedgerItem,
   RechargeIntentItem,
+  RemoteDevice,
+  RemoteSession,
   UserView
 } from '@/api/types';
 
@@ -84,6 +86,19 @@ export async function fetchMe(token: string): Promise<{ user: UserView }> {
 
 export async function fetchBillingOverview(token: string): Promise<BillingOverview> {
   const data = await request<ApiEnvelope<BillingOverview>>('/platform/billing/overview', {}, token);
+  return unwrap(data);
+}
+
+export async function fetchRemoteDevices(token: string): Promise<{ items: RemoteDevice[] }> {
+  const data = await request<ApiEnvelope<{ items: RemoteDevice[] }>>('/platform/remote/devices', {}, token);
+  return unwrap(data);
+}
+
+export async function openRemoteDevice(token: string, deviceId: string): Promise<RemoteSession> {
+  const data = await request<ApiEnvelope<RemoteSession>>(`/platform/remote/devices/${encodeURIComponent(deviceId)}/open`, {
+    method: 'POST',
+    body: JSON.stringify({})
+  }, token);
   return unwrap(data);
 }
 

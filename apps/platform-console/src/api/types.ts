@@ -61,6 +61,29 @@ export type AdminOverview = {
   pendingRechargeIntents: number;
 };
 
+export type RemoteDevice = {
+  id: string;
+  deviceInstallId: string;
+  displayName: string;
+  platform: string;
+  appVersion: string;
+  localOrigin: string;
+  status: 'online' | 'offline';
+  lastSeenAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RemoteSession = {
+  id: string;
+  deviceId: string;
+  status: 'active' | 'closed' | 'expired';
+  expiresAt: string;
+  lastUsedAt: string;
+  createdAt: string;
+  openUrl: string;
+};
+
 export type CursorPage<T> = {
   items: T[];
   nextCursor: string | null;

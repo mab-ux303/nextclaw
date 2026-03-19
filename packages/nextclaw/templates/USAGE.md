@@ -484,6 +484,8 @@ Created under the workspace:
 | `nextclaw status` | Show runtime process/health/config status (`--json`, `--verbose`, `--fix`) |
 | `nextclaw init` | Initialize workspace and template files |
 | `nextclaw init --force` | Re-run init and overwrite templates |
+| `nextclaw login --api-base <url>` | Login to NextClaw Platform and save the platform token locally |
+| `nextclaw remote connect` | Register this machine for remote access and keep the connector online |
 | `nextclaw update` | Self-update the CLI |
 | `nextclaw plugins list` | List discovered OpenClaw-compatible plugins |
 | `nextclaw plugins info <id>` | Show plugin details |
@@ -515,6 +517,13 @@ Gateway options (when running `nextclaw gateway` or `nextclaw start`):
 - `--ui-open` — open the browser when the UI starts
 
 If service is already running, new UI port flags do not hot-apply; use `nextclaw restart ...` to apply them.
+
+Remote access quick start:
+
+1. Start your local NextClaw UI: `nextclaw start` or `nextclaw serve`.
+2. Login once on that device: `nextclaw login --api-base https://ai-gateway-api.nextclaw.io/v1`.
+3. Keep the remote connector online: `nextclaw remote connect`.
+4. Open the same account in NextClaw Platform, find the device under "我的设备", then click `Open`.
 
 Status/diagnostics tips:
 

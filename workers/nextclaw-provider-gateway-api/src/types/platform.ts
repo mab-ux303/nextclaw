@@ -6,6 +6,7 @@ export type Env = {
   DEFAULT_USER_FREE_USD_LIMIT?: string;
   REQUEST_FLAT_USD_PER_REQUEST?: string;
   NEXTCLAW_PLATFORM_DB: D1Database;
+  NEXTCLAW_REMOTE_RELAY: DurableObjectNamespace;
 };
 
 export type SupportedModelSpec = {
@@ -101,6 +102,57 @@ export type LedgerRow = {
   request_id: string | null;
   note: string | null;
   created_at: string;
+};
+
+export type RemoteDeviceStatus = "online" | "offline";
+
+export type RemoteDeviceRow = {
+  id: string;
+  user_id: string;
+  device_install_id: string;
+  display_name: string;
+  platform: string;
+  app_version: string;
+  local_origin: string;
+  status: RemoteDeviceStatus;
+  last_seen_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RemoteSessionRow = {
+  id: string;
+  token: string;
+  user_id: string;
+  device_id: string;
+  status: "active" | "closed" | "expired";
+  expires_at: string;
+  last_used_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RemoteDeviceView = {
+  id: string;
+  deviceInstallId: string;
+  displayName: string;
+  platform: string;
+  appVersion: string;
+  localOrigin: string;
+  status: RemoteDeviceStatus;
+  lastSeenAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RemoteSessionView = {
+  id: string;
+  deviceId: string;
+  status: "active" | "closed" | "expired";
+  expiresAt: string;
+  lastUsedAt: string;
+  createdAt: string;
+  openUrl: string;
 };
 
 export type ProviderAccountRow = {
@@ -217,7 +269,9 @@ export const DEFAULT_GLOBAL_FREE_USD_LIMIT = 20;
 export const DEFAULT_USER_FREE_USD_LIMIT = 2;
 export const DEFAULT_REQUEST_FLAT_USD_PER_REQUEST = 0.0002;
 export const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
-export const PASSWORD_HASH_ITERATIONS = 120_000;
+export const DEFAULT_REMOTE_SESSION_TTL_SECONDS = 60 * 60 * 8;
+// Cloudflare workerd currently rejects PBKDF2 iteration counts above 100_000.
+export const PASSWORD_HASH_ITERATIONS = 100_000;
 export const MIN_AUTH_SECRET_LENGTH = 32;
 export const MAX_FAILED_LOGIN_ATTEMPTS_PER_USER = 5;
 export const ACCOUNT_LOCK_MINUTES = 15;

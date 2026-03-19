@@ -2,8 +2,7 @@ import { loadConfig, saveConfig, type McpServerDefinition } from "@nextclaw/core
 import {
   McpDoctorFacade,
   McpMutationService,
-  McpRegistryService,
-  normalizeMcpServerName
+  McpRegistryService
 } from "@nextclaw/mcp";
 import type { McpAddCommandOptions, McpDoctorOptions, McpListOptions } from "../types.js";
 

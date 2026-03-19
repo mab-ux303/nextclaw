@@ -217,6 +217,19 @@ export class UiAuthService {
     });
   }
 
+  buildTrustedRequestCookieHeader(): string | null {
+    const auth = this.readAuthConfig();
+    if (!auth.enabled || !this.isConfigured(auth)) {
+      return null;
+    }
+    const username = normalizeUsername(auth.username);
+    if (!username) {
+      return null;
+    }
+    const sessionId = this.createSession(username);
+    return `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`;
+  }
+
   buildLogoutCookie(request: Request): string {
     return buildSetCookie({
       value: "",

@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createRechargeIntent, fetchBillingLedger, fetchBillingOverview, fetchRechargeIntents } from '@/api/client';
+import {
+  createRechargeIntent,
+  fetchBillingLedger,
+  fetchBillingOverview,
+  fetchRechargeIntents,
+  fetchRemoteDevices,
+  openRemoteDevice
+} from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +18,88 @@ import { useAuthStore } from '@/store/auth';
 type Props = {
   token: string;
 };
+
+type RemoteDevicesCardProps = {
+  token: string;
+};
+
+function RemoteDevicesCard({ token }: RemoteDevicesCardProps): JSX.Element {
+  const remoteDevicesQuery = useQuery({
+    queryKey: ['remote-devices'],
+    queryFn: async () => await fetchRemoteDevices(token)
+  });
+
+  const openRemoteMutation = useMutation({
+    mutationFn: async (deviceId: string) => await openRemoteDevice(token, deviceId),
+    onSuccess: (session) => {
+      window.open(session.openUrl, '_blank', 'noopener,noreferrer');
+    }
+  });
+
+  return (
+    <Card className="space-y-3">
+      <CardTitle>我的设备</CardTitle>
+      <p className="text-sm text-slate-500">
+        在你的设备上执行 <code>nextclaw login</code> 和 <code>nextclaw remote connect</code> 后，设备会出现在这里。
+      </p>
+      <TableWrap>
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-3 py-2">设备</th>
+              <th className="px-3 py-2">平台</th>
+              <th className="px-3 py-2">状态</th>
+              <th className="px-3 py-2">最近在线</th>
+              <th className="px-3 py-2 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(remoteDevicesQuery.data?.items ?? []).map((device) => (
+              <tr key={device.id} className="border-t border-slate-100">
+                <td className="px-3 py-2">
+                  <div className="font-medium text-slate-900">{device.displayName}</div>
+                  <div className="text-xs text-slate-500">{device.appVersion}</div>
+                </td>
+                <td className="px-3 py-2">{device.platform}</td>
+                <td className="px-3 py-2">
+                  <span className={device.status === 'online' ? 'text-emerald-600' : 'text-slate-500'}>
+                    {device.status}
+                  </span>
+                </td>
+                <td className="px-3 py-2">{new Date(device.lastSeenAt).toLocaleString()}</td>
+                <td className="px-3 py-2 text-right">
+                  <Button
+                    onClick={() => openRemoteMutation.mutate(device.id)}
+                    disabled={device.status !== 'online' || openRemoteMutation.isPending}
+                  >
+                    Open
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {!remoteDevicesQuery.isLoading && (remoteDevicesQuery.data?.items?.length ?? 0) === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-4 text-sm text-slate-500">
+                  暂无在线设备。
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </TableWrap>
+      {remoteDevicesQuery.error ? (
+        <p className="text-sm text-rose-600">
+          {remoteDevicesQuery.error instanceof Error ? remoteDevicesQuery.error.message : '设备加载失败'}
+        </p>
+      ) : null}
+      {openRemoteMutation.error ? (
+        <p className="text-sm text-rose-600">
+          {openRemoteMutation.error instanceof Error ? openRemoteMutation.error.message : '打开设备失败'}
+        </p>
+      ) : null}
+    </Card>
+  );
+}
 
 export function UserDashboardPage({ token }: Props): JSX.Element {
   const queryClient = useQueryClient();
@@ -76,6 +165,8 @@ export function UserDashboardPage({ token }: Props): JSX.Element {
 
   return (
     <div className="space-y-6">
+      <RemoteDevicesCard token={token} />
+
       <div className="grid gap-3 md:grid-cols-3">
         {summaryCards.map((item) => (
           <Card key={item.label}>

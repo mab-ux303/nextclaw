@@ -1,5 +1,11 @@
 # nextclaw-server
 
+## 0.10.0
+
+### Minor Changes
+
+- Add lightweight remote access support with platform device registration, remote session relay, and trusted local UI auth bridging.
+
 ## 0.9.4
 
 ### Patch Changes

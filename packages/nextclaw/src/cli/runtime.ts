@@ -46,6 +46,8 @@ import { McpCommands } from "./commands/mcp.js";
 import { SecretsCommands } from "./commands/secrets.js";
 import { ChannelCommands } from "./commands/channels.js";
 import { CronCommands } from "./commands/cron.js";
+import { PlatformAuthCommands } from "./commands/platform-auth.js";
+import { RemoteCommands } from "./commands/remote.js";
 import { DiagnosticsCommands } from "./commands/diagnostics.js";
 import { ServiceCommands } from "./commands/service.js";
 import { WorkspaceManager } from "./workspace.js";
@@ -61,6 +63,7 @@ import type {
   McpAddCommandOptions,
   McpDoctorOptions,
   McpListOptions,
+  RemoteConnectCommandOptions,
   PluginsInfoOptions,
   PluginsInstallOptions,
   PluginsListOptions,
@@ -105,6 +108,8 @@ export class CliRuntime {
   private pluginCommands: PluginCommands;
   private channelCommands: ChannelCommands;
   private cronCommands: CronCommands;
+  private platformAuthCommands: PlatformAuthCommands;
+  private remoteCommands: RemoteCommands;
   private diagnosticsCommands: DiagnosticsCommands;
 
   constructor(options: { logo?: string } = {}) {
@@ -128,6 +133,8 @@ export class CliRuntime {
       requestRestart: (params) => this.requestRestart(params),
     });
     this.cronCommands = new CronCommands();
+    this.platformAuthCommands = new PlatformAuthCommands();
+    this.remoteCommands = new RemoteCommands();
     this.diagnosticsCommands = new DiagnosticsCommands({ logo: this.logo });
 
     this.restartCoordinator = new RestartCoordinator({
@@ -423,127 +430,11 @@ export class CliRuntime {
 
   async login(opts: LoginCommandOptions = {}): Promise<void> {
     await this.init({ source: "login", auto: true });
+    await this.platformAuthCommands.login(opts);
+  }
 
-    const configPath = getConfigPath();
-    const config = loadConfig(configPath);
-    const providers = config.providers as Record<
-      string,
-      {
-        displayName?: string;
-        apiKey?: string;
-        apiBase?: string | null;
-        extraHeaders?: Record<string, string> | null;
-        wireApi?: "auto" | "chat" | "responses";
-        models?: string[];
-      }
-    >;
-    const nextclawProvider = providers.nextclaw ?? {
-      displayName: "",
-      apiKey: "",
-      apiBase: null,
-      extraHeaders: null,
-      wireApi: "auto",
-      models: [],
-    };
-
-    const configuredApiBase =
-      typeof nextclawProvider.apiBase === "string" &&
-      nextclawProvider.apiBase.trim().length > 0
-        ? nextclawProvider.apiBase.trim()
-        : "https://ai-gateway-api.nextclaw.io/v1";
-    const requestedApiBase =
-      typeof opts.apiBase === "string" && opts.apiBase.trim().length > 0
-        ? opts.apiBase.trim()
-        : configuredApiBase;
-    const platformBase = requestedApiBase.replace(/\/v1\/?$/i, "");
-    const v1Base = `${platformBase}/v1`;
-
-    let email =
-      typeof opts.email === "string" ? opts.email.trim() : "";
-    let password =
-      typeof opts.password === "string" ? opts.password : "";
-
-    if (!email || !password) {
-      const rl = createInterface({
-        input: process.stdin,
-        output: process.stdout,
-      });
-      try {
-        if (!email) {
-          email = (await prompt(rl, "Email: ")).trim();
-        }
-        if (!password) {
-          password = await prompt(rl, "Password: ");
-        }
-      } finally {
-        rl.close();
-      }
-    }
-
-    if (!email || !password) {
-      throw new Error("Email and password are required.");
-    }
-
-    const endpoint = opts.register
-      ? `${platformBase}/platform/auth/register`
-      : `${platformBase}/platform/auth/login`;
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const raw = await response.text();
-    let parsed: unknown = null;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      parsed = null;
-    }
-
-    if (!response.ok) {
-      const maybeMessage =
-        typeof parsed === "object" &&
-        parsed &&
-        "error" in parsed &&
-        typeof (parsed as { error?: { message?: unknown } }).error?.message ===
-          "string"
-          ? (parsed as { error: { message: string } }).error.message
-          : raw || `Request failed (${response.status})`;
-      throw new Error(maybeMessage);
-    }
-
-    const token =
-      typeof parsed === "object" &&
-      parsed &&
-      "data" in parsed &&
-      typeof (parsed as { data?: { token?: unknown } }).data?.token === "string"
-        ? (parsed as { data: { token: string } }).data.token
-        : "";
-    const role =
-      typeof parsed === "object" &&
-      parsed &&
-      "data" in parsed &&
-      typeof (parsed as { data?: { user?: { role?: unknown } } }).data?.user
-        ?.role === "string"
-        ? (parsed as { data: { user: { role: string } } }).data.user.role
-        : "user";
-
-    if (!token) {
-      throw new Error("Login succeeded but token is missing.");
-    }
-
-    nextclawProvider.apiBase = v1Base;
-    nextclawProvider.apiKey = token;
-    providers.nextclaw = nextclawProvider;
-    saveConfig(config, configPath);
-
-    console.log(`✓ Logged in to NextClaw platform (${platformBase})`);
-    console.log(`✓ Account: ${email} (${role})`);
-    console.log(`✓ Token saved into providers.nextclaw.apiKey`);
+  async remoteConnect(opts: RemoteConnectCommandOptions = {}): Promise<void> {
+    await this.remoteCommands.connect(opts);
   }
 
   async gateway(opts: GatewayCommandOptions): Promise<void> {

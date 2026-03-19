@@ -35,6 +35,13 @@ export type LoginCommandOptions = {
   register?: boolean;
 };
 
+export type RemoteConnectCommandOptions = {
+  apiBase?: string;
+  localOrigin?: string;
+  name?: string;
+  once?: boolean;
+};
+
 export type PluginsListOptions = {
   json?: boolean;
   enabled?: boolean;

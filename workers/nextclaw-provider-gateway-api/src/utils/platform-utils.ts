@@ -296,6 +296,54 @@ export function parseBearerToken(header: string | undefined): string | null {
   return token.length > 0 ? token : null;
 }
 
+export function randomOpaqueToken(): string {
+  const buffer = crypto.getRandomValues(new Uint8Array(24));
+  return encodeBase64Url(buffer);
+}
+
+export function parseCookieHeader(rawHeader: string | null | undefined): Record<string, string> {
+  if (!rawHeader) {
+    return {};
+  }
+  const cookies: Record<string, string> = {};
+  for (const chunk of rawHeader.split(";")) {
+    const [rawKey, ...rawValue] = chunk.split("=");
+    const key = rawKey?.trim();
+    if (!key) {
+      continue;
+    }
+    cookies[key] = decodeURIComponent(rawValue.join("=").trim());
+  }
+  return cookies;
+}
+
+export function buildCookie(params: {
+  name: string;
+  value: string;
+  path?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+  sameSite?: "Lax" | "Strict" | "None";
+  maxAgeSeconds?: number;
+}): string {
+  const parts = [`${params.name}=${encodeURIComponent(params.value)}`, `Path=${params.path ?? "/"}`];
+  if (params.httpOnly !== false) {
+    parts.push("HttpOnly");
+  }
+  if (params.sameSite) {
+    parts.push(`SameSite=${params.sameSite}`);
+  } else {
+    parts.push("SameSite=Lax");
+  }
+  if (params.secure !== false) {
+    parts.push("Secure");
+  }
+  if (typeof params.maxAgeSeconds === "number") {
+    parts.push(`Max-Age=${Math.max(0, Math.trunc(params.maxAgeSeconds))}`);
+  }
+  return parts.join("; ");
+}
+
 export function normalizeNonNegativeInteger(raw: unknown): number {
   if (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0) {
     return 0;

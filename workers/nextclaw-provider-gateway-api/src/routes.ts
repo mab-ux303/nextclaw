@@ -22,6 +22,13 @@ import {
   createRechargeIntentHandler
 } from "./controllers/billing-controller";
 import { chatCompletionsHandler, healthHandler, modelsHandler, usageHandler } from "./controllers/openai-controller";
+import {
+  listRemoteDevicesHandler,
+  openRemoteDeviceHandler,
+  openRemoteSessionRedirectHandler,
+  registerRemoteDeviceHandler,
+  remoteConnectorWebSocketHandler
+} from "./controllers/remote-controller";
 import type { Env } from "./types/platform";
 
 export function registerRoutes(app: Hono<{ Bindings: Env }>): void {
@@ -34,6 +41,12 @@ export function registerRoutes(app: Hono<{ Bindings: Env }>): void {
   app.post("/platform/auth/register", registerHandler);
   app.post("/platform/auth/login", loginHandler);
   app.get("/platform/auth/me", meHandler);
+
+  app.get("/platform/remote/devices", listRemoteDevicesHandler);
+  app.post("/platform/remote/devices/register", registerRemoteDeviceHandler);
+  app.post("/platform/remote/devices/:deviceId/open", openRemoteDeviceHandler);
+  app.get("/platform/remote/open", openRemoteSessionRedirectHandler);
+  app.get("/platform/remote/connect", remoteConnectorWebSocketHandler);
 
   app.get("/platform/billing/overview", billingOverviewHandler);
   app.get("/platform/billing/ledger", billingLedgerHandler);

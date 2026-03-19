@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { remoteProxyHandler } from "./controllers/remote-controller";
+import { NextclawRemoteRelayDurableObject } from "./remote-relay-do";
 import { registerRoutes } from "./routes";
 import type { Env } from "./types/platform";
 import { openaiError } from "./utils/platform-utils";
@@ -20,6 +22,8 @@ app.use("/v1/*", cors({
 
 registerRoutes(app);
 
+app.all("*", remoteProxyHandler);
+
 app.notFound((c) => openaiError(c, 404, "endpoint not found", "not_found"));
 
 app.onError((error, c) => {
@@ -36,5 +40,7 @@ export class NextclawQuotaDurableObject {
     return new Response("not_implemented", { status: 501 });
   }
 }
+
+export { NextclawRemoteRelayDurableObject };
 
 export default app;

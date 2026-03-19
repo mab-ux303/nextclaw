@@ -13,6 +13,14 @@ binding = "NEXTCLAW_PLATFORM_DB"
 database_name = "nextclaw-platform"
 database_id = "748845b9-8f96-4862-87e9-c10e7c478a70"
 
+[[durable_objects.bindings]]
+name = "NEXTCLAW_REMOTE_RELAY"
+class_name = "NextclawRemoteRelayDurableObject"
+
+[[migrations]]
+tag = "remote-access-v1"
+new_sqlite_classes = ["NextclawRemoteRelayDurableObject"]
+
 [vars]
 DASHSCOPE_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 AUTH_TOKEN_SECRET = "dev-only-change-me-and-make-it-very-long-32+"
