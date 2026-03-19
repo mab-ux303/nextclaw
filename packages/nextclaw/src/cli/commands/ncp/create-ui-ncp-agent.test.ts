@@ -98,8 +98,10 @@ describe("createUiNcpAgent", () => {
       }),
     ).toBe(true);
     const combinedPrompt = firstModelInput.messages.map((message) => String(message.content ?? "")).join("\n\n");
-    expect(combinedPrompt).toContain("Selected skill names: demo-skill");
-    expect(combinedPrompt).toContain("Use the demo skill instructions.");
+    expect(combinedPrompt).toContain("Only skill names and paths are included here.");
+    expect(combinedPrompt).toContain("<name>demo-skill</name>");
+    expect(combinedPrompt).toContain(`<location>${join(workspace, "skills", "demo-skill", "SKILL.md")}</location>`);
+    expect(combinedPrompt).not.toContain("Use the demo skill instructions.");
 
     const persistedSession = sessionManager.getIfExists("session-1");
     expect(persistedSession?.messages.some((message) => message.role === "tool")).toBe(true);

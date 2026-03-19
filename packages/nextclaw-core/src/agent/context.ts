@@ -1,6 +1,11 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, extname } from "node:path";
 import { MemoryStore } from "./memory.js";
+import {
+  buildActiveSkillsSystemSection,
+  buildAvailableSkillsSystemSection,
+  buildRequestedSkillsSystemSection
+} from "./skill-context.js";
 import { SkillsLoader } from "./skills.js";
 import { APP_NAME } from "../config/brand.js";
 import type { Config } from "../config/schema.js";
@@ -59,24 +64,9 @@ export class ContextBuilder {
     parts.push(this.getIdentity(messageToolHints));
 
     if (skillNames && skillNames.length) {
-      const requestedContent = this.skills.loadSkillsForContext(skillNames);
-      if (requestedContent) {
-        const requestedNames = skillNames
-          .map((name) => name.trim())
-          .filter(Boolean)
-          .join(", ");
-        parts.push(
-          [
-            "# Requested Skills",
-            "The user explicitly selected the following skills for this turn.",
-            requestedNames ? `Selected skill names: ${requestedNames}` : "",
-            "You MUST apply these skill instructions in this turn unless higher-priority safety/system instructions conflict.",
-            "",
-            requestedContent
-          ]
-            .filter(Boolean)
-            .join("\n\n")
-        );
+      const requestedSection = buildRequestedSkillsSystemSection(this.skills, skillNames);
+      if (requestedSection) {
+        parts.push(requestedSection);
       }
     }
 
@@ -104,28 +94,15 @@ export class ContextBuilder {
 
     const alwaysSkills = this.skills.getAlwaysSkills();
     if (alwaysSkills.length) {
-      const alwaysContent = this.skills.loadSkillsForContext(alwaysSkills);
-      if (alwaysContent) {
-        parts.push(`# Active Skills\n\n${alwaysContent}`);
+      const activeSection = buildActiveSkillsSystemSection(this.skills, alwaysSkills);
+      if (activeSection) {
+        parts.push(activeSection);
       }
     }
 
-    const skillsSummary = this.skills.buildSkillsSummary();
-    if (skillsSummary) {
-      parts.push(
-        [
-          "## Skills (mandatory)",
-          "Before replying: scan <available_skills> <description> entries.",
-          "- If exactly one skill clearly applies: read its SKILL.md at <location> with `read_file`, then follow it.",
-          "- If multiple could apply: choose the most specific one, then read/follow it.",
-          "- If none clearly apply: do not read any SKILL.md.",
-          "Constraints: never read more than one skill up front; only read after selecting.",
-          "",
-          "<available_skills>",
-          skillsSummary,
-          "</available_skills>"
-        ].join("\n")
-      );
+    const availableSkillsSection = buildAvailableSkillsSystemSection(this.skills);
+    if (availableSkillsSection) {
+      parts.push(availableSkillsSection);
     }
 
     return parts.join("\n\n");

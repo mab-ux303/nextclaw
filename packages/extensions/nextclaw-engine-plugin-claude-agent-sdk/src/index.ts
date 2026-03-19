@@ -6,6 +6,7 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import {
   getApiBase,
+  buildRequestedSkillsUserPrompt,
   getProvider,
   SkillsLoader,
   type AgentEngine,
@@ -287,17 +288,7 @@ class PluginClaudeAgentSdkEngine implements AgentEngine {
     }
     const timeout = this.createRequestTimeout(abortController);
     const queryOptions = this.buildQueryOptions(sessionKey, model, abortController);
-    const requestedSkillsContent = this.skillsLoader.loadSkillsForContext(requestedSkills);
-    const prompt =
-      requestedSkillsContent.trim().length > 0
-        ? [
-            "## Requested Skills",
-            "Use the following selected skills for this turn:",
-            requestedSkillsContent,
-            "## User Message",
-            params.content
-          ].join("\n\n")
-        : params.content;
+    const prompt = buildRequestedSkillsUserPrompt(this.skillsLoader, requestedSkills, params.content);
 
     const query = sdk.query({
       prompt,

@@ -1,5 +1,6 @@
 import {
   getApiBase,
+  buildRequestedSkillsUserPrompt,
   getProvider,
   getProviderName,
   getWorkspacePath,
@@ -203,19 +204,7 @@ function buildCodexInputBuilder(workspace: string) {
         ? (input.metadata as Record<string, unknown>)
         : {};
     const requestedSkills = readRequestedSkills(metadata);
-    const requestedSkillsContent = skillsLoader.loadSkillsForContext(requestedSkills);
-
-    if (requestedSkillsContent.trim().length === 0) {
-      return userText;
-    }
-
-    return [
-      "## Requested Skills",
-      `Selected skill names: ${requestedSkills.join(", ")}`,
-      requestedSkillsContent,
-      "## User Message",
-      userText,
-    ].join("\n\n");
+    return buildRequestedSkillsUserPrompt(skillsLoader, requestedSkills, userText);
   };
 }
 

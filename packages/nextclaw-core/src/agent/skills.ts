@@ -66,41 +66,43 @@ export class SkillsLoader {
     return null;
   }
 
-  loadSkillsForContext(skillNames: string[]): string {
+  getSkillInfo(name: string): SkillInfo | null {
+    const workspaceSkill = join(this.workspaceSkills, name, "SKILL.md");
+    if (existsSync(workspaceSkill)) {
+      return { name, path: workspaceSkill, source: "workspace" };
+    }
+    const builtinSkill = join(this.builtinSkills, name, "SKILL.md");
+    if (existsSync(builtinSkill)) {
+      return { name, path: builtinSkill, source: "builtin" };
+    }
+    return null;
+  }
+
+  buildSkillsManifest(skillNames: string[]): string {
     const parts: string[] = [];
     for (const name of skillNames) {
-      const content = this.loadSkill(name);
-      if (content) {
-        parts.push(`### Skill: ${name}\n\n${this.stripFrontmatter(content)}`);
+      const skill = this.getSkillInfo(name);
+      if (skill) {
+        parts.push("  <skill>");
+        parts.push(`    <name>${this.escapeXml(skill.name)}</name>`);
+        parts.push(`    <location>${this.escapeXml(skill.path)}</location>`);
+        parts.push("  </skill>");
       }
     }
-    return parts.length ? parts.join("\n\n---\n\n") : "";
+    return parts.length ? parts.join("\n") : "";
   }
 
   buildSkillsSummary(): string {
-    const allSkills = this.listSkills(false);
+    const allSkills = this.listSkills(true);
     if (!allSkills.length) {
       return "";
     }
 
-    const escapeXml = (value: string) =>
-      value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
     const lines: string[] = ["<skills>"];
     for (const skill of allSkills) {
-      const desc = escapeXml(this.getSkillDescription(skill.name));
-      const meta = this.getSkillMeta(skill.name);
-      const available = this.checkRequirements(meta);
-      lines.push(`  <skill available="${available}">`);
-      lines.push(`    <name>${escapeXml(skill.name)}</name>`);
-      lines.push(`    <description>${desc}</description>`);
-      lines.push(`    <location>${skill.path}</location>`);
-      if (!available) {
-        const missing = this.getMissingRequirements(meta);
-        if (missing) {
-          lines.push(`    <requires>${escapeXml(missing)}</requires>`);
-        }
-      }
+      lines.push("  <skill>");
+      lines.push(`    <name>${this.escapeXml(skill.name)}</name>`);
+      lines.push(`    <location>${this.escapeXml(skill.path)}</location>`);
       lines.push("  </skill>");
     }
     lines.push("</skills>");
@@ -139,22 +141,8 @@ export class SkillsLoader {
     return metadata;
   }
 
-  private getSkillDescription(name: string): string {
-    const meta = this.getSkillMetadata(name);
-    if (meta?.description) {
-      return meta.description;
-    }
-    return name;
-  }
-
-  private stripFrontmatter(content: string): string {
-    if (content.startsWith("---")) {
-      const match = content.match(/^---\n.*?\n---\n/s);
-      if (match) {
-        return content.slice(match[0].length).trim();
-      }
-    }
-    return content;
+  private escapeXml(value: string): string {
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   private parseSkillMetadata(raw: string): Record<string, unknown> {
@@ -195,26 +183,6 @@ export class SkillsLoader {
       }
     }
     return true;
-  }
-
-  private getMissingRequirements(skillMeta: Record<string, unknown>): string {
-    const missing: string[] = [];
-    const requires = (skillMeta.requires ?? {}) as { bins?: string[]; env?: string[] };
-    if (requires.bins) {
-      for (const bin of requires.bins) {
-        if (!this.which(bin)) {
-          missing.push(`CLI: ${bin}`);
-        }
-      }
-    }
-    if (requires.env) {
-      for (const env of requires.env) {
-        if (!process.env[env]) {
-          missing.push(`ENV: ${env}`);
-        }
-      }
-    }
-    return missing.join(", ");
   }
 
   private which(binary: string): boolean {

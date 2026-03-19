@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import type { Codex as CodexClient, CodexOptions, Thread, ThreadEvent, ThreadOptions } from "@openai/codex-sdk";
 import {
   getApiBase,
+  buildRequestedSkillsUserPrompt,
   getProvider,
   SkillsLoader,
   type AgentEngine,
@@ -232,17 +233,7 @@ class PluginCodexSdkEngine implements AgentEngine {
     const userEvent = this.options.sessionManager.addMessage(session, "user", params.content, userExtra);
     params.onSessionEvent?.(userEvent);
 
-    const requestedSkillsContent = this.skillsLoader.loadSkillsForContext(requestedSkills);
-    const prompt =
-      requestedSkillsContent.trim().length > 0
-        ? [
-            "## Requested Skills",
-            "Use the following selected skills for this turn:",
-            requestedSkillsContent,
-            "## User Message",
-            params.content
-          ].join("\n\n")
-        : params.content;
+    const prompt = buildRequestedSkillsUserPrompt(this.skillsLoader, requestedSkills, params.content);
 
     const thread = await this.resolveThread(sessionKey, model);
     const streamed = await thread.runStreamed(prompt, {
