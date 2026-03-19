@@ -1,5 +1,13 @@
 # nextclaw-server
 
+## 0.9.4
+
+### Patch Changes
+
+- Fix plugin hot-reload cache invalidation so upgraded Codex runtime plugins take effect without requiring a service restart.
+- Updated dependencies
+  - @nextclaw/openclaw-compat@0.3.5
+
 ## 0.9.3
 
 ### Patch Changes

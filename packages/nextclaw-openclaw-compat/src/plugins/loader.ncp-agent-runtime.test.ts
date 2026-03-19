@@ -45,6 +45,11 @@ function createTempPluginDir(): string {
       2,
     ),
   );
+  writeRuntimePluginModule(rootDir, "Test Runtime");
+  return rootDir;
+}
+
+function writeRuntimePluginModule(rootDir: string, label: string): void {
   writeFileSync(
     join(rootDir, "dist", "index.js"),
     [
@@ -56,7 +61,7 @@ function createTempPluginDir(): string {
       "  register(api) {",
       "    api.registerNcpAgentRuntime({",
       "      kind: 'test-runtime',",
-      "      label: 'Test Runtime',",
+      `      label: '${label}',`,
       "      createRuntime() {",
       "        return { async *run() {} };",
       "      }",
@@ -66,7 +71,6 @@ function createTempPluginDir(): string {
       "export default plugin;",
     ].join("\n"),
   );
-  return rootDir;
 }
 
 function createAliasDependentPluginDir(): string {
@@ -223,5 +227,36 @@ describe("loadOpenClawPlugins ncp agent runtime registration", () => {
 
     const plugin = registry.plugins.find((entry) => entry.id === "test-ncp-runtime-plugin");
     expect(plugin?.ncpAgentRuntimeKinds).toEqual(["test-runtime"]);
+  });
+
+  it("reloads updated runtime plugin code from the same path without reusing stale module cache", () => {
+    const pluginDir = createTempPluginDir();
+    const config = ConfigSchema.parse({
+      plugins: {
+        allow: ["test-ncp-runtime-plugin"],
+        load: {
+          paths: [pluginDir],
+        },
+        entries: {
+          "test-ncp-runtime-plugin": {
+            enabled: true,
+          },
+        },
+      },
+    });
+
+    const initialRegistry = loadOpenClawPlugins({
+      config,
+      reservedNcpAgentRuntimeKinds: ["native"],
+    });
+    expect(initialRegistry.ncpAgentRuntimes[0]?.label).toBe("Test Runtime");
+
+    writeRuntimePluginModule(pluginDir, "Test Runtime v2");
+
+    const reloadedRegistry = loadOpenClawPlugins({
+      config,
+      reservedNcpAgentRuntimeKinds: ["native"],
+    });
+    expect(reloadedRegistry.ncpAgentRuntimes[0]?.label).toBe("Test Runtime v2");
   });
 });

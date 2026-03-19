@@ -2,12 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import createJitiImport from "jiti";
 import { getWorkspacePathFromConfig, type Config } from "@nextclaw/core";
 import { filterPluginCandidatesByExcludedRoots } from "./candidate-filter.js";
 import { normalizePluginsConfig, resolveEnableState } from "./config-state.js";
 import { discoverOpenClawPlugins } from "./discovery.js";
 import { loadPluginManifestRegistry } from "./manifest-registry.js";
+import { createPluginJiti } from "./plugin-loader-jiti.js";
 import { createPluginRecord, validatePluginConfig } from "./plugin-loader-utils.js";
 import { createPluginRegisterRuntime, registerPluginWithApi, type PluginRegisterRuntime } from "./registry.js";
 import type { OpenClawPluginDefinition, OpenClawPluginModule, PluginLogger, PluginRecord, PluginRegistry } from "./types.js";
@@ -24,13 +24,6 @@ export type PluginLoadOptions = {
   reservedEngineKinds?: string[];
   reservedNcpAgentRuntimeKinds?: string[];
 };
-
-type JitiFactory = (
-  filename: string,
-  options?: Record<string, unknown>
-) => (id: string) => unknown;
-
-const createJiti = createJitiImport as unknown as JitiFactory;
 
 const defaultLogger: PluginLogger = {
   info: (message: string) => console.log(message),
@@ -174,7 +167,7 @@ function resolvePluginModuleExport(moduleExport: unknown): {
 function appendBundledChannelPlugins(params: {
   runtime: PluginRegisterRuntime;
   registry: PluginRegistry;
-  jiti: ReturnType<JitiFactory>;
+  jiti: ReturnType<typeof createPluginJiti>;
   normalizedConfig: ReturnType<typeof normalizePluginsConfig>;
 }): void {
   const require = createRequire(import.meta.url);
@@ -323,11 +316,7 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
     reservedNcpAgentRuntimeKinds
   });
 
-  const jiti = createJiti(import.meta.url, {
-    interopDefault: true,
-    extensions: [".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".cjs", ".json"],
-    alias: buildPluginLoaderAliases()
-  });
+  const jiti = createPluginJiti(buildPluginLoaderAliases());
 
   appendBundledChannelPlugins({
     registry,
