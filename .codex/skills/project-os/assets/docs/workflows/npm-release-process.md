@@ -4,10 +4,10 @@ Scope: publish npm packages in `packages/*`.
 This does NOT cover registry/console deployment.
 
 ## Prereqs
-- npm auth available via one of:
-  - `.npmrc.publish.local` (preferred, ignored by git)
-  - `NPM_TOKEN` env var
-  - `npm login` (interactive)
+- npm auth for this repo should come from the project-root `.npmrc` (gitignored).
+- If release commands run from an isolated worktree or a different cwd, set
+  `NPM_CONFIG_USERCONFIG=/absolute/path/to/<repo>/.npmrc` so npm still reads the
+  project-root credentials.
 
 ## Standard flow
 1) Create changeset

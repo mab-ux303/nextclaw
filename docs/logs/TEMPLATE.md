@@ -51,7 +51,7 @@ pnpm release:dry
 # 3) 版本号 & changelog
 pnpm release:version
 
-# 4) 发布到 npm（需要 NPM_TOKEN 或已登录）
+# 4) 发布到 npm（默认使用项目根 `.npmrc`；若在隔离 worktree 执行，显式设置 `NPM_CONFIG_USERCONFIG` 指向该文件）
 pnpm release
 ```
 
