@@ -9,8 +9,6 @@ import type {
   MarketplaceItemType
 } from '@/api/types';
 import { fetchMarketplacePluginContent, fetchMarketplaceSkillContent } from '@/api/marketplace';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs } from '@/components/ui/tabs-custom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDocBrowser } from '@/components/doc-browser';
@@ -22,11 +20,15 @@ import {
   useMarketplaceInstalled,
   useMarketplaceItems
 } from '@/hooks/useMarketplace';
+import {
+  FilterPanel,
+  MarketplaceListSkeleton,
+  PaginationBar
+} from '@/components/marketplace/marketplace-page-parts';
 import { buildLocaleFallbacks, pickLocalizedText } from '@/components/marketplace/marketplace-localization';
 import { t } from '@/lib/i18n';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
 import { cn } from '@/lib/utils';
-import { PackageSearch } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -40,9 +42,7 @@ type InstallState = {
 };
 
 type ManageState = {
-  isPending: boolean;
-  targetId?: string;
-  action?: MarketplaceManageAction;
+  actionsByTarget: ReadonlyMap<string, MarketplaceManageAction>;
 };
 
 type InstalledRenderEntry = {
@@ -267,43 +267,6 @@ function buildGenericDetailDataUrl(params: {
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
-function FilterPanel(props: {
-  scope: ScopeType;
-  searchText: string;
-  searchPlaceholder: string;
-  sort: MarketplaceSort;
-  onSearchTextChange: (value: string) => void;
-  onSortChange: (value: MarketplaceSort) => void;
-}) {
-  return (
-    <div className="mb-4">
-      <div className="flex gap-3 items-center">
-        <div className="flex-1 min-w-0 relative">
-          <PackageSearch className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            value={props.searchText}
-            onChange={(event) => props.onSearchTextChange(event.target.value)}
-            placeholder={props.searchPlaceholder}
-            className="w-full h-9 border border-gray-200/80 rounded-xl pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary/40"
-          />
-        </div>
-
-        {props.scope === 'all' && (
-          <Select value={props.sort} onValueChange={(v) => props.onSortChange(v as MarketplaceSort)}>
-            <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="relevance">{t('marketplaceSortRelevance')}</SelectItem>
-              <SelectItem value="updated">{t('marketplaceSortUpdated')}</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function MarketplaceListCard(props: {
   item?: MarketplaceItemSummary;
   record?: MarketplaceInstalledRecord;
@@ -322,7 +285,8 @@ function MarketplaceListCard(props: {
   const spec = item?.install.spec ?? record?.spec ?? '';
 
   const targetId = record?.id || record?.spec;
-  const busyForRecord = Boolean(targetId) && manageState.isPending && manageState.targetId === targetId;
+  const busyAction = targetId ? manageState.actionsByTarget.get(targetId) : undefined;
+  const busyForRecord = Boolean(busyAction);
 
   const canToggle = Boolean(pluginRecord);
   const canUninstallPlugin = record?.type === 'plugin' && record.origin !== 'bundled';
@@ -394,95 +358,33 @@ function MarketplaceListCard(props: {
 
         {pluginRecord && canToggle && (
           <button
-            disabled={manageState.isPending}
+            disabled={busyForRecord}
             onClick={(event) => {
               event.stopPropagation();
               onManage(isDisabled ? 'enable' : 'disable', pluginRecord);
             }}
             className="inline-flex items-center h-8 px-4 rounded-xl text-xs font-medium border border-gray-200/80 text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 transition-colors"
           >
-            {busyForRecord && manageState.action !== 'uninstall'
-              ? (manageState.action === 'enable' ? t('marketplaceEnabling') : t('marketplaceDisabling'))
+            {busyAction && busyAction !== 'uninstall'
+              ? (busyAction === 'enable' ? t('marketplaceEnabling') : t('marketplaceDisabling'))
               : (isDisabled ? t('marketplaceEnable') : t('marketplaceDisable'))}
           </button>
         )}
 
         {record && canUninstall && (
           <button
-            disabled={manageState.isPending}
+            disabled={busyForRecord}
             onClick={(event) => {
               event.stopPropagation();
               onManage('uninstall', record);
             }}
             className="inline-flex items-center h-8 px-4 rounded-xl text-xs font-medium border border-rose-100 text-rose-500 bg-white hover:bg-rose-50 hover:border-rose-200 disabled:opacity-50 transition-colors"
           >
-            {busyForRecord && manageState.action === 'uninstall' ? t('marketplaceRemoving') : t('marketplaceUninstall')}
+            {busyAction === 'uninstall' ? t('marketplaceRemoving') : t('marketplaceUninstall')}
           </button>
         )}
       </div>
     </article>
-  );
-}
-
-function MarketplaceListSkeleton(props: {
-  count?: number;
-}) {
-  const count = props.count ?? SKELETON_CARD_COUNT;
-
-  return (
-    <>
-      {Array.from({ length: count }, (_, index) => (
-        <article
-          key={`marketplace-skeleton-${index}`}
-          className="rounded-2xl border border-gray-200/40 bg-white px-5 py-4 shadow-sm"
-        >
-          <div className="flex items-start gap-3.5 justify-between">
-            <div className="flex min-w-0 flex-1 gap-3">
-              <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
-              <div className="min-w-0 flex-1 space-y-2 pt-0.5">
-                <Skeleton className="h-4 w-32 max-w-[70%]" />
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-3 w-12" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
-                <Skeleton className="h-3 w-full" />
-              </div>
-            </div>
-            <Skeleton className="h-8 w-20 shrink-0 rounded-xl" />
-          </div>
-        </article>
-      ))}
-    </>
-  );
-}
-
-function PaginationBar(props: {
-  page: number;
-  totalPages: number;
-  busy: boolean;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <div className="mt-4 flex items-center justify-end gap-2">
-      <button
-        className="h-8 px-3 rounded-xl border border-gray-200/80 text-sm text-gray-600 disabled:opacity-40"
-        onClick={props.onPrev}
-        disabled={props.page <= 1 || props.busy}
-      >
-        {t('prev')}
-      </button>
-      <div className="text-sm text-gray-600 min-w-20 text-center">
-        {props.totalPages === 0 ? '0 / 0' : `${props.page} / ${props.totalPages}`}
-      </div>
-      <button
-        className="h-8 px-3 rounded-xl border border-gray-200/80 text-sm text-gray-600 disabled:opacity-40"
-        onClick={props.onNext}
-        disabled={props.totalPages === 0 || props.page >= props.totalPages || props.busy}
-      >
-        {t('next')}
-      </button>
-    </div>
   );
 }
 
@@ -552,6 +454,7 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
   const [sort, setSort] = useState<MarketplaceSort>('relevance');
   const [page, setPage] = useState(1);
   const [installingSpecs, setInstallingSpecs] = useState<ReadonlySet<string>>(new Set());
+  const [managingTargets, setManagingTargets] = useState<ReadonlyMap<string, MarketplaceManageAction>>(new Map());
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -630,10 +533,6 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
   const showCatalogSkeleton = scope === 'all' && itemsQuery.isLoading && !itemsQuery.data;
   const showInstalledSkeleton = scope === 'installed' && installedQuery.isLoading && !installedQuery.data;
   const showListSkeleton = showCatalogSkeleton || showInstalledSkeleton;
-  const isListRefreshing = !showListSkeleton && (
-    (scope === 'all' && itemsQuery.isFetching)
-    || (scope === 'installed' && installedQuery.isFetching)
-  );
 
   const listSummary = useMemo(() => {
     if (scope === 'installed') {
@@ -653,9 +552,7 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
   const installState: InstallState = { installingSpecs };
 
   const manageState: ManageState = {
-    isPending: manageMutation.isPending,
-    targetId: manageMutation.variables?.id || manageMutation.variables?.spec,
-    action: manageMutation.variables?.action
+    actionsByTarget: managingTargets
   };
 
   const scopeTabs = [
@@ -702,12 +599,11 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
   };
 
   const handleManage = async (action: MarketplaceManageAction, record: MarketplaceInstalledRecord) => {
-    if (manageMutation.isPending) {
-      return;
-    }
-
     const targetId = record.id || record.spec;
     if (!targetId) {
+      return;
+    }
+    if (managingTargets.has(targetId)) {
       return;
     }
 
@@ -723,12 +619,29 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
       }
     }
 
-    manageMutation.mutate({
-      type: record.type,
-      action,
-      id: targetId,
-      spec: record.spec
+    setManagingTargets((previous) => {
+      const next = new Map(previous);
+      next.set(targetId, action);
+      return next;
     });
+
+    try {
+      await manageMutation.mutateAsync({
+        type: record.type,
+        action,
+        id: targetId,
+        spec: record.spec
+      });
+    } finally {
+      setManagingTargets((previous) => {
+        if (!previous.has(targetId)) {
+          return previous;
+        }
+        const next = new Map(previous);
+        next.delete(targetId);
+        return next;
+      });
+    }
   };
 
   const openItemDetail = async (item?: MarketplaceItemSummary, record?: MarketplaceInstalledRecord) => {
@@ -852,15 +765,12 @@ export function MarketplacePage(props: MarketplacePageProps = {}) {
           </div>
         )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1" aria-busy={showListSkeleton || isListRefreshing}>
+        <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1" aria-busy={showListSkeleton}>
           <div
             data-testid={showListSkeleton ? 'marketplace-list-skeleton' : undefined}
-            className={cn(
-              'grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3 transition-opacity',
-              isListRefreshing ? 'opacity-70' : 'opacity-100'
-            )}
+            className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3"
           >
-            {showListSkeleton && <MarketplaceListSkeleton />}
+            {showListSkeleton && <MarketplaceListSkeleton count={SKELETON_CARD_COUNT} />}
 
             {!showListSkeleton && scope === 'all' && allItems.map((item) => (
               <MarketplaceListCard

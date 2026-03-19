@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { t } from '@/lib/i18n';
 import {
+  applyInstallResultToInstalledView,
+  applyManageResultToInstalledView
+} from '@/components/marketplace/marketplace-installed-cache';
+import {
   fetchMarketplaceItem,
   fetchMarketplaceInstalled,
   fetchMarketplaceItems,
@@ -10,7 +14,12 @@ import {
   manageMarketplaceItem,
   type MarketplaceListParams
 } from '@/api/marketplace';
-import type { MarketplaceInstallRequest, MarketplaceItemType, MarketplaceManageRequest } from '@/api/types';
+import type {
+  MarketplaceInstallRequest,
+  MarketplaceInstalledView,
+  MarketplaceItemType,
+  MarketplaceManageRequest
+} from '@/api/types';
 
 export function useMarketplaceItems(params: MarketplaceListParams) {
   return useQuery({
@@ -59,9 +68,19 @@ export function useInstallMarketplaceItem() {
 
   return useMutation({
     mutationFn: (request: MarketplaceInstallRequest) => installMarketplaceItem(request),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['marketplace-installed', result.type] });
-      queryClient.invalidateQueries({ queryKey: ['marketplace-items'] });
+    onSuccess: (result, variables) => {
+      queryClient.setQueryData<MarketplaceInstalledView | undefined>(
+        ['marketplace-installed', result.type],
+        (view) => applyInstallResultToInstalledView({
+          view,
+          request: variables,
+          result
+        })
+      );
+      queryClient.invalidateQueries({
+        queryKey: ['marketplace-installed', result.type],
+        refetchType: 'inactive'
+      });
       if (result.type === 'plugin') {
         queryClient.invalidateQueries({ queryKey: ['ncp-session-types'] });
       }
@@ -81,9 +100,19 @@ export function useManageMarketplaceItem() {
 
   return useMutation({
     mutationFn: (request: MarketplaceManageRequest) => manageMarketplaceItem(request),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['marketplace-installed', result.type] });
-      queryClient.invalidateQueries({ queryKey: ['marketplace-items'] });
+    onSuccess: (result, variables) => {
+      queryClient.setQueryData<MarketplaceInstalledView | undefined>(
+        ['marketplace-installed', result.type],
+        (view) => applyManageResultToInstalledView({
+          view,
+          request: variables,
+          result
+        })
+      );
+      queryClient.invalidateQueries({
+        queryKey: ['marketplace-installed', result.type],
+        refetchType: 'inactive'
+      });
       if (result.type === 'plugin') {
         queryClient.invalidateQueries({ queryKey: ['ncp-session-types'] });
       }
