@@ -1,0 +1,32 @@
+{
+  "name": "@nextclaw/nextclaw-ncp-runtime-claude-code-sdk",
+  "version": "0.1.1",
+  "private": false,
+  "description": "Optional NCP runtime adapter backed by Anthropic Claude Code SDK.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "lint": "eslint .",
+    "tsc": "tsc -p tsconfig.json"
+  },
+  "files": [
+    "dist",
+    "claude-code-loader.cjs",
+    "README.md"
+  ],
+  "dependencies": {
+    "@nextclaw/ncp": "workspace:*",
+    "@anthropic-ai/claude-code": "^2.1.79"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3"
+  }
+}
