@@ -40,6 +40,7 @@
     "platform:db:migrate:local": "pnpm -C workers/nextclaw-provider-gateway-api db:migrate:local",
     "platform:db:migrate:remote": "pnpm -C workers/nextclaw-provider-gateway-api db:migrate:remote",
     "smoke:platform:mvp": "node scripts/platform-mvp-smoke.mjs",
+    "smoke:ncp-chat": "node scripts/chat-capability-smoke.mjs",
     "smoke:ncp-demo": "pnpm -C apps/ncp-demo smoke",
     "validate:platform:mvp": "pnpm -C workers/nextclaw-provider-gateway-api build && pnpm -C workers/nextclaw-provider-gateway-api lint && pnpm -C workers/nextclaw-provider-gateway-api tsc && pnpm -C apps/platform-console build && pnpm -C apps/platform-console lint && pnpm -C apps/platform-console tsc && pnpm -C apps/platform-admin build && pnpm -C apps/platform-admin lint && pnpm -C apps/platform-admin tsc && pnpm smoke:platform:mvp",
     "dev:desktop": "pnpm -C apps/desktop dev",

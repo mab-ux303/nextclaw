@@ -1,4 +1,6 @@
 import {
+  findProviderByModel,
+  findProviderByName,
   getApiBase,
   buildRequestedSkillsUserPrompt,
   getProvider,
@@ -66,6 +68,15 @@ function readStringArray(value: unknown): string[] | undefined {
   return values.length > 0 ? values : undefined;
 }
 
+function resolveCodexCapabilitySpec(params: {
+  model?: string;
+  providerName?: string | null;
+}) {
+  const providerSpec = params.providerName ? findProviderByName(params.providerName) : undefined;
+  const modelSpec = params.model ? findProviderByModel(params.model) : undefined;
+  return providerSpec?.isGateway ? modelSpec ?? providerSpec : providerSpec ?? modelSpec;
+}
+
 function readStringRecord(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
@@ -122,6 +133,7 @@ function resolveCodexExecutionOptions(params: {
 function resolveCodexCliConfig(
   params: {
     pluginConfig: Record<string, unknown>;
+    model?: string;
     providerName?: string | null;
     apiBase?: string;
   },
@@ -245,11 +257,21 @@ const plugin: PluginDefinition = {
         });
         const provider = getProvider(nextConfig, model);
         const providerName = getProviderName(nextConfig, model);
+        const capabilitySpec = resolveCodexCapabilitySpec({
+          model,
+          providerName,
+        });
         const apiBase = readString(pluginConfig.apiBase) ?? getApiBase(nextConfig, model) ?? undefined;
         const apiKey = readString(pluginConfig.apiKey) ?? provider?.apiKey ?? undefined;
         if (!apiKey) {
           throw new Error(
             `[codex] missing apiKey. Set plugins.entries.${PLUGIN_ID}.config.apiKey or providers.*.apiKey for model "${model}".`,
+          );
+        }
+        if (capabilitySpec?.supportsResponsesApi === false) {
+          const capabilityProviderName = capabilitySpec.displayName ?? capabilitySpec.name ?? providerName ?? "provider";
+          throw new Error(
+            `[codex] model "${model}" is routed through "${capabilityProviderName}", which does not support the Responses API. Codex SDK currently only supports models available through the Responses API.`,
           );
         }
 
@@ -272,6 +294,7 @@ const plugin: PluginDefinition = {
           env: readStringRecord(pluginConfig.env),
           cliConfig: resolveCodexCliConfig({
             pluginConfig,
+            model,
             providerName,
             apiBase,
           }),
