@@ -1,19 +1,27 @@
 ---
-name: verifying-chat-capability
-description: Use when checking whether a running NextClaw service can produce real assistant output for a specific session type and model, especially after runtime, plugin, provider, or model-routing changes
+name: smoke-testing-ncp-chat
+description: Use when a running NextClaw service needs a quick real-reply check for a specific NCP session type and model
 ---
 
-# Verifying Chat Capability
+# Smoke Testing NCP Chat
 
 ## Overview
 
-Use the reusable smoke command instead of ad-hoc curl or UI clicking when validating NCP chat capability.
+Use the reusable smoke command instead of ad-hoc `curl` or UI clicking when a fast real-reply check is needed.
+
+This smoke command:
+
+- Sends one real chat message to a running NextClaw service
+- Forces the request through the specified `session-type` and `model`
+- Reads the returned SSE event stream
+- Prints pass/fail, assistant text, terminal event, and error details
+- Exits non-zero when the route does not produce a real assistant reply
 
 ## When to Use
 
-- A session type such as `native`, `codex`, or another plugin runtime may be broken.
-- A model/provider change might only fail on a specific route.
-- You need a quick non-unit validation against a running local service.
+- A quick check is needed to confirm that one concrete chat route can return a real assistant reply.
+- A specific `session-type + model` pair needs to be validated without opening the UI.
+- A fast smoke is preferred over ad-hoc request assembly.
 
 ## Command
 
@@ -25,6 +33,7 @@ pnpm smoke:ncp-chat -- --session-type native --model dashscope/qwen3-coder-next 
 
 ```bash
 pnpm smoke:ncp-chat -- --session-type codex --model dashscope/qwen3-coder-next --port 18792
+pnpm smoke:ncp-chat -- --session-type claude --model minimax/MiniMax-M2.5 --port 18794
 pnpm smoke:ncp-chat -- --session-type native --model openai/gpt-5.3-codex --base-url http://127.0.0.1:18792
 pnpm smoke:ncp-chat -- --session-type codex --model dashscope/qwen3-coder-next --prompt "Reply exactly OK" --json
 ```
@@ -36,8 +45,14 @@ pnpm smoke:ncp-chat -- --session-type codex --model dashscope/qwen3-coder-next -
 - `Assistant Text` is non-empty
 - No `run.error` or `message.failed`
 
+When `--json` is used, the key checks are:
+
+- `ok: true`
+- `assistantText` is non-empty
+- `terminalEvent` is usually `run.finished`
+
 ## Common Mistakes
 
 - Testing the wrong port: `pnpm dev start` usually serves API on `18792` in this repo.
 - Forgetting `--session-type`: the smoke should target the exact runtime under investigation.
-- Treating native success as codex success: run both explicitly when debugging runtime-specific issues.
+- Treating one runtime as proof for another runtime: `native`, `codex`, and `claude` should be checked explicitly.
