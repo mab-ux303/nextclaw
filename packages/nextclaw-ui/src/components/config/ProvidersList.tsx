@@ -39,7 +39,10 @@ export function ProvidersList() {
   const uiHints = schema?.uiHints;
   const providers = meta?.providers ?? [];
   const providersConfig = config?.providers ?? {};
-  const configuredCount = providers.filter((provider) => providersConfig[provider.name]?.apiKeySet).length;
+  const configuredCount = providers.filter((provider) => {
+    const current = providersConfig[provider.name];
+    return current?.enabled !== false && current?.apiKeySet;
+  }).length;
 
   const tabs = [
     { id: 'installed', label: t('providersTabConfigured'), count: configuredCount },
@@ -53,7 +56,8 @@ export function ProvidersList() {
     return baseProviders
       .filter((provider) => {
         if (activeTab === 'installed') {
-          return Boolean(baseConfig[provider.name]?.apiKeySet);
+          const current = baseConfig[provider.name];
+          return Boolean(current?.enabled !== false && current?.apiKeySet);
         }
         return true;
       })
@@ -131,7 +135,8 @@ export function ProvidersList() {
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
             {filteredProviders.map((provider) => {
               const providerConfig = config.providers[provider.name];
-              const isReady = Boolean(providerConfig?.apiKeySet);
+              const isEnabled = providerConfig?.enabled !== false;
+              const isReady = Boolean(isEnabled && providerConfig?.apiKeySet);
               const isActive = selectedName === provider.name;
               const providerLabel = providerConfig?.displayName?.trim() || provider.displayName || provider.name;
               const providerHint = hintForPath(`providers.${provider.name}`, uiHints);
@@ -169,8 +174,8 @@ export function ProvidersList() {
                       </div>
                     </div>
                     <StatusDot
-                      status={isReady ? 'ready' : 'setup'}
-                      label={isReady ? t('statusReady') : t('statusSetup')}
+                      status={isEnabled ? (isReady ? 'ready' : 'setup') : 'inactive'}
+                      label={isEnabled ? (isReady ? t('statusReady') : t('statusSetup')) : t('disabled')}
                       className="min-w-[56px] justify-center"
                     />
                   </div>

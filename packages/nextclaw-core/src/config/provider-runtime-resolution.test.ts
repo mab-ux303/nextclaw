@@ -80,4 +80,29 @@ describe("resolveProviderRuntime", () => {
       }),
     );
   });
+
+  it("falls through disabled providers and resolves the next enabled route", () => {
+    const config = ConfigSchema.parse({
+      providers: {
+        nextclaw: {
+          apiKey: "nc_free_test_key",
+        },
+        deepseek: {
+          enabled: false,
+          apiKey: "sk-deepseek",
+        },
+      },
+    });
+
+    expect(resolveProviderRuntime(config, "deepseek-chat")).toEqual(
+      expect.objectContaining({
+        resolvedModel: "deepseek-chat",
+        providerLocalModel: "deepseek-chat",
+        providerName: "nextclaw",
+        providerDisplayName: "NextClaw Gateway",
+        apiKey: "nc_free_test_key",
+        apiBase: "https://ai-gateway-api.nextclaw.io/v1",
+      }),
+    );
+  });
 });

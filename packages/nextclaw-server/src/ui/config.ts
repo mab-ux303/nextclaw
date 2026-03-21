@@ -24,6 +24,7 @@ import {
   type SearchConfig,
   type ThinkingLevel
 } from "@nextclaw/core";
+import { createDefaultProviderConfig } from "./provider-config.factory.js";
 import { findServerBuiltinProviderByName, listServerBuiltinProviders } from "./provider-overrides.js";
 import type {
   BochaFreshnessValue,
@@ -114,18 +115,6 @@ function findNextCustomProviderName(config: Config): string {
     index += 1;
   }
   return `${CUSTOM_PROVIDER_PREFIX}${index}`;
-}
-
-function createDefaultProviderConfig(defaultWireApi: "auto" | "chat" | "responses" = "auto"): ProviderConfig {
-  return {
-    displayName: "",
-    apiKey: "",
-    apiBase: null,
-    extraHeaders: null,
-    wireApi: defaultWireApi,
-    models: [],
-    modelThinking: {}
-  };
 }
 
 function ensureProviderConfig(config: Config, providerName: string): ProviderConfig | null {
@@ -487,6 +476,7 @@ function toProviderView(
         ) as Record<string, string>)
       : null;
   const view: ProviderConfigView = {
+    enabled: provider.enabled !== false,
     displayName: resolveProviderDisplayName(providerName, provider, spec),
     apiKeySet: masked.apiKeySet || apiKeyRefSet,
     apiKeyMasked: masked.apiKeyMasked ?? (apiKeyRefSet ? "****" : undefined),
@@ -841,6 +831,9 @@ export function updateProvider(
   if (Object.prototype.hasOwnProperty.call(patch, "displayName") && isCustom) {
     provider.displayName = normalizeOptionalDisplayName(patch.displayName) ?? "";
   }
+  if (Object.prototype.hasOwnProperty.call(patch, "enabled")) {
+    provider.enabled = patch.enabled !== false;
+  }
   if (Object.prototype.hasOwnProperty.call(patch, "apiKey")) {
     provider.apiKey = patch.apiKey ?? "";
     clearSecretRef(config, `providers.${providerName}.apiKey`);
@@ -876,6 +869,7 @@ export function createCustomProvider(
   const providers = config.providers as Record<string, ProviderConfig>;
   const generatedDisplayName = resolveCustomProviderFallbackDisplayName(providerName);
   providers[providerName] = {
+    enabled: patch.enabled !== false,
     displayName: normalizeOptionalDisplayName(patch.displayName) ?? generatedDisplayName,
     apiKey: normalizeOptionalString(patch.apiKey) ?? "",
     apiBase: normalizeOptionalString(patch.apiBase),

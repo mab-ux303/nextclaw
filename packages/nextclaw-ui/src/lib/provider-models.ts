@@ -174,8 +174,8 @@ function isProviderConfigured(provider: ProviderConfigView | undefined): boolean
   if (!provider) {
     return false;
   }
-  // Keep in sync with ProvidersList "已配置" tab: only apiKeySet counts as configured.
-  return provider.apiKeySet === true;
+  // Keep in sync with ProvidersList "已配置" tab: only enabled providers with apiKey count as configured.
+  return provider.enabled !== false && provider.apiKeySet === true;
 }
 
 export function buildProviderModelCatalog(params: {

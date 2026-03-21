@@ -298,6 +298,7 @@ export const AgentsConfigSchema = z.object({
 });
 
 export const ProviderConfigSchema = z.object({
+  enabled: z.boolean().default(true),
   displayName: z.string().trim().max(80).default(""),
   apiKey: z.string().default(""),
   apiBase: z.string().nullable().default(null),
@@ -596,15 +597,16 @@ export function matchProvider(config: Config, model?: string): { provider: Provi
   const providerSpecs = listProviderSpecs();
   const rawModel = String(model ?? config.agents.defaults.model ?? "").trim();
   const modelLower = rawModel.toLowerCase();
-  const slashIndex = modelLower.indexOf("/");
-  const modelPrefix = slashIndex >= 0 ? modelLower.slice(0, slashIndex) : "";
+  const modelPrefix = modelLower.includes("/") ? modelLower.slice(0, modelLower.indexOf("/")) : "";
   let prefixedMatch: { provider: ProviderConfig; name: string } | null = null;
   if (modelPrefix) {
     for (const [name, provider] of Object.entries(providers)) {
       if (name.toLowerCase() === modelPrefix) {
-        prefixedMatch = { provider, name };
-        if (provider.apiKey) {
-          return prefixedMatch;
+        if (provider.enabled !== false) {
+          prefixedMatch = { provider, name };
+        }
+        if (provider.enabled !== false && provider.apiKey) {
+          return { provider, name };
         }
         break;
       }
@@ -614,13 +616,13 @@ export function matchProvider(config: Config, model?: string): { provider: Provi
   const builtinProviderNames = new Set(providerSpecs.map((spec) => spec.name));
   for (const spec of providerSpecs) {
     const provider = providers[spec.name];
-    if (provider && provider.apiKey && spec.keywords.some((kw) => modelLower.includes(kw))) {
+    if (provider && provider.enabled !== false && provider.apiKey && spec.keywords.some((kw) => modelLower.includes(kw))) {
       return { provider, name: spec.name };
     }
   }
   for (const spec of providerSpecs) {
     const provider = providers[spec.name];
-    if (provider && provider.apiKey) {
+    if (provider && provider.enabled !== false && provider.apiKey) {
       return { provider, name: spec.name };
     }
   }
@@ -628,12 +630,12 @@ export function matchProvider(config: Config, model?: string): { provider: Provi
     if (builtinProviderNames.has(name)) {
       continue;
     }
-    if (provider.apiKey) {
+    if (provider.enabled !== false && provider.apiKey) {
       return { provider, name };
     }
   }
   if (prefixedMatch) {
-    return prefixedMatch;
+    return { provider: prefixedMatch.provider, name: prefixedMatch.name };
   }
   return { provider: null, name: null };
 }

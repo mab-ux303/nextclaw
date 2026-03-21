@@ -84,4 +84,22 @@ describe("provider apiBase routing", () => {
     expect(getProviderName(config, "custom-1/gpt-4o-mini")).toBe("custom-1");
     expect(getApiBase(config, "custom-1/gpt-4o-mini")).toBe("https://relay-b.example.com/v1");
   });
+
+  it("skips disabled providers during routing", () => {
+    const config = ConfigSchema.parse({
+      providers: {
+        nextclaw: {
+          apiKey: "nc_free_test_key"
+        },
+        deepseek: {
+          enabled: false,
+          apiKey: "sk-deepseek",
+          apiBase: "https://custom.deepseek.example/v1"
+        }
+      }
+    });
+
+    expect(getProviderName(config, "deepseek-chat")).toBe("nextclaw");
+    expect(getApiBase(config, "deepseek-chat")).toBe("https://ai-gateway-api.nextclaw.io/v1");
+  });
 });

@@ -18,13 +18,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MaskedInput } from '@/components/common/MaskedInput';
 import { KeyValueEditor } from '@/components/common/KeyValueEditor';
-import { StatusDot } from '@/components/ui/status-dot';
 import { getLanguage, t } from '@/lib/i18n';
 import { hintForPath } from '@/lib/config-hints';
 import type { ProviderConfigView, ProviderConfigUpdate, ProviderConnectionTestRequest, ThinkingLevel } from '@/api/types';
 import { CircleDotDashed, Plus, X, Trash2, ChevronDown, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CONFIG_DETAIL_CARD_CLASS, CONFIG_EMPTY_DETAIL_CARD_CLASS } from './config-layout';
+import { ProviderEnabledField } from './provider-enabled-field';
+import { ProviderStatusBadge } from './provider-status-badge';
 
 type WireApiType = 'auto' | 'chat' | 'responses';
 type ModelThinkingConfig = Record<string, { supported: ThinkingLevel[]; default?: ThinkingLevel | null }>;
@@ -44,6 +45,7 @@ type PillSelectOption = {
 };
 
 const EMPTY_PROVIDER_CONFIG: ProviderConfigView = {
+  enabled: true,
   displayName: '',
   apiKeySet: false,
   apiKeyMasked: undefined,
@@ -163,6 +165,12 @@ function serializeModelsForSave(models: string[], defaultModels: string[]): stri
     return [];
   }
   return models;
+}
+
+function applyEnabledPatch(payload: ProviderConfigUpdate, enabled: boolean, currentEnabled: boolean): void {
+  if (enabled !== currentEnabled) {
+    payload.enabled = enabled;
+  }
 }
 
 function parseThinkingLevel(value: unknown): ThinkingLevel | null {
@@ -395,6 +403,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
   const importProviderAuthFromCli = useImportProviderAuthFromCli();
 
   const [apiKey, setApiKey] = useState('');
+  const [enabled, setEnabled] = useState(true);
   const [apiBase, setApiBase] = useState('');
   const [extraHeaders, setExtraHeaders] = useState<Record<string, string> | null>(null);
   const [wireApi, setWireApi] = useState<WireApiType>('auto');
@@ -422,6 +431,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
   const defaultDisplayName = providerSpec?.displayName || providerName || '';
   const currentDisplayName = (resolvedProviderConfig.displayName || '').trim();
   const effectiveDisplayName = currentDisplayName || defaultDisplayName;
+  const currentEnabled = resolvedProviderConfig.enabled !== false;
 
   const providerTitle = providerDisplayName.trim() || effectiveDisplayName || providerName || t('providersSelectPlaceholder');
   const providerModelPrefix = providerSpec?.modelPrefix || providerName || '';
@@ -575,6 +585,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
   useEffect(() => {
     if (!providerName) {
       setApiKey('');
+      setEnabled(true);
       setApiBase('');
       setExtraHeaders(null);
       setWireApi('auto');
@@ -590,6 +601,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     }
 
     setApiKey('');
+    setEnabled(currentEnabled);
     setApiBase(currentApiBase);
     setExtraHeaders(resolvedProviderConfig.extraHeaders || null);
     setWireApi(currentWireApi);
@@ -604,6 +616,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
   }, [
     providerName,
     currentApiBase,
+    currentEnabled,
     resolvedProviderConfig.extraHeaders,
     currentWireApi,
     currentEditableModels,
@@ -635,6 +648,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
 
     return (
       apiKeyChanged ||
+      enabled !== currentEnabled ||
       apiBaseChanged ||
       headersChanged ||
       wireApiChanged ||
@@ -648,6 +662,8 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     providerDisplayName,
     effectiveDisplayName,
     apiKey,
+    enabled,
+    currentEnabled,
     apiBase,
     currentApiBase,
     extraHeaders,
@@ -733,6 +749,7 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     if (trimmedApiKey.length > 0) {
       payload.apiKey = trimmedApiKey;
     }
+    applyEnabledPatch(payload, enabled, currentEnabled);
 
     if (trimmedApiBase !== currentApiBase.trim()) {
       payload.apiBase = trimmedApiBase.length > 0 && trimmedApiBase !== defaultApiBase ? trimmedApiBase : null;
@@ -868,8 +885,6 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
     );
   }
 
-  const statusLabel = resolvedProviderConfig.apiKeySet ? t('statusReady') : t('statusSetup');
-
   return (
     <div className={CONFIG_DETAIL_CARD_CLASS}>
       <div className="border-b border-gray-100 px-6 py-4">
@@ -887,13 +902,15 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
                 <Trash2 className="h-4 w-4" />
               </button>
             )}
-            <StatusDot status={resolvedProviderConfig.apiKeySet ? 'ready' : 'setup'} label={statusLabel} />
+            <ProviderStatusBadge enabled={currentEnabled} apiKeySet={resolvedProviderConfig.apiKeySet} />
           </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          <ProviderEnabledField enabled={enabled} onChange={setEnabled} />
+
           {isCustomProvider && (
             <div className="space-y-2">
               <Label htmlFor="providerDisplayName" className="text-sm font-medium text-gray-900">

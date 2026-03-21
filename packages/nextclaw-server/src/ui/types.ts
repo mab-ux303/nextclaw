@@ -20,6 +20,7 @@ export type AppMetaView = {
 };
 
 export type ProviderConfigView = {
+  enabled: boolean;
   displayName?: string;
   apiKeySet: boolean;
   apiKeyMasked?: string;
@@ -31,6 +32,7 @@ export type ProviderConfigView = {
 };
 
 export type ProviderConfigUpdate = {
+  enabled?: boolean;
   displayName?: string | null;
   apiKey?: string | null;
   apiBase?: string | null;

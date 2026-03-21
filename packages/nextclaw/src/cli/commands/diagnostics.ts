@@ -270,10 +270,13 @@ export class DiagnosticsCommands {
 
   private listProviderStatuses(config: ReturnType<typeof loadConfig>): RuntimeStatusReport["providers"] {
     return listBuiltinProviders().map((spec) => {
-      const provider = (config.providers as Record<string, { apiKey?: string; apiBase?: string } | undefined>)[spec.name];
+      const provider = (config.providers as Record<string, { enabled?: boolean; apiKey?: string; apiBase?: string } | undefined>)[spec.name];
       const apiKeyRefSet = hasSecretRef(config, `providers.${spec.name}.apiKey`);
       if (!provider) {
         return { name: spec.displayName ?? spec.name, configured: false, detail: "missing config" };
+      }
+      if (provider.enabled === false) {
+        return { name: spec.displayName ?? spec.name, configured: false, detail: "disabled" };
       }
       if (spec.isLocal) {
         return {
