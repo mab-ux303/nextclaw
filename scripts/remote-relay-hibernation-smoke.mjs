@@ -395,7 +395,6 @@ async function main() {
     if (!String(sharedProbe.body?.cookie ?? "").includes("nextclaw_ui_bridge=smoke-bridge")) {
       throw new Error(`Expected bridged cookie for shared probe, got ${JSON.stringify(sharedProbe.body)}`);
     }
-
     await requestJson({
       method: "POST",
       url: `${base}/platform/remote/shares/${encodeURIComponent(grantId)}/revoke`,

@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import {
   createRemoteAccessSession,
-  getRemoteAccessSessionById,
   getRemoteAccessSessionByToken,
   getRemoteShareGrantById,
 } from "../repositories/remote-repository";
@@ -16,6 +15,7 @@ import {
   randomOpaqueToken,
   verifySessionToken,
 } from "../utils/platform-utils";
+import { resolveHostBoundRemoteAccessSession } from "./remote-access-session-binding";
 
 export const REMOTE_SESSION_COOKIE = "nextclaw_remote_session";
 export const REMOTE_SESSION_TOUCH_THROTTLE_MS = 60_000;
@@ -100,6 +100,12 @@ function readAccessSessionIdFromHost(c: Context<{ Bindings: Env }>): string | nu
   }
   const sessionId = prefix.slice(REMOTE_ACCESS_SUBDOMAIN_PREFIX.length).trim();
   return sessionId || null;
+}
+
+function readRemoteSessionCookieToken(c: Context<{ Bindings: Env }>): string | null {
+  const cookies = parseCookieHeader(c.req.header("cookie"));
+  const token = cookies[REMOTE_SESSION_COOKIE]?.trim();
+  return token || null;
 }
 
 export function isUpgradeWebSocket(c: Context<{ Bindings: Env }>): boolean {
@@ -233,15 +239,14 @@ export async function createShareOpenSession(params: {
 
 export async function resolveRemoteAccessSession(c: Context<{ Bindings: Env }>): Promise<RemoteAccessSessionRow | null> {
   const sessionId = readAccessSessionIdFromHost(c);
-  if (sessionId) {
-    return await getRemoteAccessSessionById(c.env.NEXTCLAW_PLATFORM_DB, sessionId);
-  }
-  const cookies = parseCookieHeader(c.req.header("cookie"));
-  const token = cookies[REMOTE_SESSION_COOKIE]?.trim();
-  if (!token) {
-    return null;
-  }
-  return await getRemoteAccessSessionByToken(c.env.NEXTCLAW_PLATFORM_DB, token);
+  const token = readRemoteSessionCookieToken(c);
+  const cookieSession = token
+    ? await getRemoteAccessSessionByToken(c.env.NEXTCLAW_PLATFORM_DB, token)
+    : null;
+  return resolveHostBoundRemoteAccessSession({
+    hostSessionId: sessionId,
+    cookieSession
+  });
 }
 
 export async function validateRemoteAccessSession(
