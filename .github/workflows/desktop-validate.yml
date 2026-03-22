@@ -10,6 +10,7 @@ on:
       - "packages/nextclaw-openclaw-compat/**"
       - "packages/nextclaw-core/**"
       - "packages/nextclaw-runtime/**"
+      - "packages/ncp-packages/**"
       - "packages/extensions/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -27,6 +28,7 @@ on:
       - "packages/nextclaw-openclaw-compat/**"
       - "packages/nextclaw-core/**"
       - "packages/nextclaw-runtime/**"
+      - "packages/ncp-packages/**"
       - "packages/extensions/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -65,6 +67,7 @@ jobs:
 
       - name: Lint / Typecheck / Runtime Smoke
         run: |
+          pnpm -r --filter @nextclaw/desktop... build
           pnpm -C apps/desktop lint
           pnpm -C apps/desktop tsc
           pnpm -C apps/desktop smoke
@@ -94,13 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           export CSC_IDENTITY_AUTO_DISCOVERY=false
-          pnpm -C packages/nextclaw-core build
-          pnpm -C packages/nextclaw-runtime build
-          pnpm -C packages/extensions/nextclaw-channel-runtime build
-          pnpm -C packages/nextclaw-ui build
-          pnpm -C packages/nextclaw-openclaw-compat build
-          pnpm -C packages/nextclaw-server build
-          pnpm -C packages/nextclaw build
+          pnpm -r --filter @nextclaw/desktop... build
           pnpm -C apps/desktop lint
           pnpm -C apps/desktop tsc
           pnpm -C apps/desktop build:main
@@ -164,13 +161,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          pnpm -C packages/nextclaw-core build
-          pnpm -C packages/nextclaw-runtime build
-          pnpm -C packages/extensions/nextclaw-channel-runtime build
-          pnpm -C packages/nextclaw-ui build
-          pnpm -C packages/nextclaw-openclaw-compat build
-          pnpm -C packages/nextclaw-server build
-          pnpm -C packages/nextclaw build
+          pnpm -r --filter @nextclaw/desktop... build
 
       - name: Build Windows desktop executable
         shell: pwsh
@@ -236,13 +227,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pnpm -C packages/nextclaw-core build
-          pnpm -C packages/nextclaw-runtime build
-          pnpm -C packages/extensions/nextclaw-channel-runtime build
-          pnpm -C packages/nextclaw-ui build
-          pnpm -C packages/nextclaw-openclaw-compat build
-          pnpm -C packages/nextclaw-server build
-          pnpm -C packages/nextclaw build
+          pnpm -r --filter @nextclaw/desktop... build
 
       - name: Build Linux AppImage
         shell: bash
