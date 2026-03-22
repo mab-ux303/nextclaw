@@ -151,7 +151,7 @@ export class RemoteConnector {
       displayName: params.context.displayName,
       localOrigin: params.context.localOrigin
     });
-    this.logger.info(`✓ Remote device registered: ${device.displayName} (${device.id})`);
+    this.logger.info(`✓ Remote instance registered: ${device.displayName} (${device.id})`);
     this.logger.info(`✓ Local origin: ${params.context.localOrigin}`);
     this.logger.info(`✓ Platform: ${params.context.platformBase}`);
     return device;
@@ -183,7 +183,7 @@ export class RemoteConnector {
       const device = await this.ensureDevice({ device: params.device, context: params.context });
       const wsUrl =
         `${params.context.platformBase.replace(/^http/i, "ws")}/platform/remote/connect`
-        + `?deviceId=${encodeURIComponent(device.id)}&token=${encodeURIComponent(params.context.token)}`;
+        + `?instanceId=${encodeURIComponent(device.id)}&token=${encodeURIComponent(params.context.token)}`;
       const outcome = await this.connectOnce({
         wsUrl,
         relayBridge: params.relayBridge,

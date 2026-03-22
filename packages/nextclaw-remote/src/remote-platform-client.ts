@@ -105,7 +105,7 @@ export class RemotePlatformClient {
     displayName: string;
     localOrigin: string;
   }): Promise<RegisteredRemoteDevice> {
-    const response = await fetch(`${params.platformBase}/platform/remote/devices/register`, {
+    const response = await fetch(`${params.platformBase}/platform/remote/instances/register`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -119,9 +119,42 @@ export class RemotePlatformClient {
         localOrigin: params.localOrigin
       })
     });
-    const payload = (await response.json()) as { ok?: boolean; data?: { device?: RegisteredRemoteDevice }; error?: { message?: string } };
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      data?: {
+        instance?: {
+          id: string;
+          instanceInstallId: string;
+          displayName: string;
+          platform: string;
+          appVersion: string;
+          localOrigin: string;
+          status: "online" | "offline";
+          lastSeenAt: string;
+          createdAt: string;
+          updatedAt: string;
+        };
+        device?: RegisteredRemoteDevice;
+      };
+      error?: { message?: string };
+    };
+    const instance = payload.data?.instance;
+    if (response.ok && payload.ok && instance) {
+      return {
+        id: instance.id,
+        deviceInstallId: instance.instanceInstallId,
+        displayName: instance.displayName,
+        platform: instance.platform,
+        appVersion: instance.appVersion,
+        localOrigin: instance.localOrigin,
+        status: instance.status,
+        lastSeenAt: instance.lastSeenAt,
+        createdAt: instance.createdAt,
+        updatedAt: instance.updatedAt
+      };
+    }
     if (!response.ok || !payload.ok || !payload.data?.device) {
-      throw new Error(payload.error?.message ?? `Failed to register remote device (${response.status}).`);
+      throw new Error(payload.error?.message ?? `Failed to register remote instance (${response.status}).`);
     }
     return payload.data.device;
   }

@@ -2,6 +2,7 @@ export type Env = {
   DASHSCOPE_API_KEY?: string;
   DASHSCOPE_API_BASE?: string;
   AUTH_TOKEN_SECRET?: string;
+  REMOTE_ACCESS_BASE_DOMAIN?: string;
   PLATFORM_AUTH_EMAIL_PROVIDER?: string;
   PLATFORM_AUTH_EMAIL_FROM?: string;
   PLATFORM_AUTH_DEV_EXPOSE_CODE?: string;
@@ -108,55 +109,88 @@ export type LedgerRow = {
   created_at: string;
 };
 
-export type RemoteDeviceStatus = "online" | "offline";
+export type RemoteInstanceStatus = "online" | "offline";
 
-export type RemoteDeviceRow = {
+export type RemoteInstanceRow = {
   id: string;
   user_id: string;
-  device_install_id: string;
+  instance_install_id: string;
   display_name: string;
   platform: string;
   app_version: string;
   local_origin: string;
-  status: RemoteDeviceStatus;
+  status: RemoteInstanceStatus;
   last_seen_at: string;
   created_at: string;
   updated_at: string;
 };
 
-export type RemoteSessionRow = {
+export type RemoteAccessSessionSourceType = "owner_open" | "share_grant";
+
+export type RemoteAccessSessionRow = {
   id: string;
   token: string;
   user_id: string;
-  device_id: string;
+  instance_id: string;
   status: "active" | "closed" | "expired";
+  source_type: RemoteAccessSessionSourceType;
+  source_grant_id: string | null;
+  opened_by_user_id: string | null;
   expires_at: string;
   last_used_at: string;
+  revoked_at: string | null;
   created_at: string;
   updated_at: string;
 };
 
-export type RemoteDeviceView = {
+export type RemoteShareGrantRow = {
   id: string;
-  deviceInstallId: string;
+  token: string;
+  owner_user_id: string;
+  instance_id: string;
+  status: "active" | "revoked" | "expired";
+  expires_at: string;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+  active_session_count?: number;
+};
+
+export type RemoteInstanceView = {
+  id: string;
+  instanceInstallId: string;
   displayName: string;
   platform: string;
   appVersion: string;
   localOrigin: string;
-  status: RemoteDeviceStatus;
+  status: RemoteInstanceStatus;
   lastSeenAt: string;
   createdAt: string;
   updatedAt: string;
 };
 
-export type RemoteSessionView = {
+export type RemoteAccessSessionView = {
   id: string;
-  deviceId: string;
-  status: "active" | "closed" | "expired";
+  instanceId: string;
+  status: "active" | "closed" | "expired" | "revoked";
+  sourceType: RemoteAccessSessionSourceType;
+  sourceGrantId: string | null;
   expiresAt: string;
   lastUsedAt: string;
+  revokedAt: string | null;
   createdAt: string;
   openUrl: string;
+};
+
+export type RemoteShareGrantView = {
+  id: string;
+  instanceId: string;
+  status: "active" | "revoked" | "expired";
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+  shareUrl: string;
+  activeSessionCount: number;
 };
 
 export type PlatformAuthSessionStatus = "pending" | "authorized" | "expired";

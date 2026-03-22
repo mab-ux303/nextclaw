@@ -69,9 +69,9 @@ export type AdminOverview = {
   pendingRechargeIntents: number;
 };
 
-export type RemoteDevice = {
+export type RemoteInstance = {
   id: string;
-  deviceInstallId: string;
+  instanceInstallId: string;
   displayName: string;
   platform: string;
   appVersion: string;
@@ -82,14 +82,28 @@ export type RemoteDevice = {
   updatedAt: string;
 };
 
-export type RemoteSession = {
+export type RemoteAccessSession = {
   id: string;
-  deviceId: string;
-  status: 'active' | 'closed' | 'expired';
+  instanceId: string;
+  status: 'active' | 'closed' | 'expired' | 'revoked';
+  sourceType: 'owner_open' | 'share_grant';
+  sourceGrantId: string | null;
   expiresAt: string;
   lastUsedAt: string;
+  revokedAt: string | null;
   createdAt: string;
   openUrl: string;
+};
+
+export type RemoteShareGrant = {
+  id: string;
+  instanceId: string;
+  status: 'active' | 'revoked' | 'expired';
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+  shareUrl: string;
+  activeSessionCount: number;
 };
 
 export type CursorPage<T> = {

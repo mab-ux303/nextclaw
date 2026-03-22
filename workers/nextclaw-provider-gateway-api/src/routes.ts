@@ -31,10 +31,17 @@ import {
 } from "./controllers/billing-controller";
 import { chatCompletionsHandler, healthHandler, modelsHandler, usageHandler } from "./controllers/openai-controller";
 import {
+  createRemoteShareGrantHandler,
+  listRemoteInstancesHandler,
+  listRemoteShareGrantsHandler,
+  openRemoteInstanceHandler,
+  openRemoteShareHandler,
   listRemoteDevicesHandler,
   openRemoteDeviceHandler,
   openRemoteSessionRedirectHandler,
+  registerRemoteInstanceHandler,
   registerRemoteDeviceHandler,
+  revokeRemoteShareGrantHandler,
   remoteConnectorWebSocketHandler
 } from "./controllers/remote-controller";
 import type { Env } from "./types/platform";
@@ -50,9 +57,16 @@ function registerPlatformAuthRoutes(app: Hono<{ Bindings: Env }>): void {
 }
 
 function registerRemoteAccessRoutes(app: Hono<{ Bindings: Env }>): void {
+  app.get("/platform/remote/instances", listRemoteInstancesHandler);
+  app.post("/platform/remote/instances/register", registerRemoteInstanceHandler);
+  app.post("/platform/remote/instances/:instanceId/open", openRemoteInstanceHandler);
+  app.get("/platform/remote/instances/:instanceId/shares", listRemoteShareGrantsHandler);
+  app.post("/platform/remote/instances/:instanceId/shares", createRemoteShareGrantHandler);
+  app.post("/platform/remote/shares/:grantId/revoke", revokeRemoteShareGrantHandler);
   app.get("/platform/remote/devices", listRemoteDevicesHandler);
   app.post("/platform/remote/devices/register", registerRemoteDeviceHandler);
   app.post("/platform/remote/devices/:deviceId/open", openRemoteDeviceHandler);
+  app.get("/platform/share/:grantToken", openRemoteShareHandler);
   app.get("/platform/remote/open", openRemoteSessionRedirectHandler);
   app.get("/platform/remote/connect", remoteConnectorWebSocketHandler);
 }

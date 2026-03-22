@@ -39,7 +39,7 @@ export class RemoteRuntimeActions {
     const result = this.deps.remoteCommands.enableConfig(opts);
     console.log("✓ Remote access enabled");
     if (result.config.remote.deviceName.trim()) {
-      console.log(`Device: ${result.config.remote.deviceName.trim()}`);
+      console.log(`Instance: ${result.config.remote.deviceName.trim()}`);
     }
     if (result.config.remote.platformApiBase.trim()) {
       console.log(`Platform: ${result.config.remote.platformApiBase.trim()}`);

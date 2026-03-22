@@ -1,154 +1,28 @@
 #!/usr/bin/env node
 import { createServer } from "node:http";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import net from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { spawn, spawnSync } from "node:child_process";
+import { resolve } from "node:path";
+import { spawn } from "node:child_process";
+import {
+  extractCookie,
+  fetchWithRetry,
+  findFreePort,
+  nextclawCli,
+  queryLocalD1,
+  requestJson,
+  rootDir,
+  runOrThrow,
+  waitFor,
+  waitForHealth,
+  wranglerBin,
+} from "./remote-relay-smoke-support.mjs";
 
-const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workerDir = resolve(rootDir, "workers/nextclaw-provider-gateway-api");
-const workerConfig = resolve(workerDir, "wrangler.toml");
-const wranglerBin = resolve(
+const workerConfig = resolve(
   workerDir,
-  "node_modules/.bin",
-  process.platform === "win32" ? "wrangler.cmd" : "wrangler"
+  "wrangler.toml"
 );
-const nextclawCli = resolve(rootDir, "packages/nextclaw/dist/cli/index.js");
-
-function runOrThrow(cmd, args, options = {}) {
-  const result = spawnSync(cmd, args, {
-    cwd: rootDir,
-    encoding: "utf-8",
-    stdio: "pipe",
-    ...options
-  });
-  if (result.status !== 0) {
-    throw new Error(
-      `Command failed: ${cmd} ${args.join(" ")}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`
-    );
-  }
-  return result;
-}
-
-function findFreePort() {
-  return new Promise((resolvePort, reject) => {
-    const server = net.createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        server.close();
-        reject(new Error("Failed to allocate free port."));
-        return;
-      }
-      const port = address.port;
-      server.close(() => resolvePort(port));
-    });
-    server.on("error", reject);
-  });
-}
-
-async function waitFor(check, timeoutMs, label) {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    const result = await check();
-    if (result) {
-      return result;
-    }
-    await new Promise((resolveSleep) => setTimeout(resolveSleep, 300));
-  }
-  throw new Error(`Timeout while waiting for ${label}.`);
-}
-
-async function waitForHealth(url, timeoutMs = 30_000) {
-  await waitFor(async () => {
-    try {
-      const response = await fetch(url);
-      return response.ok ? true : false;
-    } catch {
-      return false;
-    }
-  }, timeoutMs, `health check ${url}`);
-}
-
-async function requestJson({
-  method,
-  url,
-  token,
-  body,
-  expectedStatus,
-  headers = {}
-}) {
-  const finalHeaders = new Headers(headers);
-  if (!finalHeaders.has("Content-Type") && body !== undefined) {
-    finalHeaders.set("Content-Type", "application/json");
-  }
-  if (token) {
-    finalHeaders.set("Authorization", `Bearer ${token}`);
-  }
-  const response = await fetch(url, {
-    method,
-    headers: finalHeaders,
-    body: body === undefined ? undefined : JSON.stringify(body),
-    redirect: "manual"
-  });
-  const text = await response.text();
-  let parsed = null;
-  try {
-    parsed = text.length > 0 ? JSON.parse(text) : null;
-  } catch {
-    parsed = text;
-  }
-  if (typeof expectedStatus === "number" && response.status !== expectedStatus) {
-    throw new Error(
-      `Unexpected status for ${method} ${url}: expected ${expectedStatus}, got ${response.status}, body=${text}`
-    );
-  }
-  return { status: response.status, body: parsed, headers: response.headers };
-}
-
-function extractCookie(setCookieHeader) {
-  if (typeof setCookieHeader !== "string" || setCookieHeader.trim().length === 0) {
-    throw new Error("Missing Set-Cookie header.");
-  }
-  const firstSegment = setCookieHeader.split(";")[0]?.trim();
-  if (!firstSegment) {
-    throw new Error(`Invalid Set-Cookie header: ${setCookieHeader}`);
-  }
-  return firstSegment;
-}
-
-function parseD1Results(stdout) {
-  const parsed = JSON.parse(stdout);
-  if (Array.isArray(parsed)) {
-    const first = parsed[0];
-    if (Array.isArray(first?.results)) {
-      return first.results;
-    }
-  }
-  if (Array.isArray(parsed?.results)) {
-    return parsed.results;
-  }
-  throw new Error(`Unexpected D1 JSON output: ${stdout}`);
-}
-
-function queryLocalD1({ persistDir, sql }) {
-  const result = runOrThrow(wranglerBin, [
-    "d1",
-    "execute",
-    "NEXTCLAW_PLATFORM_DB",
-    "--local",
-    "--config",
-    workerConfig,
-    "--persist-to",
-    persistDir,
-    "--json",
-    "--command",
-    sql
-  ]);
-  return parseD1Results(result.stdout);
-}
 
 async function main() {
   const persistDir = mkdtempSync(resolve(tmpdir(), "nextclaw-remote-relay-smoke-"));
@@ -213,6 +87,8 @@ async function main() {
       "AUTH_TOKEN_SECRET=smoke-token-secret-with-length-at-least-32",
       "DASHSCOPE_API_KEY=smoke-upstream-key",
       "DASHSCOPE_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "PLATFORM_AUTH_EMAIL_PROVIDER=console",
+      "PLATFORM_AUTH_DEV_EXPOSE_CODE=true",
       "GLOBAL_FREE_USD_LIMIT=20",
       "REQUEST_FLAT_USD_PER_REQUEST=0.0002"
     ].join("\n"),
@@ -266,6 +142,32 @@ async function main() {
     console.log("[remote-relay-smoke] build affected CLI...");
     runOrThrow("pnpm", ["-C", "packages/nextclaw", "build"]);
 
+    console.log("[remote-relay-smoke] register smoke user via platform auth API...");
+    const registerCode = await requestJson({
+      method: "POST",
+      url: `${base}/platform/auth/register/send-code`,
+      body: { email: userEmail },
+      expectedStatus: 202
+    });
+    const debugCode = registerCode.body?.data?.debugCode;
+    if (!debugCode) {
+      throw new Error(`Missing debug register code: ${JSON.stringify(registerCode.body)}`);
+    }
+    const registerComplete = await requestJson({
+      method: "POST",
+      url: `${base}/platform/auth/register/complete`,
+      body: {
+        email: userEmail,
+        code: debugCode,
+        password
+      },
+      expectedStatus: 201
+    });
+    const userToken = registerComplete.body?.data?.token;
+    if (!userToken) {
+      throw new Error("Missing user token after registration.");
+    }
+
     console.log("[remote-relay-smoke] login via nextclaw CLI...");
     runOrThrow("node", [
       nextclawCli,
@@ -275,25 +177,13 @@ async function main() {
       "--email",
       userEmail,
       "--password",
-      password,
-      "--register"
+      password
     ], {
       env: {
         ...process.env,
         NEXTCLAW_HOME: nextclawHome
       }
     });
-
-    const userLogin = await requestJson({
-      method: "POST",
-      url: `${base}/platform/auth/login`,
-      body: { email: userEmail, password },
-      expectedStatus: 200
-    });
-    const userToken = userLogin.body?.data?.token;
-    if (!userToken) {
-      throw new Error("Missing user token after login.");
-    }
 
     console.log("[remote-relay-smoke] start real connector...");
     connectorProcess = spawn(
@@ -326,21 +216,21 @@ async function main() {
     connectorProcess.stdout?.on("data", captureConnectorLog);
     connectorProcess.stderr?.on("data", captureConnectorLog);
 
-    const device = await waitFor(async () => {
-      const devicesResponse = await requestJson({
+    const instance = await waitFor(async () => {
+      const instancesResponse = await requestJson({
         method: "GET",
-        url: `${base}/platform/remote/devices`,
+        url: `${base}/platform/remote/instances`,
         token: userToken,
         expectedStatus: 200
       });
-      const items = devicesResponse.body?.data?.items ?? [];
+      const items = instancesResponse.body?.data?.items ?? [];
       return items.find((item) => item.displayName === "remote-hibernation-smoke" && item.status === "online") ?? null;
     }, 30_000, "connector online");
 
     console.log("[remote-relay-smoke] verify no heartbeat writes after idle...");
     const [deviceRowBeforeIdle] = queryLocalD1({
       persistDir,
-      sql: `SELECT status, last_seen_at, updated_at FROM remote_devices WHERE id = '${device.id}'`
+      sql: `SELECT status, last_seen_at, updated_at FROM remote_devices WHERE id = '${instance.id}'`
     });
     if (!deviceRowBeforeIdle || deviceRowBeforeIdle.status !== "online") {
       throw new Error(`Expected online remote device row, got ${JSON.stringify(deviceRowBeforeIdle)}`);
@@ -348,7 +238,7 @@ async function main() {
     await new Promise((resolveSleep) => setTimeout(resolveSleep, 18_000));
     const [deviceRowAfterIdle] = queryLocalD1({
       persistDir,
-      sql: `SELECT status, last_seen_at, updated_at FROM remote_devices WHERE id = '${device.id}'`
+      sql: `SELECT status, last_seen_at, updated_at FROM remote_devices WHERE id = '${instance.id}'`
     });
     if (!deviceRowAfterIdle || deviceRowAfterIdle.status !== "online") {
       throw new Error(`Expected online remote device row after idle, got ${JSON.stringify(deviceRowAfterIdle)}`);
@@ -365,7 +255,7 @@ async function main() {
     console.log("[remote-relay-smoke] open remote session and verify local bridge...");
     const openSession = await requestJson({
       method: "POST",
-      url: `${base}/platform/remote/devices/${encodeURIComponent(device.id)}/open`,
+      url: `${base}/platform/remote/instances/${encodeURIComponent(instance.id)}/open`,
       token: userToken,
       body: {},
       expectedStatus: 200
@@ -378,10 +268,17 @@ async function main() {
     if (!sessionCreatedAt) {
       throw new Error(`Missing lastUsedAt in session response: ${JSON.stringify(openSession.body)}`);
     }
+    const [sessionRowBeforeProxies] = queryLocalD1({
+      persistDir,
+      sql: "SELECT id, last_used_at, updated_at FROM remote_sessions ORDER BY created_at DESC LIMIT 1"
+    });
+    if (!sessionRowBeforeProxies) {
+      throw new Error("Missing remote session row before proxied requests.");
+    }
     const localOpenUrl = new URL(openUrl);
     localOpenUrl.protocol = "http:";
     localOpenUrl.host = `127.0.0.1:${backendPort}`;
-    const redirectResponse = await fetch(localOpenUrl, { redirect: "manual" });
+    const redirectResponse = await fetchWithRetry(localOpenUrl, { redirect: "manual" }, "owner open redirect");
     if (redirectResponse.status !== 302) {
       throw new Error(
         `Expected redirect status 302, got ${redirectResponse.status}, openUrl=${openUrl}, localOpenUrl=${localOpenUrl}, body=${await redirectResponse.text()}`
@@ -414,10 +311,79 @@ async function main() {
     if (!sessionRowAfterProxies) {
       throw new Error("Missing remote session row after proxied requests.");
     }
-    if (sessionRowAfterProxies.last_used_at !== sessionCreatedAt) {
+    if (
+      sessionRowAfterProxies.last_used_at !== sessionRowBeforeProxies.last_used_at
+      || sessionRowAfterProxies.updated_at !== sessionRowBeforeProxies.updated_at
+    ) {
       throw new Error(
-        `Expected throttled session touch, sessionCreatedAt=${sessionCreatedAt}, row=${JSON.stringify(sessionRowAfterProxies)}`
+        `Expected throttled session touch, before=${JSON.stringify(sessionRowBeforeProxies)}, after=${JSON.stringify(sessionRowAfterProxies)}, sessionCreatedAt=${sessionCreatedAt}`
       );
+    }
+
+    console.log("[remote-relay-smoke] create share link and verify revocation closes existing shared session...");
+    const createdShare = await requestJson({
+      method: "POST",
+      url: `${base}/platform/remote/instances/${encodeURIComponent(instance.id)}/shares`,
+      token: userToken,
+      body: {},
+      expectedStatus: 200
+    });
+    const shareUrl = createdShare.body?.data?.shareUrl;
+    const grantId = createdShare.body?.data?.id;
+    if (!shareUrl || !grantId) {
+      throw new Error(`Missing share grant payload: ${JSON.stringify(createdShare.body)}`);
+    }
+    const localShareUrl = new URL(shareUrl);
+    localShareUrl.protocol = "http:";
+    localShareUrl.host = `127.0.0.1:${backendPort}`;
+    const shareRedirectResponse = await fetchWithRetry(localShareUrl, { redirect: "manual" }, "share redirect");
+    if (shareRedirectResponse.status !== 302) {
+      throw new Error(
+        `Expected share redirect status 302, got ${shareRedirectResponse.status}, shareUrl=${shareUrl}, localShareUrl=${localShareUrl}, body=${await shareRedirectResponse.text()}`
+      );
+    }
+    const shareOpenLocation = shareRedirectResponse.headers.get("location");
+    if (!shareOpenLocation) {
+      throw new Error("Missing share redirect location.");
+    }
+    const shareOpenResponse = await fetchWithRetry(shareOpenLocation, { redirect: "manual" }, "share open redirect");
+    if (shareOpenResponse.status !== 302) {
+      throw new Error(
+        `Expected open redirect status 302 from share, got ${shareOpenResponse.status}, location=${shareOpenLocation}, body=${await shareOpenResponse.text()}`
+      );
+    }
+    const sharedSessionCookie = extractCookie(shareOpenResponse.headers.get("set-cookie"));
+    const sharedProbe = await requestJson({
+      method: "GET",
+      url: `${base}/probe?share=1`,
+      expectedStatus: 200,
+      headers: { cookie: sharedSessionCookie }
+    });
+    if (!String(sharedProbe.body?.cookie ?? "").includes("nextclaw_ui_bridge=smoke-bridge")) {
+      throw new Error(`Expected bridged cookie for shared probe, got ${JSON.stringify(sharedProbe.body)}`);
+    }
+
+    await requestJson({
+      method: "POST",
+      url: `${base}/platform/remote/shares/${encodeURIComponent(grantId)}/revoke`,
+      token: userToken,
+      body: {},
+      expectedStatus: 200
+    });
+
+    const revokedSharedProbe = await requestJson({
+      method: "GET",
+      url: `${base}/probe?share=2`,
+      expectedStatus: 410,
+      headers: { cookie: sharedSessionCookie }
+    });
+    if (typeof revokedSharedProbe.body !== "string" || !revokedSharedProbe.body.includes("revoked")) {
+      throw new Error(`Expected revoked shared session response, got ${JSON.stringify(revokedSharedProbe.body)}`);
+    }
+
+    const revokedShareOpen = await fetchWithRetry(localShareUrl, { redirect: "manual" }, "revoked share redirect");
+    if (revokedShareOpen.status !== 410) {
+      throw new Error(`Expected revoked share URL to return 410, got ${revokedShareOpen.status}`);
     }
 
     console.log("[remote-relay-smoke] stop connector and verify offline transition...");
@@ -425,14 +391,14 @@ async function main() {
       connectorProcess.kill("SIGTERM");
     }
     await waitFor(async () => {
-      const devicesResponse = await requestJson({
+      const instancesResponse = await requestJson({
         method: "GET",
-        url: `${base}/platform/remote/devices`,
+        url: `${base}/platform/remote/instances`,
         token: userToken,
         expectedStatus: 200
       });
-      const items = devicesResponse.body?.data?.items ?? [];
-      return items.find((item) => item.id === device.id && item.status === "offline") ?? null;
+      const items = instancesResponse.body?.data?.items ?? [];
+      return items.find((item) => item.id === instance.id && item.status === "offline") ?? null;
     }, 30_000, "connector offline");
 
     console.log("[remote-relay-smoke] all checks passed.");

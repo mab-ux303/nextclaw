@@ -8,8 +8,9 @@ import type {
   EmailCodeSendResult,
   LedgerItem,
   RechargeIntentItem,
-  RemoteDevice,
-  RemoteSession,
+  RemoteAccessSession,
+  RemoteInstance,
+  RemoteShareGrant,
   UserView
 } from '@/api/types';
 
@@ -24,6 +25,21 @@ function toApiUrl(path: string): string {
     return path;
   }
   return path.startsWith('/') ? `${apiBase}${path}` : `${apiBase}/${path}`;
+}
+
+function normalizeHostedPlatformUrl(url: string): string {
+  if (!apiBase) {
+    return url;
+  }
+  try {
+    const platformOrigin = new URL(apiBase).origin;
+    const parsed = new URL(url);
+    parsed.protocol = new URL(platformOrigin).protocol;
+    parsed.host = new URL(platformOrigin).host;
+    return parsed.toString();
+  } catch {
+    return url;
+  }
 }
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string | null): Promise<T> {
@@ -114,16 +130,67 @@ export async function fetchBillingOverview(token: string): Promise<BillingOvervi
   return unwrap(data);
 }
 
-export async function fetchRemoteDevices(token: string): Promise<{ items: RemoteDevice[] }> {
-  const data = await request<ApiEnvelope<{ items: RemoteDevice[] }>>('/platform/remote/devices', {}, token);
+export async function fetchRemoteInstances(token: string): Promise<{ items: RemoteInstance[] }> {
+  const data = await request<ApiEnvelope<{ items: RemoteInstance[] }>>('/platform/remote/instances', {}, token);
   return unwrap(data);
 }
 
-export async function openRemoteDevice(token: string, deviceId: string): Promise<RemoteSession> {
-  const data = await request<ApiEnvelope<RemoteSession>>(`/platform/remote/devices/${encodeURIComponent(deviceId)}/open`, {
+export async function openRemoteInstance(token: string, instanceId: string): Promise<RemoteAccessSession> {
+  const data = await request<ApiEnvelope<RemoteAccessSession>>(`/platform/remote/instances/${encodeURIComponent(instanceId)}/open`, {
     method: 'POST',
     body: JSON.stringify({})
   }, token);
+  const session = unwrap(data);
+  return {
+    ...session,
+    openUrl: normalizeHostedPlatformUrl(session.openUrl)
+  };
+}
+
+export async function fetchRemoteShareGrants(token: string, instanceId: string): Promise<{ items: RemoteShareGrant[] }> {
+  const data = await request<ApiEnvelope<{ items: RemoteShareGrant[] }>>(
+    `/platform/remote/instances/${encodeURIComponent(instanceId)}/shares`,
+    {},
+    token
+  );
+  const result = unwrap(data);
+  return {
+    items: result.items.map((grant) => ({
+      ...grant,
+      shareUrl: normalizeHostedPlatformUrl(grant.shareUrl)
+    }))
+  };
+}
+
+export async function createRemoteShareGrant(
+  token: string,
+  instanceId: string,
+  ttlSeconds?: number
+): Promise<RemoteShareGrant> {
+  const data = await request<ApiEnvelope<RemoteShareGrant>>(
+    `/platform/remote/instances/${encodeURIComponent(instanceId)}/shares`,
+    {
+      method: 'POST',
+      body: JSON.stringify(typeof ttlSeconds === 'number' ? { ttlSeconds } : {})
+    },
+    token
+  );
+  const grant = unwrap(data);
+  return {
+    ...grant,
+    shareUrl: normalizeHostedPlatformUrl(grant.shareUrl)
+  };
+}
+
+export async function revokeRemoteShareGrant(token: string, grantId: string): Promise<{ revoked: boolean; grantId: string; revokedAt: string }> {
+  const data = await request<ApiEnvelope<{ revoked: boolean; grantId: string; revokedAt: string }>>(
+    `/platform/remote/shares/${encodeURIComponent(grantId)}/revoke`,
+    {
+      method: 'POST',
+      body: JSON.stringify({})
+    },
+    token
+  );
   return unwrap(data);
 }
 

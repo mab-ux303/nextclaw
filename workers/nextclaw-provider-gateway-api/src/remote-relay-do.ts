@@ -1,4 +1,4 @@
-import { touchRemoteDevice } from "./repositories/remote-repository";
+import { touchRemoteInstance } from "./repositories/remote-repository";
 import type { Env } from "./types/platform";
 
 type HeaderEntry = [string, string];
@@ -321,7 +321,7 @@ export class NextclawRemoteRelayDurableObject {
     status: "online" | "offline",
     at: string
   ): Promise<void> {
-    await touchRemoteDevice(this.env.NEXTCLAW_PLATFORM_DB, deviceId, {
+    await touchRemoteInstance(this.env.NEXTCLAW_PLATFORM_DB, deviceId, {
       status,
       lastSeenAt: at
     });
