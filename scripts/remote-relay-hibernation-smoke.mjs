@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
+import { WebSocketServer } from "ws";
 import {
   extractCookie,
   fetchWithRetry,
@@ -92,6 +93,24 @@ async function main() {
     }
     res.writeHead(404, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: "not_found", path: url.pathname }));
+  });
+
+  const localUiWss = new WebSocketServer({ noServer: true });
+  localUiServer.on("upgrade", (request, socket, head) => {
+    const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `127.0.0.1:${uiPort}`}`);
+    if (url.pathname !== "/ws") {
+      socket.destroy();
+      return;
+    }
+    localUiWss.handleUpgrade(request, socket, head, (ws) => {
+      localUiWss.emit("connection", ws, request);
+    });
+  });
+  localUiWss.on("connection", (socket) => {
+    socket.send(JSON.stringify({
+      type: "session.updated",
+      payload: { sessionKey: "remote-hibernation-smoke-session" }
+    }));
   });
 
   await new Promise((resolveListen, rejectListen) => {
@@ -459,6 +478,7 @@ async function main() {
         workerProcess.kill("SIGKILL");
       }
     }
+    localUiWss.close();
     await new Promise((resolveClose) => localUiServer.close(() => resolveClose()));
     rmSync(persistDir, { recursive: true, force: true });
     rmSync(nextclawHome, { recursive: true, force: true });

@@ -1,4 +1,5 @@
-import { fetchChatRuns, sendChatTurnStream, stopChatTurn, streamChatRun } from '@/api/config';
+import { fetchChatRuns, stopChatTurn } from '@/api/config';
+import { appClient } from '@/transport';
 import type { ActiveRunState, SendMessageParams, StreamDeltaEvent, StreamReadyEvent, StreamSessionEvent } from './types';
 
 function buildSendTurnPayload(item: SendMessageParams, requestedSkills: string[]) {
@@ -32,12 +33,37 @@ export async function openSendTurnStream(params: {
   onDelta: (event: StreamDeltaEvent) => void;
   onSessionEvent: (event: StreamSessionEvent) => void;
 }) {
-  return sendChatTurnStream(buildSendTurnPayload(params.item, params.requestedSkills), {
+  let readySessionKey = '';
+  const session = appClient.openStream<{ reply?: string; sessionKey?: string }>({
+    method: 'POST',
+    path: '/api/chat/turn/stream',
+    body: buildSendTurnPayload(params.item, params.requestedSkills),
     signal: params.signal,
-    onReady: params.onReady,
-    onDelta: params.onDelta,
-    onSessionEvent: params.onSessionEvent
+    onEvent: (event) => {
+      if (event.name === 'ready') {
+        const payload = (event.payload ?? {}) as StreamReadyEvent;
+        if (typeof payload.sessionKey === 'string' && payload.sessionKey.trim()) {
+          readySessionKey = payload.sessionKey;
+        }
+        params.onReady(payload);
+        return;
+      }
+      if (event.name === 'delta') {
+        params.onDelta((event.payload ?? { delta: '' }) as StreamDeltaEvent);
+        return;
+      }
+      if (event.name === 'session_event') {
+        params.onSessionEvent({ data: event.payload as StreamSessionEvent['data'] });
+      }
+    }
   });
+  const result = await session.finished;
+  return {
+    sessionKey: typeof result?.sessionKey === 'string' && result.sessionKey.trim()
+      ? result.sessionKey
+      : readySessionKey,
+    reply: typeof result?.reply === 'string' ? result.reply : ''
+  };
 }
 
 export async function openResumeRunStream(params: {
@@ -48,18 +74,43 @@ export async function openResumeRunStream(params: {
   onDelta: (event: StreamDeltaEvent) => void;
   onSessionEvent: (event: StreamSessionEvent) => void;
 }) {
-  return streamChatRun(
-    {
-      runId: params.runId,
-      ...(typeof params.fromEventIndex === 'number' ? { fromEventIndex: params.fromEventIndex } : {})
-    },
-    {
-      signal: params.signal,
-      onReady: params.onReady,
-      onDelta: params.onDelta,
-      onSessionEvent: params.onSessionEvent
+  let readySessionKey = '';
+  const query = new URLSearchParams();
+  if (typeof params.fromEventIndex === 'number') {
+    query.set('fromEventIndex', String(Math.max(0, Math.trunc(params.fromEventIndex))));
+  }
+  const path =
+    `/api/chat/runs/${encodeURIComponent(params.runId)}/stream`
+    + (query.size > 0 ? `?${query.toString()}` : '');
+  const session = appClient.openStream<{ reply?: string; sessionKey?: string }>({
+    method: 'GET',
+    path,
+    signal: params.signal,
+    onEvent: (event) => {
+      if (event.name === 'ready') {
+        const payload = (event.payload ?? {}) as StreamReadyEvent;
+        if (typeof payload.sessionKey === 'string' && payload.sessionKey.trim()) {
+          readySessionKey = payload.sessionKey;
+        }
+        params.onReady(payload);
+        return;
+      }
+      if (event.name === 'delta') {
+        params.onDelta((event.payload ?? { delta: '' }) as StreamDeltaEvent);
+        return;
+      }
+      if (event.name === 'session_event') {
+        params.onSessionEvent({ data: event.payload as StreamSessionEvent['data'] });
+      }
     }
-  );
+  });
+  const result = await session.finished;
+  return {
+    sessionKey: typeof result?.sessionKey === 'string' && result.sessionKey.trim()
+      ? result.sessionKey
+      : readySessionKey,
+    reply: typeof result?.reply === 'string' ? result.reply : ''
+  };
 }
 
 export async function requestStopRun(activeRun: ActiveRunState): Promise<void> {

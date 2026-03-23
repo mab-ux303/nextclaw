@@ -5,7 +5,7 @@ import { appQueryClient } from '@/app-query-client';
 import { LoginPage } from '@/components/auth/login-page';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuthStatus } from '@/hooks/use-auth';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { useRealtimeQueryBridge } from '@/hooks/use-realtime-query-bridge';
 import { AppPresenterProvider } from '@/presenter/app-presenter-context';
 import { Toaster } from 'sonner';
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -32,7 +32,7 @@ function LazyRoute({ children }: { children: JSX.Element }) {
 }
 
 function ProtectedApp() {
-  useWebSocket(appQueryClient); // Initialize WebSocket connection
+  useRealtimeQueryBridge(appQueryClient);
 
   return (
     <AppPresenterProvider>

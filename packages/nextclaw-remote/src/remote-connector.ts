@@ -1,3 +1,4 @@
+import { RemoteAppAdapter } from "./remote-app.adapter.js";
 import { RemoteRelayBridge, type RelayRequestFrame } from "./remote-relay-bridge.js";
 import { RemotePlatformClient, delay, redactWsUrl } from "./remote-platform-client.js";
 import type {
@@ -32,6 +33,7 @@ export class RemoteConnector {
   }): Promise<"closed" | "aborted"> {
     return await new Promise<"closed" | "aborted">((resolve, reject) => {
       const socket = new WebSocket(params.wsUrl);
+      const appAdapter = new RemoteAppAdapter(params.localOrigin, socket);
       let settled = false;
       let aborted = false;
 
@@ -86,17 +88,27 @@ export class RemoteConnector {
           lastError: null
         });
         this.logger.info(`✓ Remote connector connected: ${redactWsUrl(params.wsUrl)}`);
+        void appAdapter.start().catch((error) => {
+          this.logger.error(`Remote event bridge error: ${error instanceof Error ? error.message : String(error)}`);
+        });
       });
 
       socket.addEventListener("message", (event) => {
-        this.handleSocketMessage({ data: event.data, relayBridge: params.relayBridge, socket });
+        this.handleSocketMessage({
+          data: event.data,
+          relayBridge: params.relayBridge,
+          appAdapter,
+          socket
+        });
       });
 
       socket.addEventListener("close", () => {
+        appAdapter.stop();
         finishResolve(aborted ? "aborted" : "closed");
       });
 
       socket.addEventListener("error", () => {
+        appAdapter.stop();
         if (aborted) {
           finishResolve("aborted");
           return;
@@ -109,6 +121,7 @@ export class RemoteConnector {
   private handleSocketMessage(params: {
     data: unknown;
     relayBridge: RemoteRelayBridge;
+    appAdapter: RemoteAppAdapter;
     socket: WebSocket;
   }): void {
     void (async () => {
@@ -117,21 +130,80 @@ export class RemoteConnector {
         return;
       }
       try {
-        await params.relayBridge.forward(frame, params.socket);
+        if (frame.type === "request") {
+          await params.relayBridge.forward(frame, params.socket);
+          return;
+        }
+        await params.appAdapter.handle(frame);
       } catch (error) {
+        if (frame.type === "request") {
+          params.socket.send(JSON.stringify({
+            type: "response.error",
+            requestId: frame.requestId,
+            message: error instanceof Error ? error.message : String(error)
+          }));
+          return;
+        }
+        if (frame.type === "client.request") {
+          params.socket.send(JSON.stringify({
+            type: "client.request.error",
+            clientId: frame.clientId,
+            id: frame.id,
+            message: error instanceof Error ? error.message : String(error)
+          }));
+          return;
+        }
         params.socket.send(JSON.stringify({
-          type: "response.error",
-          requestId: frame.requestId,
+          type: "client.stream.error",
+          clientId: frame.clientId,
+          streamId: frame.streamId,
           message: error instanceof Error ? error.message : String(error)
         }));
       }
     })();
   }
 
-  private parseRelayFrame(data: unknown): RelayRequestFrame | null {
+  private parseRelayFrame(data: unknown): (
+    | RelayRequestFrame
+    | {
+      type: "client.request";
+      clientId: string;
+      id: string;
+      target: { method: string; path: string; body?: unknown };
+    }
+    | {
+      type: "client.stream.open";
+      clientId: string;
+      streamId: string;
+      target: { method: string; path: string; body?: unknown };
+    }
+    | {
+      type: "client.stream.cancel";
+      clientId: string;
+      streamId: string;
+    }
+  ) | null {
     try {
-      const frame = JSON.parse(String(data ?? "")) as RelayRequestFrame;
-      return frame.type === "request" ? frame : null;
+      const frame = JSON.parse(String(data ?? ""));
+      if (typeof frame !== "object" || !frame || typeof frame.type !== "string") {
+        return null;
+      }
+      if (frame.type === "request") {
+        return frame as RelayRequestFrame;
+      }
+      if (
+        frame.type === "client.request"
+        || frame.type === "client.stream.open"
+        || frame.type === "client.stream.cancel"
+      ) {
+        return frame as {
+          type: "client.request";
+          clientId: string;
+          id: string;
+          target: { method: string; path: string; body?: unknown };
+        };
+      }
+      return null;
     } catch {
       return null;
     }

@@ -49,6 +49,8 @@ import {
   listRemoteDevicesHandler,
   openRemoteDeviceHandler,
   openRemoteSessionRedirectHandler,
+  remoteBrowserRuntimeHandler,
+  remoteBrowserWebSocketHandler,
   registerRemoteInstanceHandler,
   registerRemoteDeviceHandler,
   revokeRemoteShareGrantHandler,
@@ -74,6 +76,8 @@ function registerPlatformAuthRoutes(app: Hono<{ Bindings: Env }>): void {
 }
 
 function registerRemoteAccessRoutes(app: Hono<{ Bindings: Env }>): void {
+  app.get("/_remote/runtime", remoteBrowserRuntimeHandler);
+  app.get("/_remote/ws", remoteBrowserWebSocketHandler);
   app.get("/platform/remote/instances", listRemoteInstancesHandler);
   app.post("/platform/remote/instances/register", registerRemoteInstanceHandler);
   app.post("/platform/remote/instances/:instanceId/open", openRemoteInstanceHandler);

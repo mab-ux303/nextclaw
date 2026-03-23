@@ -1,5 +1,13 @@
 # @nextclaw/remote
 
+## 0.1.19
+
+### Patch Changes
+
+- Add remote app transport multiplexing so the UI can switch from direct local transport to remote runtime transport, including browser-side remote requests, realtime event bridging, and streamed chat turns over the remote relay.
+- Updated dependencies
+  - @nextclaw/server@0.10.23
+
 ## 0.1.18
 
 ### Patch Changes

@@ -81,7 +81,7 @@ export class RemoteRelayBridge {
     return headers;
   }
 
-  private async requestBridgeCookie(): Promise<string | null> {
+  async requestBridgeCookie(): Promise<string | null> {
     const response = await fetch(`${this.localOrigin}/api/auth/bridge`, {
       method: "POST",
       headers: {

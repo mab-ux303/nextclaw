@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/desktop",
-  "version": "0.0.62",
+  "version": "0.0.63",
   "private": true,
   "description": "NextClaw desktop shell powered by Electron.",
   "author": "NextClaw Team",

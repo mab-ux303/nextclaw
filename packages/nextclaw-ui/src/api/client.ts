@@ -42,7 +42,7 @@ function inferNonJsonHint(endpoint: string, status: number): string | undefined 
   return undefined;
 }
 
-async function apiRequest<T>(
+export async function requestApiResponse<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
@@ -104,19 +104,19 @@ async function apiRequest<T>(
 }
 
 export const api = {
-  get: <T>(path: string) => apiRequest<T>(path, { method: 'GET' }),
+  get: <T>(path: string) => requestApiResponse<T>(path, { method: 'GET' }),
   put: <T>(path: string, body: unknown) =>
-    apiRequest<T>(path, {
+    requestApiResponse<T>(path, {
       method: 'PUT',
       body: JSON.stringify(body)
     }),
   post: <T>(path: string, body: unknown) =>
-    apiRequest<T>(path, {
+    requestApiResponse<T>(path, {
       method: 'POST',
       body: JSON.stringify(body)
     }),
   delete: <T>(path: string) =>
-    apiRequest<T>(path, {
+    requestApiResponse<T>(path, {
       method: 'DELETE'
     })
 };

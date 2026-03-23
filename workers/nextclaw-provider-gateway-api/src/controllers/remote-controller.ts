@@ -433,27 +433,18 @@ export async function remoteConnectorWebSocketHandler(c: Context<{ Bindings: Env
 
   const stub = c.env.NEXTCLAW_REMOTE_RELAY.get(c.env.NEXTCLAW_REMOTE_RELAY.idFromName(instance.id));
   const headers = new Headers(c.req.raw.headers);
+  headers.set("x-nextclaw-remote-role", "connector");
   headers.set("x-nextclaw-remote-device-id", instance.id);
   headers.set("x-nextclaw-remote-user-id", auth.user.id);
   return stub.fetch(new Request(c.req.raw, { headers }));
 }
 
-export async function remoteProxyHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
-  await ensurePlatformBootstrap(c.env);
-  const url = new URL(c.req.url);
-  if (url.pathname.startsWith("/platform/") || url.pathname.startsWith("/v1/") || url.pathname === "/health") {
-    return apiError(c, 404, "NOT_FOUND", "endpoint not found");
-  }
-  if (isUpgradeWebSocket(c)) {
-    return apiError(c, 501, "REMOTE_WS_UNAVAILABLE", "Remote WebSocket proxy is not enabled in this MVP.");
-  }
-
+async function resolveValidatedRemoteProxyContext(c: Context<{ Bindings: Env }>) {
   const resolved = await validateRemoteAccessSession(c, await resolveRemoteAccessSession(c));
   if (!resolved.ok) {
     return resolved.response;
   }
   const session = resolved.session;
-
   const instance = await getRemoteInstanceById(c.env.NEXTCLAW_PLATFORM_DB, session.instance_id);
   if (!instance) {
     return new Response("Remote instance not found.", {
@@ -467,6 +458,69 @@ export async function remoteProxyHandler(c: Context<{ Bindings: Env }>): Promise
   if (!Number.isFinite(lastUsedMs) || now - lastUsedMs >= REMOTE_SESSION_TOUCH_THROTTLE_MS) {
     await touchRemoteAccessSession(c.env.NEXTCLAW_PLATFORM_DB, session.id, new Date(now).toISOString());
   }
+
+  return {
+    session,
+    instance
+  };
+}
+
+export async function remoteBrowserRuntimeHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  await ensurePlatformBootstrap(c.env);
+  const resolved = await resolveValidatedRemoteProxyContext(c);
+  if (resolved instanceof Response) {
+    return resolved;
+  }
+
+  return c.json({
+    ok: true,
+    data: {
+      mode: "remote",
+      protocolVersion: 1,
+      wsPath: "/_remote/ws"
+    }
+  });
+}
+
+export async function remoteBrowserWebSocketHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  await ensurePlatformBootstrap(c.env);
+  if (!isUpgradeWebSocket(c)) {
+    return apiError(c, 426, "UPGRADE_REQUIRED", "Expected websocket upgrade.");
+  }
+
+  const resolved = await resolveValidatedRemoteProxyContext(c);
+  if (resolved instanceof Response) {
+    return resolved;
+  }
+
+  const stub = c.env.NEXTCLAW_REMOTE_RELAY.get(c.env.NEXTCLAW_REMOTE_RELAY.idFromName(resolved.instance.id));
+  const headers = new Headers(c.req.raw.headers);
+  headers.set("x-nextclaw-remote-role", "browser");
+  headers.set("x-nextclaw-remote-device-id", resolved.instance.id);
+  headers.set("x-nextclaw-remote-client-id", crypto.randomUUID());
+  return stub.fetch(new Request(c.req.raw, { headers }));
+}
+
+export async function remoteProxyHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  await ensurePlatformBootstrap(c.env);
+  const url = new URL(c.req.url);
+  if (
+    url.pathname.startsWith("/platform/")
+    || url.pathname.startsWith("/v1/")
+    || url.pathname.startsWith("/_remote/")
+    || url.pathname === "/health"
+  ) {
+    return apiError(c, 404, "NOT_FOUND", "endpoint not found");
+  }
+  if (isUpgradeWebSocket(c)) {
+    return apiError(c, 501, "REMOTE_WS_UNAVAILABLE", "Remote WebSocket proxy is not enabled in this MVP.");
+  }
+
+  const resolved = await resolveValidatedRemoteProxyContext(c);
+  if (resolved instanceof Response) {
+    return resolved;
+  }
+  const { instance } = resolved;
 
   const stub = c.env.NEXTCLAW_REMOTE_RELAY.get(c.env.NEXTCLAW_REMOTE_RELAY.idFromName(instance.id));
   const path = `${url.pathname}${url.search}`;

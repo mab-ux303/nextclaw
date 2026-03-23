@@ -1,99 +1,39 @@
 import { touchRemoteInstance } from "./repositories/remote-repository";
+import { decodeRelayMessageData } from "./remote-relay-message.utils";
+import {
+  failPendingRelayResponse,
+  finishBufferedRelayResponse,
+  finishStreamingRelayResponse,
+  startStreamingRelayResponse,
+  writeStreamingRelayChunk
+} from "./remote-relay-response.utils";
+import type {
+  BrowserCommandFrame,
+  ClientAttachment,
+  ConnectorAttachment,
+  ConnectorClientFrame,
+  HeaderEntry,
+  PendingRelay,
+  RelayRequestFrame,
+  RelayResponseFrame,
+  WebSocketMessageData
+} from "./remote-relay.types";
 import type { Env } from "./types/platform";
 
-type HeaderEntry = [string, string];
-type WebSocketMessageData = string | ArrayBuffer | ArrayBufferView;
-
-const CONNECTOR_TAG = "connector";
-
-type RelayRequestFrame = {
-  type: "request";
-  requestId: string;
-  method: string;
-  path: string;
-  headers: HeaderEntry[];
-  bodyBase64?: string;
-};
-
-type RelayResponseFrame =
-  | {
-    type: "response";
-    requestId: string;
-    status: number;
-    headers: HeaderEntry[];
-    bodyBase64?: string;
-  }
-  | {
-    type: "response.start";
-    requestId: string;
-    status: number;
-    headers: HeaderEntry[];
-  }
-  | {
-    type: "response.chunk";
-    requestId: string;
-    bodyBase64: string;
-  }
-  | {
-    type: "response.end";
-    requestId: string;
-  }
-  | {
-    type: "response.error";
-    requestId: string;
-    message: string;
-  };
-
-type ConnectorAttachment = {
-  type: "connector";
-  deviceId: string;
-  connectedAt: string;
-};
-
-type PendingRelay = {
-  responsePromise: Promise<Response>;
-  resolveResponse: (response: Response) => void;
-  rejectResponse: (error: Error) => void;
-  writer: WritableStreamDefaultWriter<Uint8Array> | null;
-  timeoutId: ReturnType<typeof setTimeout>;
-};
-
-function decodeBase64(base64: string | undefined): Uint8Array {
-  if (!base64) {
-    return new Uint8Array();
-  }
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
-}
-
-function decodeMessageData(data: WebSocketMessageData): string {
-  if (typeof data === "string") {
-    return data;
-  }
-  if (data instanceof ArrayBuffer) {
-    return new TextDecoder().decode(new Uint8Array(data));
-  }
-  if (ArrayBuffer.isView(data)) {
-    return new TextDecoder().decode(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
-  }
-  return "";
-}
+const CONNECTOR_TAG = "connector"; const CLIENT_TAG = "client";
 
 export class NextclawRemoteRelayDurableObject {
   private readonly pending = new Map<string, PendingRelay>();
 
-  constructor(
-    private readonly state: DurableObjectState,
-    private readonly env: Env
-  ) {}
+  constructor(private readonly state: DurableObjectState, private readonly env: Env) {}
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (request.headers.get("upgrade")?.toLowerCase() === "websocket") {
+      const role = request.headers.get("x-nextclaw-remote-role")?.trim();
+      if (role === "browser") {
+        return this.handleBrowserUpgrade(request);
+      }
       return this.handleConnectorUpgrade(request);
     }
     if (url.pathname === "/proxy" && request.method === "POST") {
@@ -124,6 +64,28 @@ export class NextclawRemoteRelayDurableObject {
       existingConnector.close(1012, "Replaced by a newer connector session.");
     }
     await this.setDeviceStatus(deviceId, "online", connectedAt);
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  private async handleBrowserUpgrade(request: Request): Promise<Response> {
+    if (!this.getActiveConnector()) {
+      return new Response("Remote device connector is offline.", { status: 503 });
+    }
+    const clientId = request.headers.get("x-nextclaw-remote-client-id")?.trim() || crypto.randomUUID();
+    const pair = new WebSocketPair();
+    const client = pair[0];
+    const server = pair[1];
+    server.serializeAttachment({
+      type: "client",
+      clientId,
+      connectedAt: new Date().toISOString()
+    } satisfies ClientAttachment);
+    this.state.acceptWebSocket(server, [CLIENT_TAG]);
+    server.send(JSON.stringify({
+      type: "connection.ready",
+      connectionId: clientId,
+      protocolVersion: 1
+    }));
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -186,8 +148,14 @@ export class NextclawRemoteRelayDurableObject {
     };
   }
 
-  webSocketMessage(_webSocket: WebSocket, message: WebSocketMessageData): void {
-    this.state.waitUntil(this.handleConnectorMessage(decodeMessageData(message)));
+  webSocketMessage(webSocket: WebSocket, message: WebSocketMessageData): void {
+    const attachment = webSocket.deserializeAttachment() as ConnectorAttachment | ClientAttachment | null;
+    const raw = decodeRelayMessageData(message);
+    if (attachment?.type === "client") {
+      this.state.waitUntil(this.handleBrowserMessage(attachment.clientId, raw));
+      return;
+    }
+    this.state.waitUntil(this.handleConnectorMessage(raw));
   }
 
   webSocketClose(webSocket: WebSocket): void {
@@ -199,13 +167,18 @@ export class NextclawRemoteRelayDurableObject {
   }
 
   private async handleConnectorMessage(raw: string): Promise<void> {
-    let frame: RelayResponseFrame | null = null;
+    let frame: RelayResponseFrame | ConnectorClientFrame | null = null;
     try {
-      frame = JSON.parse(raw) as RelayResponseFrame;
+      frame = JSON.parse(raw) as RelayResponseFrame | ConnectorClientFrame;
     } catch {
       return;
     }
     if (!frame) {
+      return;
+    }
+
+    if ("clientId" in frame || frame.type === "client.event") {
+      this.handleConnectorClientFrame(frame as ConnectorClientFrame);
       return;
     }
 
@@ -215,29 +188,92 @@ export class NextclawRemoteRelayDurableObject {
     }
     switch (frame.type) {
       case "response":
-        this.finishBufferedResponse(frame, pending);
+        finishBufferedRelayResponse(this.pending, frame, pending);
         return;
       case "response.start":
-        this.startStreamingResponse(frame, pending);
+        startStreamingRelayResponse(frame, pending);
         return;
       case "response.chunk":
-        await this.writeStreamingChunk(frame, pending);
+        await writeStreamingRelayChunk(frame, pending);
         return;
       case "response.end":
-        await this.finishStreamingResponse(frame.requestId, pending);
+        await finishStreamingRelayResponse(this.pending, frame.requestId, pending);
         return;
       case "response.error":
-        await this.failPendingResponse(frame.requestId, pending, frame.message);
+        await failPendingRelayResponse(this.pending, frame.requestId, pending, frame.message);
         return;
       default:
         return;
     }
   }
 
+  private async handleBrowserMessage(clientId: string, raw: string): Promise<void> {
+    let frame: BrowserCommandFrame | null = null;
+    try {
+      frame = JSON.parse(raw) as BrowserCommandFrame;
+    } catch {
+      return;
+    }
+    if (!frame) {
+      return;
+    }
+
+    const connector = this.getActiveConnector();
+    if (!connector) {
+      if (frame.type === "request") {
+        this.sendToClient(clientId, {
+          type: "request.error",
+          id: frame.id,
+          message: "Remote device connector is offline."
+        });
+        return;
+      }
+      this.sendToClient(clientId, {
+        type: "stream.error",
+        streamId: frame.streamId,
+        message: "Remote device connector is offline."
+      });
+      return;
+    }
+
+    if (frame.type === "request") {
+      connector.send(JSON.stringify({
+        type: "client.request",
+        clientId,
+        id: frame.id,
+        target: frame.target
+      }));
+      return;
+    }
+
+    if (frame.type === "stream.open") {
+      connector.send(JSON.stringify({
+        type: "client.stream.open",
+        clientId,
+        streamId: frame.streamId,
+        target: frame.target
+      }));
+      return;
+    }
+
+    connector.send(JSON.stringify({
+      type: "client.stream.cancel",
+      clientId,
+      streamId: frame.streamId
+    }));
+  }
+
   private getConnectorSockets(): WebSocket[] {
     return this.state.getWebSockets(CONNECTOR_TAG).filter((socket) => {
       const attachment = socket.deserializeAttachment() as ConnectorAttachment | null;
       return attachment?.type === "connector";
+    });
+  }
+
+  private getClientSockets(): WebSocket[] {
+    return this.state.getWebSockets(CLIENT_TAG).filter((socket) => {
+      const attachment = socket.deserializeAttachment() as ClientAttachment | null;
+      return attachment?.type === "client";
     });
   }
 
@@ -261,61 +297,94 @@ export class NextclawRemoteRelayDurableObject {
     if (hasOtherOpenConnector) {
       return;
     }
+    for (const socket of this.getClientSockets()) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: "connection.error",
+          message: "Remote device connector disconnected."
+        }));
+        socket.close(1012, "Remote device connector disconnected.");
+      }
+    }
     await this.setDeviceStatus(attachment.deviceId, "offline", new Date().toISOString());
   }
 
-  private finishBufferedResponse(
-    frame: Extract<RelayResponseFrame, { type: "response" }>,
-    pending: PendingRelay
-  ): void {
-    clearTimeout(pending.timeoutId);
-    this.pending.delete(frame.requestId);
-    pending.resolveResponse(new Response(decodeBase64(frame.bodyBase64), {
-      status: frame.status,
-      headers: new Headers(frame.headers)
-    }));
-  }
-
-  private startStreamingResponse(
-    frame: Extract<RelayResponseFrame, { type: "response.start" }>,
-    pending: PendingRelay
-  ): void {
-    clearTimeout(pending.timeoutId);
-    const stream = new TransformStream<Uint8Array, Uint8Array>();
-    pending.writer = stream.writable.getWriter();
-    pending.resolveResponse(new Response(stream.readable, {
-      status: frame.status,
-      headers: new Headers(frame.headers)
-    }));
-  }
-
-  private async writeStreamingChunk(
-    frame: Extract<RelayResponseFrame, { type: "response.chunk" }>,
-    pending: PendingRelay
-  ): Promise<void> {
-    if (pending.writer) {
-      await pending.writer.write(decodeBase64(frame.bodyBase64));
-    }
-  }
-
-  private async finishStreamingResponse(requestId: string, pending: PendingRelay): Promise<void> {
-    clearTimeout(pending.timeoutId);
-    this.pending.delete(requestId);
-    if (pending.writer) {
-      await pending.writer.close();
-    }
-  }
-
-  private async failPendingResponse(requestId: string, pending: PendingRelay, message: string): Promise<void> {
-    clearTimeout(pending.timeoutId);
-    this.pending.delete(requestId);
-    if (pending.writer) {
-      await pending.writer.abort(new Error(message));
+  private handleConnectorClientFrame(frame: ConnectorClientFrame): void {
+    if (frame.type === "client.event") {
+      this.broadcastToClients({
+        type: "event",
+        event: frame.event
+      });
       return;
     }
-    pending.rejectResponse(new Error(message));
+
+    if (frame.type === "client.response") {
+      this.sendToClient(frame.clientId, {
+        type: "response",
+        id: frame.id,
+        status: frame.status,
+        body: frame.body
+      });
+      return;
+    }
+
+    if (frame.type === "client.request.error") {
+      this.sendToClient(frame.clientId, {
+        type: "request.error",
+        id: frame.id,
+        message: frame.message,
+        code: frame.code
+      });
+      return;
+    }
+
+    if (frame.type === "client.stream.event") {
+      this.sendToClient(frame.clientId, {
+        type: "stream.event",
+        streamId: frame.streamId,
+        event: frame.event,
+        payload: frame.payload
+      });
+      return;
+    }
+
+    if (frame.type === "client.stream.end") {
+      this.sendToClient(frame.clientId, {
+        type: "stream.end",
+        streamId: frame.streamId,
+        result: frame.result
+      });
+      return;
+    }
+
+    if (frame.type === "client.stream.error") {
+      this.sendToClient(frame.clientId, {
+        type: "stream.error",
+        streamId: frame.streamId,
+        message: frame.message,
+        code: frame.code
+      });
+    }
   }
 
+  private sendToClient(clientId: string, frame: Record<string, unknown>): void {
+    for (const socket of this.getClientSockets()) {
+      const attachment = socket.deserializeAttachment() as ClientAttachment | null;
+      if (attachment?.type !== "client" || attachment.clientId !== clientId || socket.readyState !== WebSocket.OPEN) {
+        continue;
+      }
+      socket.send(JSON.stringify(frame));
+      return;
+    }
+  }
+
+  private broadcastToClients(frame: Record<string, unknown>): void {
+    for (const socket of this.getClientSockets()) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(frame));
+      }
+    }
+  }
   private async setDeviceStatus(
     deviceId: string,
     status: "online" | "offline",
